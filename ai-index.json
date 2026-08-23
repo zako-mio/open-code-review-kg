@@ -1,0 +1,2053 @@
+{
+ "meta": {
+  "title": "Open Code Review 项目解析知识图谱",
+  "subtitle": "阿里开源 AI 代码审查工具 — 架构理解 × 工具索引",
+  "version": "2.0.0",
+  "generated": "2026-08-23",
+  "total_nodes": 51,
+  "total_assets": 42,
+  "total_commands": 72,
+  "usage": "本文件是 AI 可调用索引：读取 node_index 定位知识节点，commands 给可执行命令，asset_ids 关联实践源码资产（assets/ 下），html/md 指向人类页面。"
+ },
+ "node_index": [
+  {
+   "id": "arch-hybrid",
+   "name": "确定性工程 × Agent 混合架构",
+   "en": "Deterministic × Agent Hybrid",
+   "type": "principle",
+   "src": "core",
+   "group": "G-A",
+   "stage": "basic",
+   "definition": "核心设计理念：能工程化保证的环节交给确定性流水线，动态决策交给 LLM Agent，各司其职",
+   "html": "02-node-pages/arch-hybrid.html",
+   "md": "06-md/nodes/arch-hybrid.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-36"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "arch-pipeline",
+   "name": "审查流水线",
+   "en": "Review Pipeline",
+   "type": "principle",
+   "src": "core",
+   "group": "G-A",
+   "stage": "basic",
+   "definition": "从 CLI 入口到评论输出的 8 步确定性+Agent 混合时序：diff→过滤→分派→并行子 Agent→反思→输出",
+   "html": "02-node-pages/arch-pipeline.html",
+   "md": "06-md/nodes/arch-pipeline.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-11"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "arch-dispatch",
+   "name": "规则引导分派",
+   "en": "Rule-Guided Dispatch",
+   "type": "principle",
+   "src": "core",
+   "group": "G-A",
+   "stage": "intermediate",
+   "definition": "确定性文件选择/过滤/分束机制：用规则而非语言模型决定审什么、怎么分组",
+   "html": "02-node-pages/arch-dispatch.html",
+   "md": "06-md/nodes/arch-dispatch.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-10",
+    "asset-11"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "arch-grounded-tools",
+   "name": "受限工具集审查",
+   "en": "Grounded File Review",
+   "type": "principle",
+   "src": "core",
+   "group": "G-A",
+   "stage": "intermediate",
+   "definition": "6 个审查专用工具（file_read/file_find/code_search/file_read_diff/code_comment/task_done）经 ReAct 循环驱动文件级子 Agent",
+   "html": "02-node-pages/arch-grounded-tools.html",
+   "md": "06-md/nodes/arch-grounded-tools.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-08",
+    "asset-12"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "arch-reflection",
+   "name": "独立反思",
+   "en": "Independent Reflection",
+   "type": "principle",
+   "src": "core",
+   "group": "G-A",
+   "stage": "advanced",
+   "definition": "证伪优先的评论过滤器：只看到 diff 与评论，用 Ground A/B 双地面验证消除幻觉评论",
+   "html": "02-node-pages/arch-reflection.html",
+   "md": "06-md/nodes/arch-reflection.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-09",
+    "asset-11"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "arch-parallel",
+   "name": "文件级并行与上下文隔离",
+   "en": "Parallel & Isolation",
+   "type": "principle",
+   "src": "core",
+   "group": "G-A",
+   "stage": "advanced",
+   "definition": "每文件一个子 Agent 任务、独立上下文，信号量限流（默认 8 并发），防 token 雪球",
+   "html": "02-node-pages/arch-parallel.html",
+   "md": "06-md/nodes/arch-parallel.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-11",
+    "asset-26"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "eng-diff",
+   "name": "Git Diff 获取与解析",
+   "en": "Diff Acquisition & Parsing",
+   "type": "principle",
+   "src": "engine",
+   "group": "G-B",
+   "stage": "basic",
+   "definition": "三种 diff 来源（workspace/range/commit）+ unified diff 解析器（ParseDiffText/ParseHunks）",
+   "html": "02-node-pages/eng-diff.html",
+   "md": "06-md/nodes/eng-diff.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-16",
+    "asset-26"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "eng-filter",
+   "name": "文件选择与过滤",
+   "en": "File Selection & Filtering",
+   "type": "principle",
+   "src": "engine",
+   "group": "G-B",
+   "stage": "intermediate",
+   "definition": "whyExcluded 过滤链：binary→用户 exclude→include 覆盖→扩展名白名单→默认路径黑名单",
+   "html": "02-node-pages/eng-filter.html",
+   "md": "06-md/nodes/eng-filter.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-14"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "eng-bundling",
+   "name": "文件分束",
+   "en": "File Bundling",
+   "type": "principle",
+   "src": "engine",
+   "group": "G-B",
+   "stage": "intermediate",
+   "definition": "将关联文件归并为审查单元（en/zh properties 捆审）；scan 按 by-language/by-directory 分桶，delegate 按规则文本聚簇",
+   "html": "02-node-pages/eng-bundling.html",
+   "md": "06-md/nodes/eng-bundling.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-08",
+    "asset-10"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "eng-locator",
+   "name": "行号定位回退链",
+   "en": "Line Number Resolution",
+   "type": "principle",
+   "src": "engine",
+   "group": "G-B",
+   "stage": "intermediate",
+   "definition": "五级回退：hunk 新侧→hunk 旧侧→全文件滑动窗口→跨文件重定位→LLM 重定位，保证评论落在真实行",
+   "html": "02-node-pages/eng-locator.html",
+   "md": "06-md/nodes/eng-locator.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-12",
+    "asset-14"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "eng-relocate",
+   "name": "跨文件与 LLM 重定位",
+   "en": "Cross-file Relocation",
+   "type": "principle",
+   "src": "engine",
+   "group": "G-B",
+   "stage": "advanced",
+   "definition": "评论目标代码在别处时：纯字符串匹配迁移（唯一命中才动）+ LLM 从 diff 重生成代码块再定位",
+   "html": "02-node-pages/eng-relocate.html",
+   "md": "06-md/nodes/eng-relocate.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-15"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "eng-compression",
+   "name": "上下文三区压缩",
+   "en": "Context Compression",
+   "type": "principle",
+   "src": "engine",
+   "group": "G-B",
+   "stage": "advanced",
+   "definition": "frozen（前 2 条）+ compress（LLM 摘要进 previous_review_summary）+ active（最近 K 轮），60%/80% 双阈值触发",
+   "html": "02-node-pages/eng-compression.html",
+   "md": "06-md/nodes/eng-compression.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-12",
+    "asset-13"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "eng-session",
+   "name": "会话 JSONL 持久化",
+   "en": "Session Persistence",
+   "type": "principle",
+   "src": "engine",
+   "group": "G-B",
+   "stage": "advanced",
+   "definition": "~/.opencodereview/sessions/ 下 JSONL 记录全部任务记录（Plan/Main/压缩/重定位/反思），可回放可审计",
+   "html": "02-node-pages/eng-session.html",
+   "md": "06-md/nodes/eng-session.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-11",
+    "asset-18",
+    "asset-24",
+    "asset-25"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "eng-resume",
+   "name": "断点续审与指纹复用",
+   "en": "Resume & Fingerprint Reuse",
+   "type": "principle",
+   "src": "engine",
+   "group": "G-B",
+   "stage": "advanced",
+   "definition": "sha256(mode+old+new+diffText) 指纹复用已完成文件评论；SealedInput 冻结 commit 端点防 ref 漂移",
+   "html": "02-node-pages/eng-resume.html",
+   "md": "06-md/nodes/eng-resume.md",
+   "commands": [
+    "ocr review --resume <session-id> 指定要恢复的会话"
+   ],
+   "asset_ids": [
+    "asset-11",
+    "asset-19"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "eng-manifest",
+   "name": "Run Manifest 覆盖度契约",
+   "en": "Run Manifest",
+   "type": "principle",
+   "src": "engine",
+   "group": "G-B",
+   "stage": "advanced",
+   "definition": "ocr.run-manifest/v1：注册/封印/完成/失败四态跟踪每文件审查状态，8 类失败分类，预算截断≠运行失败",
+   "html": "02-node-pages/eng-manifest.html",
+   "md": "06-md/nodes/eng-manifest.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-11",
+    "asset-18"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "eng-scan",
+   "name": "全文件扫描引擎",
+   "en": "Scan Engine",
+   "type": "principle",
+   "src": "engine",
+   "group": "G-B",
+   "stage": "advanced",
+   "definition": "无 diff 审查：枚举→过滤→分束→批处理→DEDUP 去重→项目总结，ScanItem 携带全文件内容",
+   "html": "02-node-pages/eng-scan.html",
+   "md": "06-md/nodes/eng-scan.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-12",
+    "asset-17",
+    "asset-26"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cli-overview",
+   "name": "ocr 命令总览与安装",
+   "en": "CLI Overview & Install",
+   "type": "tool",
+   "src": "cli",
+   "group": "G-C",
+   "stage": "basic",
+   "definition": "安装方式（npm/脚本/二进制/源码）、cobra 命令树、全局参数与 version/completion 子命令",
+   "html": "02-node-pages/cli-overview.html",
+   "md": "06-md/nodes/cli-overview.md",
+   "commands": [
+    "ocr completion <shell> 生成对应 shell 的补全脚本，提升日常使用效率"
+   ],
+   "asset_ids": [
+    "asset-32",
+    "asset-33",
+    "asset-34",
+    "asset-36"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cli-review",
+   "name": "ocr review",
+   "en": "ocr review",
+   "type": "tool",
+   "src": "cli",
+   "group": "G-C",
+   "stage": "basic",
+   "definition": "基于 git diff 的审查主命令：workspace/range/commit 三模式，--format text|json|sarif，--resume 断点续审",
+   "html": "02-node-pages/cli-review.html",
+   "md": "06-md/nodes/cli-review.md",
+   "commands": [
+    "ocr review",
+    "ocr review --from main --to feature-branch",
+    "ocr review --commit abc123",
+    "ocr review --format json 或 ocr review --format sarif（CI 集成）",
+    "ocr review --audience agent",
+    "ocr review --rule <rule-id> --exclude '<glob>' 指定规则并排除路径",
+    "ocr review --concurrency 8 --timeout 30m --max-tokens-budget 200000 --max-git-procs 4",
+    "ocr review --provider openai --model gpt-4o",
+    "ocr review --preview 查看将审查的变更而不调用 LLM",
+    "ocr review --background --background-file review.jsonl，之后用 ocr session 查看进度与结果",
+    "ocr review --resume <session-id> 从断点继续"
+   ],
+   "asset_ids": [
+    "asset-08",
+    "asset-14",
+    "asset-18"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cli-scan",
+   "name": "ocr scan",
+   "en": "ocr scan",
+   "type": "tool",
+   "src": "cli",
+   "group": "G-C",
+   "stage": "basic",
+   "definition": "全文件扫描：无需 git 历史，--path 指定目录，--batch by-language/by-directory，PLAN/DEDUP/SUMMARY 三阶段",
+   "html": "02-node-pages/cli-scan.html",
+   "md": "06-md/nodes/cli-scan.md",
+   "commands": [
+    "ocr scan",
+    "ocr scan --path internal/agent 或 ocr scan --path internal/agent/main.go",
+    "ocr scan --batch by-language",
+    "ocr scan --batch by-directory",
+    "ocr scan --batch none",
+    "ocr scan --no-plan",
+    "ocr scan --no-dedup",
+    "ocr scan --no-summary",
+    "ocr scan --resume <session-id>"
+   ],
+   "asset_ids": [
+    "asset-08",
+    "asset-17",
+    "asset-18"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cli-delegate",
+   "name": "ocr delegate",
+   "en": "ocr delegate",
+   "type": "tool",
+   "src": "cli",
+   "group": "G-C",
+   "stage": "intermediate",
+   "definition": "委托模式：OCR 只做文件选择+规则解析输出 spec JSON，编码 Agent 用自己的 LLM 审查，无需 OCR API Key",
+   "html": "02-node-pages/cli-delegate.html",
+   "md": "06-md/nodes/cli-delegate.md",
+   "commands": [
+    "ocr delegate preview --format json，解析其中的 mode、merge_base、可审查文件清单与 excluded_files",
+    "ocr delegate rule <paths>（paths 为目录或文件），查看按 source|pattern|text 三元组聚类的规则输出"
+   ],
+   "asset_ids": [
+    "asset-08",
+    "asset-28"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cli-config",
+   "name": "ocr config",
+   "en": "ocr config",
+   "type": "tool",
+   "src": "cli",
+   "group": "G-C",
+   "stage": "basic",
+   "definition": "配置管理：set/unset 键值 + provider/model 交互式 TUI 向导（Bubble Tea），自动测试连通性",
+   "html": "02-node-pages/cli-config.html",
+   "md": "06-md/nodes/cli-config.md",
+   "commands": [
+    "ocr config set provider <name>（如 openai、deepseek）",
+    "ocr config set model <model-id>",
+    "ocr config set providers.openai.apiKey sk-xxx 或 ocr config set providers.openai.baseUrl <url>",
+    "ocr config set custom_providers.<name>.<field> <value>",
+    "ocr config set llm.temperature 0.2、ocr config set telemetry.enabled false",
+    "ocr config unset provider",
+    "ocr config provider（选择 provider 并输入 API key、测试连接）、ocr config model（选择模型）",
+    "ocr config set provider openai，注意写路径仍为默认位置"
+   ],
+   "asset_ids": [
+    "asset-20"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cli-session",
+   "name": "ocr session",
+   "en": "ocr session",
+   "type": "tool",
+   "src": "cli",
+   "group": "G-C",
+   "stage": "intermediate",
+   "definition": "会话管理：list/show/comments 子命令，--json 输出，按 severity/category 过滤评论",
+   "html": "02-node-pages/cli-session.html",
+   "md": "06-md/nodes/cli-session.md",
+   "commands": [
+    "ocr session list",
+    "ocr session list --json",
+    "ocr session list --limit 50、ocr session list --repo <repo-name>",
+    "ocr session show <session-id>",
+    "ocr session comments <session-id>",
+    "ocr session comments <session-id> --severity high 或 ocr session comments <session-id> --category <category>",
+    "ocr review --resume <session-id>，从上次中断处继续",
+    "ocr review --background 启动后，用 ocr session list 观察会话状态与完成度"
+   ],
+   "asset_ids": [
+    "asset-19"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cli-viewer",
+   "name": "ocr viewer",
+   "en": "ocr viewer",
+   "type": "tool",
+   "src": "cli",
+   "group": "G-C",
+   "stage": "intermediate",
+   "definition": "本地 WebUI 会话查看器（默认 localhost:5483）：浏览器回放审查会话 JSONL，hostGuard 防 DNS-rebind",
+   "html": "02-node-pages/cli-viewer.html",
+   "md": "06-md/nodes/cli-viewer.md",
+   "commands": [
+    "ocr viewer，默认监听 localhost:5483",
+    "ocr viewer --addr 0.0.0.0:9000（局域网共享时）或 ocr viewer --addr 127.0.0.1:8080",
+    "ocr session list 获取 repo 与 sessionID，再在 viewer 中定位对应会话"
+   ],
+   "asset_ids": [
+    "asset-24"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cli-rules",
+   "name": "ocr rules",
+   "en": "ocr rules",
+   "type": "tool",
+   "src": "cli",
+   "group": "G-C",
+   "stage": "advanced",
+   "definition": "规则调试：rules check <file> 显示命中规则层（custom/project/global/system）与匹配模式",
+   "html": "02-node-pages/cli-rules.html",
+   "md": "06-md/nodes/cli-rules.md",
+   "commands": [
+    "ocr rules check src/foo.go",
+    "ocr rules check internal/agent",
+    "ocr rules check <file-path> 对比修改前后的命中变化"
+   ],
+   "asset_ids": [
+    "asset-10"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cli-llm",
+   "name": "ocr llm",
+   "en": "ocr llm",
+   "type": "tool",
+   "src": "cli",
+   "group": "G-C",
+   "stage": "advanced",
+   "definition": "LLM 工具：test 发送测试对话、providers 列出全部 27 个内置 provider",
+   "html": "02-node-pages/cli-llm.html",
+   "md": "06-md/nodes/cli-llm.md",
+   "commands": [
+    "ocr llm test，观察返回的测试对话结果或错误信息",
+    "ocr llm providers，核对当前 provider 名称是否在清单内",
+    "ocr config set provider <name> 与 ocr config set model <model-id>",
+    "ocr llm test，确认认证与响应正常后再进入 review/scan",
+    "ocr llm test 逐一验证，选出可用的模型组合"
+   ],
+   "asset_ids": [
+    "asset-20",
+    "asset-21"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cfg-providers",
+   "name": "Provider 体系",
+   "en": "Provider Registry",
+   "type": "principle",
+   "src": "config",
+   "group": "G-D",
+   "stage": "basic",
+   "definition": "27 个内置 LLM provider（anthropic/openai/dashscope/deepseek/z-ai/kimi/...）+ 自定义端点，覆盖国内外主流模型",
+   "html": "02-node-pages/cfg-providers.html",
+   "md": "06-md/nodes/cfg-providers.md",
+   "commands": [
+    "ocr review --provider deepseek --model deepseek-chat"
+   ],
+   "asset_ids": [
+    "asset-21",
+    "asset-41"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cfg-protocol",
+   "name": "LLM 协议层",
+   "en": "LLM Protocol Layer",
+   "type": "principle",
+   "src": "config",
+   "group": "G-D",
+   "stage": "intermediate",
+   "definition": "4 种协议：Anthropic Messages / OpenAI Chat Completions / OpenAI Responses / Bedrock SigV4，统一 CompletionsWithCtx 接口",
+   "html": "02-node-pages/cfg-protocol.html",
+   "md": "06-md/nodes/cfg-protocol.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-22"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cfg-priority",
+   "name": "配置优先级",
+   "en": "Config Priority",
+   "type": "principle",
+   "src": "config",
+   "group": "G-D",
+   "stage": "intermediate",
+   "definition": "5 级解析：显式 --provider/--model > config.json > OCR_LLM_* 环境变量 > ANTHROPIC_* 环境变量 > shell RC",
+   "html": "02-node-pages/cfg-priority.html",
+   "md": "06-md/nodes/cfg-priority.md",
+   "commands": [
+    "ocr review --provider openai --model gpt-4o"
+   ],
+   "asset_ids": [
+    "asset-20",
+    "asset-41"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cfg-rules-chain",
+   "name": "四层规则链",
+   "en": "Four-layer Rule Chain",
+   "type": "principle",
+   "src": "config",
+   "group": "G-D",
+   "stage": "intermediate",
+   "definition": "custom(--rule) > project(.opencodereview/rule.json) > global(~/.opencodereview/rule.json) > system(内嵌)，doublestar glob 匹配",
+   "html": "02-node-pages/cfg-rules-chain.html",
+   "md": "06-md/nodes/cfg-rules-chain.md",
+   "commands": [
+    "ocr review --rule <自定义规则文件路径>"
+   ],
+   "asset_ids": [
+    "asset-10",
+    "asset-40"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "cfg-mcp",
+   "name": "MCP 扩展",
+   "en": "MCP Extension",
+   "type": "principle",
+   "src": "config",
+   "group": "G-D",
+   "stage": "advanced",
+   "definition": "Model Context Protocol：stdio 子进程 + remote Streamable HTTP 双传输，外部工具接入审查工具链（allowlist 过滤）",
+   "html": "02-node-pages/cfg-mcp.html",
+   "md": "06-md/nodes/cfg-mcp.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-23",
+    "asset-41"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "int-gha",
+   "name": "GitHub Actions 集成",
+   "en": "GitHub Actions",
+   "type": "tool",
+   "src": "integration",
+   "group": "G-E",
+   "stage": "intermediate",
+   "definition": "composite action（action.yml）：24 入参/6 出参，fork-safe PR 解析，评论发布脚本（sticky/增量 IoU 去重/路由）",
+   "html": "02-node-pages/int-gha.html",
+   "md": "06-md/nodes/int-gha.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-00",
+    "asset-06",
+    "asset-07"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "int-cicd",
+   "name": "其他 CI 集成",
+   "en": "Other CI Integrations",
+   "type": "tool",
+   "src": "integration",
+   "group": "G-E",
+   "stage": "advanced",
+   "definition": "GitLab CI / Gerrit Jenkinsfile / GitFlic CI / Bitbucket Pipelines / 阿里云 Codeup CI + post_review.py 评论回贴",
+   "html": "02-node-pages/int-cicd.html",
+   "md": "06-md/nodes/int-cicd.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-01",
+    "asset-02",
+    "asset-03",
+    "asset-04",
+    "asset-05"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "int-claude",
+   "name": "Claude Code 插件",
+   "en": "Claude Code Plugin",
+   "type": "tool",
+   "src": "integration",
+   "group": "G-E",
+   "stage": "advanced",
+   "definition": "claude-code 插件：/open-code-review:review 与 :delegate-review 斜杠命令，marketplace 安装",
+   "html": "02-node-pages/int-claude.html",
+   "md": "06-md/nodes/int-claude.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-30"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "int-codex",
+   "name": "Codex 插件",
+   "en": "Codex Plugin",
+   "type": "tool",
+   "src": "integration",
+   "group": "G-E",
+   "stage": "advanced",
+   "definition": ".codex-plugin/plugin.json + skills：以 @Open Code Review review ... 调用，interface Read capability",
+   "html": "02-node-pages/int-codex.html",
+   "md": "06-md/nodes/int-codex.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-37"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "int-cursor",
+   "name": "Cursor 插件",
+   "en": "Cursor Plugin",
+   "type": "tool",
+   "src": "integration",
+   "group": "G-E",
+   "stage": "advanced",
+   "definition": ".cursor-plugin/plugin.json + 可移植 skill，复制到 ~/.cursor/plugins/local/ 手动安装",
+   "html": "02-node-pages/int-cursor.html",
+   "md": "06-md/nodes/int-cursor.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-38"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "int-opencode",
+   "name": "OpenCode 原生插件",
+   "en": "OpenCode Native Plugin",
+   "type": "tool",
+   "src": "integration",
+   "group": "G-E",
+   "stage": "advanced",
+   "definition": "@opencode-ai/plugin：tool() 注册原生审查工具，spawn 'ocr review --audience agent --format json'，参数互斥校验",
+   "html": "02-node-pages/int-opencode.html",
+   "md": "06-md/nodes/int-opencode.md",
+   "commands": [
+    "ocr review --audience agent --format json"
+   ],
+   "asset_ids": [
+    "asset-29"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "int-qca",
+   "name": "QCA Forward 委托",
+   "en": "QCA Forward",
+   "type": "tool",
+   "src": "integration",
+   "group": "G-E",
+   "stage": "advanced",
+   "definition": "QCA 宿主模型运行委托模式：只允许 ocr delegate preview/rule（只读），OCR 侧零 LLM 调用",
+   "html": "02-node-pages/int-qca.html",
+   "md": "06-md/nodes/int-qca.md",
+   "commands": [
+    "ocr delegate preview / ocr delegate rule，禁止 ocr review，所有操作只读",
+    "ocr delegate preview <范围> 先预览委托效果，确认目标与预期相符",
+    "ocr delegate rule <范围>，按配置的规则集对目标执行只读分析"
+   ],
+   "asset_ids": [
+    "asset-39"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "int-skill",
+   "name": "通用 Agent Skill",
+   "en": "Portable Agent Skill",
+   "type": "tool",
+   "src": "integration",
+   "group": "G-E",
+   "stage": "advanced",
+   "definition": "skills/open-code-review/SKILL.md：四步 review/filter/fix/report 工作流 + delegate 六步 skill，兼容任意 skill 型 Agent",
+   "html": "02-node-pages/int-skill.html",
+   "md": "06-md/nodes/int-skill.md",
+   "commands": [
+    "ocr review --audience agent --background <范围> 作为核心调用，覆盖目标文件、目录或提交范围"
+   ],
+   "asset_ids": [
+    "asset-27",
+    "asset-28"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "int-vscode",
+   "name": "VSCode 扩展",
+   "en": "VSCode Extension",
+   "type": "tool",
+   "src": "integration",
+   "group": "G-E",
+   "stage": "advanced",
+   "definition": "React webview（侧边栏/配置面板/评论面板）+ CliService 封装，i18n en/zh，webpack+jest",
+   "html": "02-node-pages/int-vscode.html",
+   "md": "06-md/nodes/int-vscode.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-36"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "q-bench",
+   "name": "AACR-Bench 基准",
+   "en": "AACR-Bench",
+   "type": "crosscut",
+   "src": "quality",
+   "group": "G-F",
+   "stage": "intermediate",
+   "definition": "50 仓库/200 真实 PR/10 语言/1505 人工标注问题的审查基准（HuggingFace 开源），驱动 Precision/F1/token 量化优化",
+   "html": "02-node-pages/q-bench.html",
+   "md": "06-md/nodes/q-bench.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-06"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "q-telemetry",
+   "name": "OpenTelemetry 遥测",
+   "en": "OpenTelemetry Telemetry",
+   "type": "crosscut",
+   "src": "quality",
+   "group": "G-F",
+   "stage": "advanced",
+   "definition": "console/OTLP 双导出（grpc/http），审查事件与指标埋点，OCR_ENABLE_TELEMETRY 环境变量开启",
+   "html": "02-node-pages/q-telemetry.html",
+   "md": "06-md/nodes/q-telemetry.md",
+   "commands": [
+    "ocr review，在 console 观察 trace 输出，确认埋点链路完整"
+   ],
+   "asset_ids": [
+    "asset-25"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "q-security",
+   "name": "安全设计",
+   "en": "Security Design",
+   "type": "crosscut",
+   "src": "quality",
+   "group": "G-F",
+   "stage": "advanced",
+   "definition": "路径穿越防护（WithinBase+EvalSymlinks）、git grep 拒 '..'、viewer hostGuard 防 DNS-rebind、manifest 哈希不含密钥",
+   "html": "02-node-pages/q-security.html",
+   "md": "06-md/nodes/q-security.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-24"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "q-retry",
+   "name": "重试与错误分类",
+   "en": "Retry & Error Classification",
+   "type": "crosscut",
+   "src": "quality",
+   "group": "G-F",
+   "stage": "advanced",
+   "definition": "SDK 内建 max-retries=5 + 可配置 RetryCodes；错误按 ErrorClass(timeout/cancelled/network/provider/unknown)+FailurePhase 分类入报告",
+   "html": "02-node-pages/q-retry.html",
+   "md": "06-md/nodes/q-retry.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-11"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "q-release",
+   "name": "构建与发布体系",
+   "en": "Build & Release",
+   "type": "crosscut",
+   "src": "quality",
+   "group": "G-F",
+   "stage": "advanced",
+   "definition": "npm 包（6 平台 optionalDependencies）+ GitHub Release 二进制 + install.sh/ps1，Makefile 覆盖率 90% 门禁",
+   "html": "02-node-pages/q-release.html",
+   "md": "06-md/nodes/q-release.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-31",
+    "asset-32",
+    "asset-33",
+    "asset-34",
+    "asset-35"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "q-token",
+   "name": "Token 计费与成本控制",
+   "en": "Token Accounting & Cost",
+   "type": "crosscut",
+   "src": "quality",
+   "group": "G-F",
+   "stage": "intermediate",
+   "definition": "tiktoken-go 计费（o200k/cl100k_base），预算前瞻截断、80% token 大文件丢弃、prompt-cache 亲和键命中前缀缓存",
+   "html": "02-node-pages/q-token.html",
+   "md": "06-md/nodes/q-token.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-20"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "use-pr-review",
+   "name": "场景：审查 PR/分支变更",
+   "en": "Scenario: PR Review",
+   "type": "scenario",
+   "src": "scenario",
+   "group": "G-S",
+   "stage": "basic",
+   "definition": "日常审查入口：合并基准模式审 feature 分支、单 commit 审查、GitHub PR 上自动触发",
+   "html": "02-node-pages/use-pr-review.html",
+   "md": "06-md/nodes/use-pr-review.md",
+   "commands": [
+    "ocr review，工具自动收集当前改动并产出评论",
+    "ocr review --from main --to feature-branch，无需 checkout 即可审查任意分支间的变更",
+    "ocr review --commit abc123，适合对历史提交定点复核"
+   ],
+   "asset_ids": [
+    "asset-00",
+    "asset-24"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "use-scan-codebase",
+   "name": "场景：审计陌生代码库",
+   "en": "Scenario: Codebase Scan",
+   "type": "scenario",
+   "src": "scenario",
+   "group": "G-S",
+   "stage": "basic",
+   "definition": "无 git 历史/无有意义 diff 时：全文件扫描，按语言/目录分束，DEDUP 去重，项目级总结",
+   "html": "02-node-pages/use-scan-codebase.html",
+   "md": "06-md/nodes/use-scan-codebase.md",
+   "commands": [
+    "ocr scan，等待扫描完成并查看逐文件评论",
+    "ocr scan --path internal/agent，只扫指定目录，快速聚焦目标模块",
+    "ocr scan --batch by-language 按语言分批，或 --batch by-directory 按目录分批，避免单批过大"
+   ],
+   "asset_ids": [
+    "asset-27",
+    "asset-29"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "use-no-key",
+   "name": "场景：免 Key 委托审查",
+   "en": "Scenario: Delegated Review",
+   "type": "scenario",
+   "src": "scenario",
+   "group": "G-S",
+   "stage": "intermediate",
+   "definition": "没有 LLM API Key 或想用宿主 Agent 模型：ocr delegate preview/rule 输出 spec，编码 Agent 自己审",
+   "html": "02-node-pages/use-no-key.html",
+   "md": "06-md/nodes/use-no-key.md",
+   "commands": [
+    "ocr delegate preview --format json，确认当前仓库哪些文件可进入委托范围",
+    "ocr delegate rule src/main.go src/handler.go，得到针对这两个文件的规则文本",
+    "ocr delegate 命令，实现『宿主模型 + OCR 规则』的混合审查流"
+   ],
+   "asset_ids": [
+    "asset-27"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "use-ci",
+   "name": "场景：接入 CI 流水线",
+   "en": "Scenario: CI Integration",
+   "type": "scenario",
+   "src": "scenario",
+   "group": "G-S",
+   "stage": "intermediate",
+   "definition": "让审查自动跑在每个 MR/PR：GitHub Actions 一步复用、GitLab/Gerrit 等加 post_review.py 回贴评论",
+   "html": "02-node-pages/use-ci.html",
+   "md": "06-md/nodes/use-ci.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-00",
+    "asset-01",
+    "asset-06"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "use-configure",
+   "name": "场景：配置模型与规则",
+   "en": "Scenario: Configure & Rules",
+   "type": "scenario",
+   "src": "scenario",
+   "group": "G-S",
+   "stage": "intermediate",
+   "definition": "首次上手必做：选 provider/模型/API Key，按项目定制规则（rule.json）、过滤路径、调并发与预算",
+   "html": "02-node-pages/use-configure.html",
+   "md": "06-md/nodes/use-configure.md",
+   "commands": [
+    "ocr config provider 选择内置 provider（如 DashScope/DeepSeek）或按自定义端点配置 → 随后 ocr config model 指定模型并自动测连通",
+    "ocr config set language zh-CN，让审查评论以中文输出",
+    "ocr review --rule '禁止硬编码密钥'，不污染仓库配置",
+    "ocr rules check，确认规则命中目标文件，输出与实际匹配一致后再正式审查"
+   ],
+   "asset_ids": [
+    "asset-21",
+    "asset-40",
+    "asset-41"
+   ],
+   "has_evidence": true
+  },
+  {
+   "id": "use-extend",
+   "name": "场景：扩展审查能力",
+   "en": "Scenario: Extend OCR",
+   "type": "scenario",
+   "src": "scenario",
+   "group": "G-S",
+   "stage": "advanced",
+   "definition": "规则不够用？MCP 接入外部工具、自定义规则文件、--rule 临时规则、委托模式喂给任意 Agent",
+   "html": "02-node-pages/use-extend.html",
+   "md": "06-md/nodes/use-extend.md",
+   "commands": [],
+   "asset_ids": [
+    "asset-28",
+    "asset-40"
+   ],
+   "has_evidence": true
+  }
+ ],
+ "asset_index": [
+  {
+   "id": "asset-00",
+   "type": "ci",
+   "name": "github_actions-ocr-review.yml",
+   "path": "assets/ci/github_actions-ocr-review.yml",
+   "src_path": "examples/github_actions/ocr-review.yml",
+   "desc": "GitHub Actions 自动审查 workflow 示例（PR 事件+评论触发，并发组防重）",
+   "node_ids": [
+    "int-gha",
+    "use-pr-review",
+    "use-ci"
+   ],
+   "size_bytes": 5170
+  },
+  {
+   "id": "asset-01",
+   "type": "ci",
+   "name": "gitlab-ci.yml",
+   "path": "assets/ci/gitlab-ci.yml",
+   "src_path": "examples/gitlab_ci/.gitlab-ci.yml",
+   "desc": "GitLab CI 审查作业示例（含 OCR_* 环境变量族）",
+   "node_ids": [
+    "int-cicd",
+    "use-ci"
+   ],
+   "size_bytes": 9775
+  },
+  {
+   "id": "asset-02",
+   "type": "ci",
+   "name": "gerrit-Jenkinsfile",
+   "path": "assets/ci/gerrit-Jenkinsfile",
+   "src_path": "examples/gerrit_ci/Jenkinsfile",
+   "desc": "Gerrit 评审流 Jenkinsfile 示例",
+   "node_ids": [
+    "int-cicd"
+   ],
+   "size_bytes": 5261
+  },
+  {
+   "id": "asset-03",
+   "type": "ci",
+   "name": "codeup-flow.yml",
+   "path": "assets/ci/codeup-flow.yml",
+   "src_path": "examples/codeup_ci/codeup-flow.yml",
+   "desc": "阿里云 Codeup CI 示例",
+   "node_ids": [
+    "int-cicd"
+   ],
+   "size_bytes": 1894
+  },
+  {
+   "id": "asset-04",
+   "type": "ci",
+   "name": "gitflic-ci.yaml",
+   "path": "assets/ci/gitflic-ci.yaml",
+   "src_path": "examples/gitflic_ci/gitflic-ci.yaml",
+   "desc": "GitFlic CI 示例",
+   "node_ids": [
+    "int-cicd"
+   ],
+   "size_bytes": 3407
+  },
+  {
+   "id": "asset-05",
+   "type": "ci",
+   "name": "bitbucket-pipelines.yml",
+   "path": "assets/ci/bitbucket-pipelines.yml",
+   "src_path": "examples/bitbucket_pipelines/bitbucket-pipelines.yml",
+   "desc": "Bitbucket Pipelines 示例",
+   "node_ids": [
+    "int-cicd"
+   ],
+   "size_bytes": 10666
+  },
+  {
+   "id": "asset-06",
+   "type": "ci",
+   "name": "action.yml",
+   "path": "assets/ci/action.yml",
+   "src_path": "action.yml",
+   "desc": "GitHub Actions composite action 完整定义（24 入参 / 6 出参）",
+   "node_ids": [
+    "int-gha",
+    "use-ci",
+    "q-bench"
+   ],
+   "size_bytes": 14207
+  },
+  {
+   "id": "asset-07",
+   "type": "script",
+   "name": "post-review-comments.js",
+   "path": "assets/scripts/post-review-comments.js",
+   "src_path": "scripts/github-actions/post-review-comments.js",
+   "desc": "GHA 评论发布脚本（sticky 摘要 / 增量 IoU 去重 / 50 条批量 / severity 路由）",
+   "node_ids": [
+    "int-gha"
+   ],
+   "size_bytes": 96540
+  },
+  {
+   "id": "asset-08",
+   "type": "tool",
+   "name": "tools.json",
+   "path": "assets/tools/tools.json",
+   "src_path": "internal/config/toolsconfig/tools.json",
+   "desc": "6 个审查专用工具 schema 权威源（plan_task/main_task 相位旗标）",
+   "node_ids": [
+    "arch-grounded-tools",
+    "cli-review",
+    "cli-scan",
+    "cli-delegate",
+    "eng-bundling"
+   ],
+   "size_bytes": 10082
+  },
+  {
+   "id": "asset-09",
+   "type": "prompt",
+   "name": "review_filter_task_user.md",
+   "path": "assets/prompts/review_filter_task_user.md",
+   "src_path": "internal/config/template/prompts/review_filter_task_user.md",
+   "desc": "独立反思过滤 prompt 原文（五步法 / Ground A/B / 非对称信息边界）",
+   "node_ids": [
+    "arch-reflection"
+   ],
+   "size_bytes": 5303
+  },
+  {
+   "id": "asset-10",
+   "type": "rule",
+   "name": "system_rules.json",
+   "path": "assets/rules/system_rules.json",
+   "src_path": "internal/config/rules/system_rules.json",
+   "desc": "内置系统规则（四层规则链最底层，首匹配优先）",
+   "node_ids": [
+    "cfg-rules-chain",
+    "arch-dispatch",
+    "eng-bundling",
+    "cli-rules"
+   ],
+   "size_bytes": 1488
+  },
+  {
+   "id": "asset-11",
+   "type": "code",
+   "name": "agent.go.md",
+   "path": "assets/code/agent.go.md",
+   "src_path": "internal/agent/agent.go",
+   "desc": "agent.go 核心节选：Run 流水线 / dispatchSubtasks / executeSubtask / REVIEW_FILTER",
+   "node_ids": [
+    "arch-pipeline",
+    "arch-dispatch",
+    "arch-parallel",
+    "arch-reflection",
+    "eng-session",
+    "eng-resume",
+    "eng-manifest",
+    "q-retry"
+   ],
+   "size_bytes": 3451
+  },
+  {
+   "id": "asset-12",
+   "type": "code",
+   "name": "llmloop-loop.go.md",
+   "path": "assets/code/llmloop-loop.go.md",
+   "src_path": "internal/llmloop/loop.go",
+   "desc": "ReAct 主循环节选：RunPerFile / 终止条件 / 工具分派 / 异步评论",
+   "node_ids": [
+    "arch-grounded-tools",
+    "eng-compression",
+    "eng-scan",
+    "eng-locator"
+   ],
+   "size_bytes": 1778
+  },
+  {
+   "id": "asset-13",
+   "type": "code",
+   "name": "llmloop-compression.go.md",
+   "path": "assets/code/llmloop-compression.go.md",
+   "src_path": "internal/llmloop/compression.go",
+   "desc": "三区内存压缩节选：frozen/compress/active + 60%/80% 双阈值",
+   "node_ids": [
+    "eng-compression"
+   ],
+   "size_bytes": 2155
+  },
+  {
+   "id": "asset-14",
+   "type": "code",
+   "name": "diff-resolver.go.md",
+   "path": "assets/code/diff-resolver.go.md",
+   "src_path": "internal/diff/resolver.go",
+   "desc": "行号解析五级回退链节选：ResolveComment / matchConsecutive",
+   "node_ids": [
+    "eng-locator",
+    "eng-filter",
+    "cli-review"
+   ],
+   "size_bytes": 2009
+  },
+  {
+   "id": "asset-15",
+   "type": "code",
+   "name": "diff-relocation.go.md",
+   "path": "assets/code/diff-relocation.go.md",
+   "src_path": "internal/diff/relocation.go",
+   "desc": "跨文件与 LLM 重定位节选：RelocateAcrossFiles / ReLocateComment",
+   "node_ids": [
+    "eng-relocate"
+   ],
+   "size_bytes": 1729
+  },
+  {
+   "id": "asset-16",
+   "type": "code",
+   "name": "diff-git.go.md",
+   "path": "assets/code/diff-git.go.md",
+   "src_path": "internal/diff/git.go",
+   "desc": "三种 diff Provider 节选：range / commit / workspace",
+   "node_ids": [
+    "eng-diff"
+   ],
+   "size_bytes": 2005
+  },
+  {
+   "id": "asset-17",
+   "type": "code",
+   "name": "scan-agent.go.md",
+   "path": "assets/code/scan-agent.go.md",
+   "src_path": "internal/scan/agent.go",
+   "desc": "全文件扫描引擎节选：Run 时序 / DEDUP / PROJECT_SUMMARY",
+   "node_ids": [
+    "eng-scan",
+    "cli-scan"
+   ],
+   "size_bytes": 2732
+  },
+  {
+   "id": "asset-18",
+   "type": "code",
+   "name": "session-manifest.go.md",
+   "path": "assets/code/session-manifest.go.md",
+   "src_path": "internal/session/manifest.go",
+   "desc": "Run Manifest 覆盖度契约节选：RegisterSelected / FailureClass",
+   "node_ids": [
+    "eng-manifest",
+    "eng-session",
+    "cli-review",
+    "cli-scan"
+   ],
+   "size_bytes": 2464
+  },
+  {
+   "id": "asset-19",
+   "type": "code",
+   "name": "session-resume.go.md",
+   "path": "assets/code/session-resume.go.md",
+   "src_path": "internal/session/resume.go",
+   "desc": "断点续审节选：指纹复用 / SealedInput 冻结",
+   "node_ids": [
+    "eng-resume",
+    "cli-session"
+   ],
+   "size_bytes": 1716
+  },
+  {
+   "id": "asset-20",
+   "type": "code",
+   "name": "llm-resolver.go.md",
+   "path": "assets/code/llm-resolver.go.md",
+   "src_path": "internal/llm/resolver.go",
+   "desc": "5 级配置优先级解析节选：ResolveEndpointWithOptions",
+   "node_ids": [
+    "cfg-priority",
+    "cli-config",
+    "cli-llm",
+    "q-token"
+   ],
+   "size_bytes": 4171
+  },
+  {
+   "id": "asset-21",
+   "type": "code",
+   "name": "llm-providers.go.md",
+   "path": "assets/code/llm-providers.go.md",
+   "src_path": "internal/llm/providers.go",
+   "desc": "27 个内置 provider 注册表节选",
+   "node_ids": [
+    "cfg-providers",
+    "cli-llm",
+    "use-configure"
+   ],
+   "size_bytes": 1523
+  },
+  {
+   "id": "asset-22",
+   "type": "code",
+   "name": "llm-protocol.go.md",
+   "path": "assets/code/llm-protocol.go.md",
+   "src_path": "internal/llm/protocol.go",
+   "desc": "4 种 LLM 协议定义节选",
+   "node_ids": [
+    "cfg-protocol"
+   ],
+   "size_bytes": 1609
+  },
+  {
+   "id": "asset-23",
+   "type": "code",
+   "name": "mcp-client.go.md",
+   "path": "assets/code/mcp-client.go.md",
+   "src_path": "internal/mcp/client.go",
+   "desc": "MCP 双传输客户端节选：stdio / Streamable HTTP",
+   "node_ids": [
+    "cfg-mcp"
+   ],
+   "size_bytes": 1661
+  },
+  {
+   "id": "asset-24",
+   "type": "code",
+   "name": "viewer-server.go.md",
+   "path": "assets/code/viewer-server.go.md",
+   "src_path": "internal/viewer/server.go",
+   "desc": "viewer 服务器节选：路由 / hostGuard 防 DNS-rebind",
+   "node_ids": [
+    "cli-viewer",
+    "q-security",
+    "eng-session",
+    "use-pr-review"
+   ],
+   "size_bytes": 2089
+  },
+  {
+   "id": "asset-25",
+   "type": "code",
+   "name": "telemetry-provider.go.md",
+   "path": "assets/code/telemetry-provider.go.md",
+   "src_path": "internal/telemetry/provider.go",
+   "desc": "OpenTelemetry 双管道初始化节选",
+   "node_ids": [
+    "q-telemetry",
+    "eng-session"
+   ],
+   "size_bytes": 1317
+  },
+  {
+   "id": "asset-26",
+   "type": "code",
+   "name": "gitcmd-runner.go.md",
+   "path": "assets/code/gitcmd-runner.go.md",
+   "src_path": "internal/gitcmd/runner.go",
+   "desc": "git 子进程并发限流（默认 16）",
+   "node_ids": [
+    "eng-diff",
+    "eng-scan",
+    "arch-parallel"
+   ],
+   "size_bytes": 1271
+  },
+  {
+   "id": "asset-27",
+   "type": "skill",
+   "name": "SKILL-review.md",
+   "path": "assets/skills/SKILL-review.md",
+   "src_path": "skills/open-code-review/SKILL.md",
+   "desc": "通用 review skill：四步 review/filter/fix/report + severity×category 分级",
+   "node_ids": [
+    "int-skill",
+    "use-no-key",
+    "use-scan-codebase"
+   ],
+   "size_bytes": 9294
+  },
+  {
+   "id": "asset-28",
+   "type": "skill",
+   "name": "SKILL-delegate.md",
+   "path": "assets/skills/SKILL-delegate.md",
+   "src_path": "skills/open-code-review-delegate/SKILL.md",
+   "desc": "委托审查 skill：preview→rule→git diff→逐文件→格式化→覆盖率",
+   "node_ids": [
+    "int-skill",
+    "cli-delegate",
+    "use-extend"
+   ],
+   "size_bytes": 6162
+  },
+  {
+   "id": "asset-29",
+   "type": "plugin",
+   "name": "opencode-plugin.ts",
+   "path": "assets/plugins/opencode-plugin.ts",
+   "src_path": "plugins/open-code-review/opencode/open-code-review.ts",
+   "desc": "OpenCode 原生插件源码（@opencode-ai/plugin，参数互斥校验）",
+   "node_ids": [
+    "int-opencode",
+    "use-scan-codebase"
+   ],
+   "size_bytes": 12666
+  },
+  {
+   "id": "asset-30",
+   "type": "plugin",
+   "name": "claude-slash-command.md",
+   "path": "assets/plugins/claude-slash-command.md",
+   "src_path": ".claude/commands/open-code-review.md",
+   "desc": "Claude Code 斜杠命令定义",
+   "node_ids": [
+    "int-claude"
+   ],
+   "size_bytes": 1595
+  },
+  {
+   "id": "asset-31",
+   "type": "build",
+   "name": "Makefile",
+   "path": "assets/build/Makefile",
+   "src_path": "Makefile",
+   "desc": "构建链：build / test(race) / coverage(90% 门禁) / build-all 6 平台交叉编译",
+   "node_ids": [
+    "q-release"
+   ],
+   "size_bytes": 3469
+  },
+  {
+   "id": "asset-32",
+   "type": "build",
+   "name": "install.sh",
+   "path": "assets/build/install.sh",
+   "src_path": "install.sh",
+   "desc": "Linux/macOS 安装脚本（latest tag + sha256 校验 + OCR_GITHUB_MIRROR）",
+   "node_ids": [
+    "cli-overview",
+    "q-release"
+   ],
+   "size_bytes": 4260
+  },
+  {
+   "id": "asset-33",
+   "type": "build",
+   "name": "install.ps1",
+   "path": "assets/build/install.ps1",
+   "src_path": "install.ps1",
+   "desc": "Windows 安装脚本（PowerShell 5.1+）",
+   "node_ids": [
+    "cli-overview",
+    "q-release"
+   ],
+   "size_bytes": 5628
+  },
+  {
+   "id": "asset-34",
+   "type": "build",
+   "name": "package.json",
+   "path": "assets/build/package.json",
+   "src_path": "package.json",
+   "desc": "npm 包定义（bin: ocr → bin/ocr.js）",
+   "node_ids": [
+    "q-release",
+    "cli-overview"
+   ],
+   "size_bytes": 1385
+  },
+  {
+   "id": "asset-35",
+   "type": "build",
+   "name": "go.mod",
+   "path": "assets/build/go.mod",
+   "src_path": "go.mod",
+   "desc": "Go 依赖清单（cobra / anthropic-sdk-go / openai-go / MCP go-sdk / otel 等）",
+   "node_ids": [
+    "q-release"
+   ],
+   "size_bytes": 4600
+  },
+  {
+   "id": "asset-36",
+   "type": "doc",
+   "name": "README.zh-CN.md",
+   "path": "assets/doc/README.zh-CN.md",
+   "src_path": "README.zh-CN.md",
+   "desc": "官方中文 README（定位/基准/设计理念/快速开始）",
+   "node_ids": [
+    "cli-overview",
+    "arch-hybrid",
+    "int-vscode"
+   ],
+   "size_bytes": 12231
+  },
+  {
+   "id": "asset-37",
+   "type": "plugin",
+   "name": "codex-plugin.json",
+   "path": "assets/plugins/codex-plugin.json",
+   "src_path": "plugins/open-code-review/.codex-plugin/plugin.json",
+   "desc": "Codex 插件清单（skills + Read capability + defaultPrompt）",
+   "node_ids": [
+    "int-codex"
+   ],
+   "size_bytes": 1121
+  },
+  {
+   "id": "asset-38",
+   "type": "plugin",
+   "name": "cursor-plugin.json",
+   "path": "assets/plugins/cursor-plugin.json",
+   "src_path": "plugins/open-code-review/.cursor-plugin/plugin.json",
+   "desc": "Cursor 插件清单（复用 ../skills/）",
+   "node_ids": [
+    "int-cursor"
+   ],
+   "size_bytes": 732
+  },
+  {
+   "id": "asset-39",
+   "type": "plugin",
+   "name": "qca-system-prompt.md",
+   "path": "assets/plugins/qca-system-prompt.md",
+   "src_path": "plugins/open-code-review/qca/system-prompt.md",
+   "desc": "QCA Forward 委托系统提示（只允许 delegate preview/rule）",
+   "node_ids": [
+    "int-qca"
+   ],
+   "size_bytes": 1217
+  },
+  {
+   "id": "asset-40",
+   "type": "config",
+   "name": "rule.example.json",
+   "path": "assets/configs/rule.example.json",
+   "src_path": "(自建示例)",
+   "desc": "项目级规则示例（rule.json：include/exclude + 四规则含 glob/docs 外置）",
+   "node_ids": [
+    "cfg-rules-chain",
+    "use-configure",
+    "use-extend"
+   ],
+   "size_bytes": 1308
+  },
+  {
+   "id": "asset-41",
+   "type": "config",
+   "name": "config.example.json",
+   "path": "assets/configs/config.example.json",
+   "src_path": "(自建示例)",
+   "desc": "全局配置示例（provider/自定义端点/LLM/MCP/遥测）",
+   "node_ids": [
+    "cfg-providers",
+    "cfg-priority",
+    "cfg-mcp",
+    "use-configure"
+   ],
+   "size_bytes": 1353
+  }
+ ],
+ "command_index": [
+  {
+   "cmd": "ocr review --resume <session-id> 指定要恢复的会话",
+   "node_id": "eng-resume",
+   "node_name": "断点续审与指纹复用"
+  },
+  {
+   "cmd": "ocr completion <shell> 生成对应 shell 的补全脚本，提升日常使用效率",
+   "node_id": "cli-overview",
+   "node_name": "ocr 命令总览与安装"
+  },
+  {
+   "cmd": "ocr review",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr review --from main --to feature-branch",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr review --commit abc123",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr review --format json 或 ocr review --format sarif（CI 集成）",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr review --audience agent",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr review --rule <rule-id> --exclude '<glob>' 指定规则并排除路径",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr review --concurrency 8 --timeout 30m --max-tokens-budget 200000 --max-git-procs 4",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr review --provider openai --model gpt-4o",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr review --preview 查看将审查的变更而不调用 LLM",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr review --background --background-file review.jsonl，之后用 ocr session 查看进度与结果",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr review --resume <session-id> 从断点继续",
+   "node_id": "cli-review",
+   "node_name": "ocr review"
+  },
+  {
+   "cmd": "ocr scan",
+   "node_id": "cli-scan",
+   "node_name": "ocr scan"
+  },
+  {
+   "cmd": "ocr scan --path internal/agent 或 ocr scan --path internal/agent/main.go",
+   "node_id": "cli-scan",
+   "node_name": "ocr scan"
+  },
+  {
+   "cmd": "ocr scan --batch by-language",
+   "node_id": "cli-scan",
+   "node_name": "ocr scan"
+  },
+  {
+   "cmd": "ocr scan --batch by-directory",
+   "node_id": "cli-scan",
+   "node_name": "ocr scan"
+  },
+  {
+   "cmd": "ocr scan --batch none",
+   "node_id": "cli-scan",
+   "node_name": "ocr scan"
+  },
+  {
+   "cmd": "ocr scan --no-plan",
+   "node_id": "cli-scan",
+   "node_name": "ocr scan"
+  },
+  {
+   "cmd": "ocr scan --no-dedup",
+   "node_id": "cli-scan",
+   "node_name": "ocr scan"
+  },
+  {
+   "cmd": "ocr scan --no-summary",
+   "node_id": "cli-scan",
+   "node_name": "ocr scan"
+  },
+  {
+   "cmd": "ocr scan --resume <session-id>",
+   "node_id": "cli-scan",
+   "node_name": "ocr scan"
+  },
+  {
+   "cmd": "ocr delegate preview --format json，解析其中的 mode、merge_base、可审查文件清单与 excluded_files",
+   "node_id": "cli-delegate",
+   "node_name": "ocr delegate"
+  },
+  {
+   "cmd": "ocr delegate rule <paths>（paths 为目录或文件），查看按 source|pattern|text 三元组聚类的规则输出",
+   "node_id": "cli-delegate",
+   "node_name": "ocr delegate"
+  },
+  {
+   "cmd": "ocr config set provider <name>（如 openai、deepseek）",
+   "node_id": "cli-config",
+   "node_name": "ocr config"
+  },
+  {
+   "cmd": "ocr config set model <model-id>",
+   "node_id": "cli-config",
+   "node_name": "ocr config"
+  },
+  {
+   "cmd": "ocr config set providers.openai.apiKey sk-xxx 或 ocr config set providers.openai.baseUrl <url>",
+   "node_id": "cli-config",
+   "node_name": "ocr config"
+  },
+  {
+   "cmd": "ocr config set custom_providers.<name>.<field> <value>",
+   "node_id": "cli-config",
+   "node_name": "ocr config"
+  },
+  {
+   "cmd": "ocr config set llm.temperature 0.2、ocr config set telemetry.enabled false",
+   "node_id": "cli-config",
+   "node_name": "ocr config"
+  },
+  {
+   "cmd": "ocr config unset provider",
+   "node_id": "cli-config",
+   "node_name": "ocr config"
+  },
+  {
+   "cmd": "ocr config provider（选择 provider 并输入 API key、测试连接）、ocr config model（选择模型）",
+   "node_id": "cli-config",
+   "node_name": "ocr config"
+  },
+  {
+   "cmd": "ocr config set provider openai，注意写路径仍为默认位置",
+   "node_id": "cli-config",
+   "node_name": "ocr config"
+  },
+  {
+   "cmd": "ocr session list",
+   "node_id": "cli-session",
+   "node_name": "ocr session"
+  },
+  {
+   "cmd": "ocr session list --json",
+   "node_id": "cli-session",
+   "node_name": "ocr session"
+  },
+  {
+   "cmd": "ocr session list --limit 50、ocr session list --repo <repo-name>",
+   "node_id": "cli-session",
+   "node_name": "ocr session"
+  },
+  {
+   "cmd": "ocr session show <session-id>",
+   "node_id": "cli-session",
+   "node_name": "ocr session"
+  },
+  {
+   "cmd": "ocr session comments <session-id>",
+   "node_id": "cli-session",
+   "node_name": "ocr session"
+  },
+  {
+   "cmd": "ocr session comments <session-id> --severity high 或 ocr session comments <session-id> --category <category>",
+   "node_id": "cli-session",
+   "node_name": "ocr session"
+  },
+  {
+   "cmd": "ocr review --resume <session-id>，从上次中断处继续",
+   "node_id": "cli-session",
+   "node_name": "ocr session"
+  },
+  {
+   "cmd": "ocr review --background 启动后，用 ocr session list 观察会话状态与完成度",
+   "node_id": "cli-session",
+   "node_name": "ocr session"
+  },
+  {
+   "cmd": "ocr viewer，默认监听 localhost:5483",
+   "node_id": "cli-viewer",
+   "node_name": "ocr viewer"
+  },
+  {
+   "cmd": "ocr viewer --addr 0.0.0.0:9000（局域网共享时）或 ocr viewer --addr 127.0.0.1:8080",
+   "node_id": "cli-viewer",
+   "node_name": "ocr viewer"
+  },
+  {
+   "cmd": "ocr session list 获取 repo 与 sessionID，再在 viewer 中定位对应会话",
+   "node_id": "cli-viewer",
+   "node_name": "ocr viewer"
+  },
+  {
+   "cmd": "ocr rules check src/foo.go",
+   "node_id": "cli-rules",
+   "node_name": "ocr rules"
+  },
+  {
+   "cmd": "ocr rules check internal/agent",
+   "node_id": "cli-rules",
+   "node_name": "ocr rules"
+  },
+  {
+   "cmd": "ocr rules check <file-path> 对比修改前后的命中变化",
+   "node_id": "cli-rules",
+   "node_name": "ocr rules"
+  },
+  {
+   "cmd": "ocr llm test，观察返回的测试对话结果或错误信息",
+   "node_id": "cli-llm",
+   "node_name": "ocr llm"
+  },
+  {
+   "cmd": "ocr llm providers，核对当前 provider 名称是否在清单内",
+   "node_id": "cli-llm",
+   "node_name": "ocr llm"
+  },
+  {
+   "cmd": "ocr config set provider <name> 与 ocr config set model <model-id>",
+   "node_id": "cli-llm",
+   "node_name": "ocr llm"
+  },
+  {
+   "cmd": "ocr llm test，确认认证与响应正常后再进入 review/scan",
+   "node_id": "cli-llm",
+   "node_name": "ocr llm"
+  },
+  {
+   "cmd": "ocr llm test 逐一验证，选出可用的模型组合",
+   "node_id": "cli-llm",
+   "node_name": "ocr llm"
+  },
+  {
+   "cmd": "ocr review --provider deepseek --model deepseek-chat",
+   "node_id": "cfg-providers",
+   "node_name": "Provider 体系"
+  },
+  {
+   "cmd": "ocr review --rule <自定义规则文件路径>",
+   "node_id": "cfg-rules-chain",
+   "node_name": "四层规则链"
+  },
+  {
+   "cmd": "ocr review --audience agent --format json",
+   "node_id": "int-opencode",
+   "node_name": "OpenCode 原生插件"
+  },
+  {
+   "cmd": "ocr delegate preview / ocr delegate rule，禁止 ocr review，所有操作只读",
+   "node_id": "int-qca",
+   "node_name": "QCA Forward 委托"
+  },
+  {
+   "cmd": "ocr delegate preview <范围> 先预览委托效果，确认目标与预期相符",
+   "node_id": "int-qca",
+   "node_name": "QCA Forward 委托"
+  },
+  {
+   "cmd": "ocr delegate rule <范围>，按配置的规则集对目标执行只读分析",
+   "node_id": "int-qca",
+   "node_name": "QCA Forward 委托"
+  },
+  {
+   "cmd": "ocr review --audience agent --background <范围> 作为核心调用，覆盖目标文件、目录或提交范围",
+   "node_id": "int-skill",
+   "node_name": "通用 Agent Skill"
+  },
+  {
+   "cmd": "ocr review，在 console 观察 trace 输出，确认埋点链路完整",
+   "node_id": "q-telemetry",
+   "node_name": "OpenTelemetry 遥测"
+  },
+  {
+   "cmd": "ocr review，工具自动收集当前改动并产出评论",
+   "node_id": "use-pr-review",
+   "node_name": "场景：审查 PR/分支变更"
+  },
+  {
+   "cmd": "ocr review --from main --to feature-branch，无需 checkout 即可审查任意分支间的变更",
+   "node_id": "use-pr-review",
+   "node_name": "场景：审查 PR/分支变更"
+  },
+  {
+   "cmd": "ocr review --commit abc123，适合对历史提交定点复核",
+   "node_id": "use-pr-review",
+   "node_name": "场景：审查 PR/分支变更"
+  },
+  {
+   "cmd": "ocr scan，等待扫描完成并查看逐文件评论",
+   "node_id": "use-scan-codebase",
+   "node_name": "场景：审计陌生代码库"
+  },
+  {
+   "cmd": "ocr scan --path internal/agent，只扫指定目录，快速聚焦目标模块",
+   "node_id": "use-scan-codebase",
+   "node_name": "场景：审计陌生代码库"
+  },
+  {
+   "cmd": "ocr scan --batch by-language 按语言分批，或 --batch by-directory 按目录分批，避免单批过大",
+   "node_id": "use-scan-codebase",
+   "node_name": "场景：审计陌生代码库"
+  },
+  {
+   "cmd": "ocr delegate preview --format json，确认当前仓库哪些文件可进入委托范围",
+   "node_id": "use-no-key",
+   "node_name": "场景：免 Key 委托审查"
+  },
+  {
+   "cmd": "ocr delegate rule src/main.go src/handler.go，得到针对这两个文件的规则文本",
+   "node_id": "use-no-key",
+   "node_name": "场景：免 Key 委托审查"
+  },
+  {
+   "cmd": "ocr delegate 命令，实现『宿主模型 + OCR 规则』的混合审查流",
+   "node_id": "use-no-key",
+   "node_name": "场景：免 Key 委托审查"
+  },
+  {
+   "cmd": "ocr config provider 选择内置 provider（如 DashScope/DeepSeek）或按自定义端点配置 → 随后 ocr config model 指定模型并自动测连通",
+   "node_id": "use-configure",
+   "node_name": "场景：配置模型与规则"
+  },
+  {
+   "cmd": "ocr config set language zh-CN，让审查评论以中文输出",
+   "node_id": "use-configure",
+   "node_name": "场景：配置模型与规则"
+  },
+  {
+   "cmd": "ocr review --rule '禁止硬编码密钥'，不污染仓库配置",
+   "node_id": "use-configure",
+   "node_name": "场景：配置模型与规则"
+  },
+  {
+   "cmd": "ocr rules check，确认规则命中目标文件，输出与实际匹配一致后再正式审查",
+   "node_id": "use-configure",
+   "node_name": "场景：配置模型与规则"
+  }
+ ],
+ "group_index": [
+  {
+   "id": "G-A",
+   "name": "核心架构",
+   "domain": "架构理念",
+   "kind": "source",
+   "node_ids": [
+    "arch-hybrid",
+    "arch-pipeline",
+    "arch-dispatch",
+    "arch-grounded-tools",
+    "arch-reflection",
+    "arch-parallel"
+   ]
+  },
+  {
+   "id": "G-B",
+   "name": "审查引擎",
+   "domain": "核心机制",
+   "kind": "source",
+   "node_ids": [
+    "eng-diff",
+    "eng-filter",
+    "eng-bundling",
+    "eng-locator",
+    "eng-relocate",
+    "eng-compression",
+    "eng-session",
+    "eng-resume",
+    "eng-manifest",
+    "eng-scan"
+   ]
+  },
+  {
+   "id": "G-C",
+   "name": "命令行工具",
+   "domain": "CLI",
+   "kind": "tool",
+   "node_ids": [
+    "cli-overview",
+    "cli-review",
+    "cli-scan",
+    "cli-delegate",
+    "cli-config",
+    "cli-session",
+    "cli-viewer",
+    "cli-rules",
+    "cli-llm"
+   ]
+  },
+  {
+   "id": "G-D",
+   "name": "配置与模型",
+   "domain": "配置体系",
+   "kind": "source",
+   "node_ids": [
+    "cfg-providers",
+    "cfg-protocol",
+    "cfg-priority",
+    "cfg-rules-chain",
+    "cfg-mcp"
+   ]
+  },
+  {
+   "id": "G-E",
+   "name": "集成生态",
+   "domain": "集成",
+   "kind": "tool",
+   "node_ids": [
+    "int-gha",
+    "int-cicd",
+    "int-claude",
+    "int-codex",
+    "int-cursor",
+    "int-opencode",
+    "int-qca",
+    "int-skill",
+    "int-vscode"
+   ]
+  },
+  {
+   "id": "G-F",
+   "name": "工程保障",
+   "domain": "质量与运营",
+   "kind": "crosscut",
+   "node_ids": [
+    "q-bench",
+    "q-telemetry",
+    "q-security",
+    "q-retry",
+    "q-release",
+    "q-token"
+   ]
+  },
+  {
+   "id": "G-S",
+   "name": "使用场景索引",
+   "domain": "工具索引",
+   "kind": "scenario",
+   "node_ids": [
+    "use-pr-review",
+    "use-scan-codebase",
+    "use-no-key",
+    "use-ci",
+    "use-configure",
+    "use-extend"
+   ]
+  }
+ ]
+}

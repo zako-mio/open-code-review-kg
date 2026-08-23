@@ -1,0 +1,39 @@
+{
+  "$schema_note": "项目级规则示例（<repo>/.opencodereview/rule.json）。四层规则链：custom(--rule) > project(本文件) > global(~/.opencodereview/rule.json) > system(内置)。首匹配优先；路径用 doublestar glob（** 递归 + {a,b} 花括号）。",
+  "include": [
+    "**/*.go",
+    "**/*.ts",
+    "**/*.{tsx,jsx}"
+  ],
+  "exclude": [
+    "**/vendor/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/*.min.js",
+    "**/*_test.go"
+  ],
+  "merge_system_rule": true,
+  "rules": [
+    {
+      "id": "no-todo",
+      "pattern": "**/*.go",
+      "text": "禁止合并包含 TODO/FIXME 的代码，必须给出 issue 链接或删除。"
+    },
+    {
+      "id": "error-handling",
+      "pattern": "**/*.go",
+      "text": "所有返回 error 的调用必须显式处理：要么 err != nil 分支，要么显式忽略（_ = f()）。禁止裸调用忽略错误。"
+    },
+    {
+      "id": "sql-injection",
+      "pattern": "**/*.{go,ts}",
+      "text": "禁止字符串拼接 SQL；必须使用参数化查询（? 或 $N 占位符）。",
+      "docs": "rules/sql-injection.md"
+    },
+    {
+      "id": "thread-safety",
+      "pattern": "**/*.go",
+      "text": "并发场景：共享 map 必须加锁或使用 sync.Map；共享 slice 必须由单一 writer 持有。"
+    }
+  ]
+}

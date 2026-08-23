@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12 原则对照审查 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+.back a{color:var(--accent);text-decoration:none;font-size:14px;}
+
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:14px;color:#cfe8dd;margin:12px 0;}
+.sumcard{display:inline-block;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:8px;padding:10px 16px;margin:4px;text-align:center;}
+.sumcard b{display:block;font-size:22px;color:#fff;}
+.sumcard span{font-size:12px;color:var(--dim);}
+.principle-table th{background:var(--panel);}
+.principle-table td{font-size:12.5px;}
+td.pid{white-space:nowrap;font-family:Consolas,monospace;font-size:11.5px;color:#8fb5ff;}
+td.pname{font-weight:600;white-space:nowrap;}
+td.pclaim{color:#b6c0d0;max-width:260px;}
+td.pmech{color:#d3d9e4;max-width:380px;}
+td.pverdict{font-weight:700;white-space:nowrap;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;font-size:14px;color:#d3d9e4;}
+.whybox p{margin:8px 0;}
+
+</style>
+</head>
+<body>
+<header><h1>12 原则对照审查 · 方法论定位</h1><p>阿里开源 AI 代码审查工具 — 架构理解 × 工具索引</p></header><main><div class="back"><a href="index.html">&larr; 返回视图入口</a></div>
+<div class="brieflead">审查标尺：12 Factor App（传统软件工程）与 12 Factor Agent（LLM Agent 工程）合并图谱的 24 条原则（来源：0823-12factor-methodology）。逐条对照 open-code-review 的设计机制，给出合规/部分合规/有张力结论。审查目的：验证 OCR 是否落在 12 原则坐标系上，并暴露设计中的张力点供取舍参考。</div><h2>审查总览</h2><div><div class="sumcard"><b>22</b><span>合规</span></div><div class="sumcard"><b>2</b><span>部分合规</span></div><div class="sumcard"><b>0</b><span>有张力</span></div></div><h2 style="border-color:#4f8cff;color:#4f8cff">12 Factor App 原则 · 12 条</h2><div class="tblwrap"><table class="principle-table"><thead><tr><th>原则</th><th>主张</th><th>OCR 对应机制</th><th>审查结论</th></tr></thead><tbody><tr><td class="pid">app-codebase</td><td class="pname">代码库</td><td class="pclaim">一个代码库，多环境部署，版本控制跟踪一切</td><td class="pmech">单仓库 monorepo（alibaba/open-code-review），Git 版本控制跟踪一切；图谱资产化：关键源码节选进 assets/code/ 供离线研读</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">app-deps</td><td class="pname">依赖</td><td class="pclaim">显式声明并隔离依赖，绝不依赖系统级隐式包</td><td class="pmech">go.mod 显式声明全部 Go 依赖（cobra/anthropic-sdk-go/openai-go/MCP go-sdk/otel），npm 侧 optionalDependencies 按平台隔离原生二进制</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">app-config</td><td class="pname">配置</td><td class="pclaim">配置存于环境变量，与代码严格分离</td><td class="pmech">5 级配置优先级（--flag &gt; config.json &gt; OCR_LLM_* 环境变量 &gt; ANTHROPIC_* &gt; shell RC），密钥走 env/api_key_cmd 不进代码</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">app-backing</td><td class="pname">后端服务</td><td class="pclaim">后端服务作为附加资源，可随时替换连接</td><td class="pmech">27 内置 provider + custom_providers 自定义端点：LLM 服务是纯附加资源，切换 provider 只改配置不改代码</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">app-build-run</td><td class="pname">构建·发布·运行</td><td class="pclaim">严格分离构建、发布、运行三阶段</td><td class="pmech">Makefile build/test/coverage 门禁 → GitHub Release 产物 + npm 包 → 安装脚本/自动更新（update.js 18 分钟冷却）三阶段分离</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">app-processes</td><td class="pname">进程</td><td class="pclaim">以一个或多个无状态进程执行应用</td><td class="pmech">审查子任务无状态化：每文件独立上下文、独立超时、panic 隔离、manifest 状态外置（可重放可续跑）</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">app-port</td><td class="pname">端口绑定</td><td class="pclaim">通过端口绑定自含导出服务，不依赖注入的 Web 服务器</td><td class="pmech">ocr viewer 自含 WebUI（默认 localhost:5483），Go 内嵌 HTTP 服务，无外部 Web 服务器依赖</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">app-concurrency</td><td class="pname">并发</td><td class="pclaim">通过进程模型横向扩展</td><td class="pmech">文件级并行：semaphore 默认 8 并发 goroutine，每文件独立任务单元，横向扩展审查吞吐</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">app-disposability</td><td class="pname">可处置性</td><td class="pclaim">快速启动与优雅终止，最大化鲁棒性</td><td class="pmech">审查可中断可恢复：SealedInput 冻结 commit 端点、JSONL 会话持久化、--resume 断点续审、预算截断记 pending 而非失败</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">app-dev-prod</td><td class="pname">开发/线上等价</td><td class="pclaim">保持开发、预发布、生产环境尽可能相似</td><td class="pmech">同一 ocr 二进制跑本地与 CI（ocr_version 固定 latest 可锁版本）；OCR_* 环境变量在 CI/本地一致生效</td><td class="pverdict" style="color:#e8933b">部分合规</td></tr><tr><td class="pid">app-logs</td><td class="pname">日志</td><td class="pclaim">将日志视为事件流，不关心存储格式</td><td class="pmech">会话 JSONL 即事件流（Plan/Main/压缩/重定位/反思任务记录）+ OpenTelemetry trace/metric 双管道</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">app-admin</td><td class="pname">管理进程</td><td class="pclaim">管理/维护任务作为一次性进程运行</td><td class="pmech">ocr delegate（委托审查）/ ocr scan（整库扫描）/ ocr session comments（审计导出）均一次性命令形态</td><td class="pverdict" style="color:#2fb98a">合规</td></tr></tbody></table></div><h2 style="border-color:#e05563;color:#e05563">12 Factor Agent 原则 · 12 条</h2><div class="tblwrap"><table class="principle-table"><thead><tr><th>原则</th><th>主张</th><th>OCR 对应机制</th><th>审查结论</th></tr></thead><tbody><tr><td class="pid">ag-nl2tool</td><td class="pname">自然语言→工具调用</td><td class="pclaim">LLM 将自然语言转换为结构化工具调用对象</td><td class="pmech">受限 6 工具 ReAct 循环：模型输出结构化工具调用（file_read/file_find/code_search/file_read_diff/code_comment/task_done）</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">ag-prompts</td><td class="pname">掌控你的 Prompt</td><td class="pclaim">像管理代码一样版本化、测试、部署 prompt</td><td class="pmech">场景化提示词模板（internal/config/template/prompts/）随仓库版本化，图谱资产化（assets/prompts/），plan/main/filter 相位分离</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">ag-context</td><td class="pname">掌控上下文窗口</td><td class="pclaim">对上下文进行工程化管理（上下文工程）</td><td class="pmech">三区压缩（frozen/compress/active 60%/80% 阈值）+ 预算前瞻（estimate.go）+ filterLargeDiffs 80% 丢弃 + prompt-cache 亲和键</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">ag-tools</td><td class="pname">工具即结构化输出</td><td class="pclaim">工具只是模型的结构化输出，可无限组合</td><td class="pmech">tools.json 定义 schema，工具注册表 Registry + MCP 动态工具扩展（ToToolDef 统一转换）</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">ag-state</td><td class="pname">统一执行/业务状态</td><td class="pclaim">将执行状态与业务状态统一为单一事实源</td><td class="pmech">Run Manifest（ocr.run-manifest/v1）作为覆盖度单一事实源 + JSONL 会话作为执行轨迹事实源</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">ag-pause</td><td class="pname">启动/暂停/恢复</td><td class="pclaim">用简单 API 管理 Agent 生命周期</td><td class="pmech">ocr review --resume &lt;session-id&gt; / ocr scan --resume：指纹复用跳过已完成，未决项重跑</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">ag-human</td><td class="pname">工具调用联系人类</td><td class="pclaim">把人类接入作为一类工具调用，主动寻求批准</td><td class="pmech">--audience human|agent 双受众输出 + CI 评论回贴（GitHub/GitLab discussion）将审查结论送到人类面前</td><td class="pverdict" style="color:#e8933b">部分合规</td></tr><tr><td class="pid">ag-control</td><td class="pname">掌控控制流</td><td class="pclaim">控制流由代码决定，LLM 只做决策点</td><td class="pmech">确定性流水线（8 步时序）+ 规则引导分派（四层规则链）决定控制流，LLM 只在『看 diff 出评论』决策点工作</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">ag-errors</td><td class="pname">压缩错误进上下文</td><td class="pclaim">把错误摘要压缩回上下文窗口供模型反思</td><td class="pmech">q-retry 错误分类（ErrorClass × FailurePhase）+ retry_report 压缩重试明细；LLM 调用失败结构化入报告而非原始堆栈</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">ag-small</td><td class="pname">小而专注的 Agent</td><td class="pclaim">用多个小 Agent 而非一个巨型 Agent 解决问题</td><td class="pmech">文件级子 Agent：每文件独立 Plan+ReAct+反思，8 并发，上下文隔离——多个小 Agent 而非一个巨型 Agent</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">ag-trigger</td><td class="pname">随处触发</td><td class="pclaim">从任何触发源唤起 Agent，触达用户所在之处</td><td class="pmech">GitHub PR 事件/评论触发、GitLab MR、Gerrit、斜杠命令（Claude Code）、skill（Codex/Cursor/OpenCode）、VSCode 面板</td><td class="pverdict" style="color:#2fb98a">合规</td></tr><tr><td class="pid">ag-reducer</td><td class="pname">无状态 Reducer</td><td class="pclaim">将 Agent 建模为无状态 reducer（state, event）→ state</td><td class="pmech">reviewItemFingerprint=sha256(mode+old+new+diffText) + manifest 状态机：同输入同指纹同结果，事件流可重放（JSONL 回放）</td><td class="pverdict" style="color:#2fb98a">合规</td></tr></tbody></table></div><h2>审查小结</h2><div class="whybox"><p>OCR 的核心架构（确定性流水线 + 规则引导分派 + 文件级子 Agent + 独立反思）与 <b>12 Factor Agent</b> 高度同构：控制流由代码决定（ag-control）、上下文工程化（ag-context）、小 Agent 组合（ag-small）、无状态可重放（ag-reducer）均是完全合规。与 <b>12 Factor App</b> 的对照同样出色：配置外置（app-config）、后端服务可替换（app-backing）、日志事件流（app-logs）、可处置性（app-disposability）全部落在原则坐标系上。</p><p>两处张力/部分合规：①<em>开发/线上等价</em>——CI 与本地环境差异由配置优先级弥合而非环境等价；②<em>人类接入</em>——审查工具面向人类审查员但无主动 seek-approval 流程，属审查场景的合理取舍（审查非执行类任务）。</p></div>
+</body>
+</html>

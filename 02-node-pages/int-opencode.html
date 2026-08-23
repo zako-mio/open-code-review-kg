@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenCode 原生插件 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-E.html">集成生态</a> / <span>OpenCode 原生插件</span></div>
+  <h1>OpenCode 原生插件</h1>
+  <div class="badges"><span class="badge src" style="color:#ff8a97;background:#3a1520;border-color:#e05563">集成生态</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-E · 集成生态</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-E"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-E.html"><span class="dir">返回组</span><span class="v">集成生态</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">@opencode-ai/plugin：tool() 注册原生审查工具，spawn &#x27;ocr review --audience agent --format json&#x27;，参数互斥校验</div><div class="bullet">Alibaba Open Code Review 为 OpenCode（本工具）提供的原生插件，文件为 plugins/open-code-review/opencode/open-code-review.ts，基于 @opencode-ai/plugin 官方插件 SDK 开发</div><div class="bullet">插件通过 tool() 函数注册一个原生工具，将 ocr 审查能力以 OpenCode 工具调用的形态暴露，而非斜杠命令或外部 Skill</div><div class="bullet">工具实现内部通过 spawn 执行 &#x27;ocr review --audience agent --format json&#x27; 子进程，即调用 ocr CLI 并以 JSON 格式输出供程序化消费</div><div class="bullet">工具参数经过校验，commit / from / to / resume / preview 等参数之间存在互斥约束，非法组合会被拒绝，避免含糊的审查范围</div><div class="bullet">提供「原生工具调用体验」：在 OpenCode 会话中，模型可直接以标准工具调用协议触发审查，结果以结构化 JSON 回流，适合程序化与自动化链路</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>OpenCode 与 OCR 同属 AI 编码生态，原生插件形式（相对斜杠命令/Skill）让审查能力以标准工具调用参与模型决策循环，可被自动编排（如审查后自动接修复）</p><p>--audience agent --format json 的输出设计面向 Agent 消费，保证模型能稳定解析审查结果，这是工具化集成的关键前提</p><p>参数互斥校验（commit/from/to/resume/preview）在工具层前置拦截非法调用，避免审查范围含糊导致的结果不可信或误报</p><p>与官方 SDK 对齐的开发方式降低了维护成本，也方便社区复用该插件模式</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">前置条件：安装 ocr CLI 并配置 API Key；当前环境为 OpenCode 且已支持 @opencode-ai/plugin 插件体系</div><div class="bullet">将 plugins/open-code-review/opencode/ 下的 open-code-review.ts 及其依赖放入 OpenCode 的插件目录（如 ~/.config/opencode/plugin/ 或项目级 .opencode/plugin/），按 OpenCode 插件加载规范注册</div><div class="bullet">OpenCode 启动时加载插件，tool() 注册的原生工具自动出现在模型可用的工具列表中</div><div class="bullet">在会话中向模型发起审查意图（如「审查当前改动」），模型会以工具调用方式触发 ocr review --audience agent --format json</div><div class="bullet">通过工具参数指定审查范围：提交范围用 from/to（或 commit），需要续跑时用 resume，仅预览时用 preview；注意这些参数互斥，不能混用</div><div class="bullet">工具返回 JSON 审查报告后，模型在会话内呈现结果并可与用户继续讨论、筛选或安排修复</div><div class="bullet">可用 preview 参数先行预览审查意图，确认范围正确后再正式执行，避免误审大范围代码</div><div class="bullet">验证：在会话中发起一次最小审查（如单文件），确认子进程调用与 JSON 返回正常</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>在 OpenCode 中完成代码修改后，直接要求模型「审查本次提交之前的改动」，模型自动调用原生工具完成审查并在会话内汇报</td></tr><tr><td>构建自动审查链路：让模型在完成编码任务后自动触发审查工具，若发现高严重度问题则继续修复并复跑，形成「编码—审查—修复」闭环</td></tr><tr><td>对历史提交做定向审查：用 from/to 参数限定两个提交之间的范围，工具互斥校验保证不会同时混入 preview 等冲突语义</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>混用互斥参数：同时传 commit 与 from/to（或 preview 与 resume），工具参数校验会直接拒绝；应先理解互斥关系，一次只指定一种范围语义</li><li>不装 CLI 直接依赖插件：插件内部 spawn &#x27;ocr review&#x27;，本机无 ocr 可执行文件时工具必然失败；任何 OpenCode 集成前先验证 CLI 可用</li><li>把 --format json 的输出当人类阅读文本：JSON 是给 Agent 消费的结构化数据，直接展示原始 JSON 会破坏可读性，应由模型转述</li><li>忽略 preview 的价值：在大范围审查前不先用 preview 校验范围，导致误审并消耗大量 token；先预览后执行是成本控制的关键习惯</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">用 from/to 限定提交范围，互斥校验兜底</div><div class="evcode"><code>tool: ocr review --audience agent --format json</code><code>params: { from: &quot;HEAD~2&quot;, to: &quot;HEAD&quot; }</code></div><div class="evdesc">在 OpenCode 会话中让模型以原生工具调用触发审查，提交范围用 from/to 指定；参数校验保证一次只携带一种范围语义，结果以 JSON 回流可程序化消费。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">混用互斥参数，工具调用被直接拒绝</div><div class="evcode"><code>params: { commit: &quot;abc123&quot;, from: &quot;HEAD~2&quot;, to: &quot;HEAD&quot; }</code><code># 校验失败：commit 与 from/to 互斥</code></div><div class="evdesc">commit/from/to/resume/preview 之间存在互斥约束，同时传入会被工具层拦截拒绝。每次调用只应指定一种范围语义。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">大范围审查前先 preview 验证意图</div><div class="evcode"><code>params: { preview: true, from: &quot;HEAD~5&quot;, to: &quot;HEAD&quot; }</code><code># 确认范围无误后再正式执行</code></div><div class="evdesc">preview 参数先行预览审查意图，确认目标范围正确后再正式执行，避免误审大范围代码造成 token 浪费。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">不装 CLI 直接依赖插件，spawn 必然失败</div><div class="evcode"><code># 本机无 ocr 可执行文件</code><code>tool: spawn &#x27;ocr review --audience agent --format json&#x27; → 失败</code></div><div class="evdesc">插件内部 spawn &#x27;ocr review&#x27; 子进程，本机未安装 ocr CLI（或未配 Key）时工具必然失败。任何 OpenCode 集成前先验证 ocr 可独立运行。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">插件</div><div class="assname"><a href="../assets/plugins/opencode-plugin.ts" target="_blank">opencode-plugin.ts</a></div><div class="assdesc">OpenCode 原生插件源码（@opencode-ai/plugin，参数互斥校验）</div><div class="assmeta">plugins/open-code-review/opencode/open-code-review.ts · 12666 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-dependency" href="cli-review.html">ocr review&#8594;OpenCode 插件 spawn CLI<span class="etype">依赖关联</span></a><a class="chip e-variant" href="int-codex.html">Codex 插件&#8592;同为插件生态<span class="etype">变体</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

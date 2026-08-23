@@ -1,0 +1,2851 @@
+{
+ "meta": {
+  "generated": "2026-08-23",
+  "total_nodes": 51,
+  "total_evidence_pairs": 130,
+  "fields": [
+   "type",
+   "title",
+   "code",
+   "desc"
+  ]
+ },
+ "nodes": [
+  {
+   "id": "arch-hybrid",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "文件筛选与规则匹配交给确定性代码，Agent 只做语义决策",
+     "code": [
+      "// 确定性：whyExcluded 过滤链按固定顺序执行",
+      "entries := filterFiles(diffEntries) // binary -> exclude -> include -> ext 白名单 -> 路径黑名单",
+      "// Agent 只收到已过滤的 diff 与场景化 prompt",
+      "prompt := buildScenarioPrompt(entry, rulesMatchedByTemplateEngine)"
+     ],
+     "desc": "确定性组件（过滤、规则匹配、定位、反思）用代码实现，行为可预期可单测；Agent 仅在确定性边界内做『看 diff 出评论』的动态决策，这正是 SEM-F1 比 Claude Code 高 1.3-2.2x、token 省 5-15x 的来源"
+    },
+    {
+     "type": "con",
+     "title": "让 LLM 自行读取 git diff 原始输出并筛选文件",
+     "code": [
+      "prompt := \"以下是本次变更的原始 git diff，请自行判断哪些文件需要审查...\"",
+      "// 模型需自己理解 diff 结构、自己过滤文件、自己找规则 → 不可复现、token 暴涨"
+     ],
+     "desc": "把强约束环节交给模型：同一输入两次审查结果可能不同（不可复现），模型在无关文件与规则文本上消耗大量 token，直接抵消混合架构的 token 优势，且无法单测"
+    },
+    {
+     "type": "pro",
+     "title": "反思组件确定性化，打破模型自审偏差",
+     "code": [
+      "REVIEW_FILTER_TASK: 证伪优先五步法",
+      "1) 保护主题否决  2) 低价值否决  3) Ground A (目标不在 diff)  4) Ground B (字面反驳)  5) 批准"
+     ],
+     "desc": "独立反思组件只能看到 diff 与评论 JSON，用确定性五步法先尝试推翻评论，推翻不了才批准，评论质量闸门可审计"
+    },
+    {
+     "type": "con",
+     "title": "把 REVIEW_FILTER 反思交给同一模型自审",
+     "code": [
+      "// 反例：评论产出后原样丢回同一模型要求复核",
+      "reviewer.CheckMyComments(comments) // 模型天然偏向认可自己的产出"
+     ],
+     "desc": "同一模型自审自己的评论存在确认偏差，『我的评论是对的』倾向使证伪优先失效，无效评论漏网率上升"
+    }
+   ]
+  },
+  {
+   "id": "arch-pipeline",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "子任务严格按 Plan → MainTask → 异步定位 → 反思 的时序执行",
+     "code": [
+      "plan := llm.PlanOnce(diff)          // 第5步：单轮 LLM 产出审查计划",
+      "comments := mainTask.ReActLoop(plan) // MainTask ReAct 循环，受限 6 工具",
+      "locate := code_comment 异步定位(强制注入 path)",
+      "WaitBackground() // 第6步：等待异步定位落盘",
+      "finalizeManifest() // 第7步：汇总",
+      "emitRunResult(text|json|sarif) // 第8步：输出"
+     ],
+     "desc": "Plan 为 ReAct 循环提供方向锚点，WaitBackground 保证异步定位结果落盘后才 finalize，emitRunResult 统一输出，8 步时序职责单一、可独立替换"
+    },
+    {
+     "type": "con",
+     "title": "跳过 Plan 直接进入 MainTask，且不等异步定位就汇总输出",
+     "code": [
+      "// 反例：无 Plan 直接开跑 ReAct",
+      "comments := mainTask.ReActLoop(nil)",
+      "// 反例：跳过 WaitBackground",
+      "finalizeManifest() // code_comment 定位结果可能未落盘",
+      "emitRunResult()   // 输出缺 path 或缺精确行号"
+     ],
+     "desc": "无 Plan 时工具调用路径发散、token 浪费；不等异步任务就汇总会造成评论缺位置信息甚至 path 为空，输出结果不可用"
+    },
+    {
+     "type": "pro",
+     "title": "并发限流：信号量默认 8 + 每文件超时 + 大文件预丢弃",
+     "code": [
+      "sem := make(chan struct{}, 8) // 默认 8 并发 goroutine",
+      "filterLargeDiffs(diffs, 0.8*MaxTokens) // 超过 80% MaxTokens 的文件分派前丢弃",
+      "go func(){ sem <- struct{}{}; defer func(){ <-sem; recover() }(); runFileTask(entry, ConcurrentTaskTimeout) }()"
+     ],
+     "desc": "并发、超时、预算三约束齐备：单文件卡死/崩溃被隔离，大文件在源头被拦截，流水线在大规模 diff 下可控"
+    },
+    {
+     "type": "con",
+     "title": "为提速无限提高并发，却不做预算前瞻",
+     "code": [
+      "sem := make(chan struct{}, 64) // 并发调大后总 token 预算同时放大",
+      "// 未设置 ConcurrentTaskTimeout / 未做 used+estimateDiffFileTokens 前瞻"
+     ],
+     "desc": "并行度与 token 预算耦合：并发超过 8 时多个文件的上下文预算被同时挤压，整体质量下降甚至资源雪崩；应先控制 diff 体量而非堆并发"
+    }
+   ]
+  },
+  {
+   "id": "arch-dispatch",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "include 覆盖 exclude：把被误伤的文件拉回审查",
+     "code": [
+      "# 规则配置（custom 层优先级最高）",
+      "exclude: [\"vendor/**\", \"generated/**\"]",
+      "include: [\"vendor/github.com/x/lib/parse.go\"]  # 覆盖 exclude，该文件进入审查",
+      "# 其余 vendor 文件仍被排除（ExcludeReason=user_exclude）"
+     ],
+     "desc": "四层规则链 custom>project>global>system + include 覆盖 exclude 的明确语义：用户既能批量排除，又能精确放行特例，过滤结果可审计"
+    },
+    {
+     "type": "con",
+     "title": "include/exclude 优先级颠倒（exclude 覆盖 include）",
+     "code": [
+      "# 反例：若 exclude 优先级高于 include",
+      "exclude: [\"vendor/**\"]",
+      "include: [\"vendor/github.com/x/lib/parse.go\"]  # 无效，文件仍被排除",
+      "// 用户将无法把误伤文件拉回审查，只能改全局规则"
+     ],
+     "desc": "优先级颠倒后用户层覆盖能力失效：默认规则误伤的文件无法放行，custom 层形同虚设，规则体系的可定制性被破坏"
+    },
+    {
+     "type": "pro",
+     "title": "injectDiffMap 保留被过滤文件 diff，供 file_read_diff 按需读取",
+     "code": [
+      "injectDiffMap[\"vendor/github.com/x/lib/parse.go\"] = diffText // 过滤但不封死",
+      "// 审查主流程中模型需要该文件上下文时",
+      "file_read_diff(path=\"vendor/github.com/x/lib/parse.go\") // 从 injectDiffMap 读取，不重跑 git"
+     ],
+     "desc": "被过滤文件不进主流程、不占主上下文预算，但需要时可精确读取其 diff，避免一刀切丢弃后反复重跑 git 命令"
+    },
+    {
+     "type": "con",
+     "title": "过滤后直接丢弃被过滤文件的 diff",
+     "code": [
+      "// 反例：过滤即删除",
+      "delete(diffMap, entry.Path) // 后续任何工具都无法再读到该 diff",
+      "// 模型需要上下文时只能重新执行 git diff → 重复开销"
+     ],
+     "desc": "丢弃后审查中一旦需要该文件上下文就必须重跑 git 命令，产生重复 IO 与延迟；且 Review 需要 diff 佐证时无据可依"
+    }
+   ]
+  },
+  {
+   "id": "arch-grounded-tools",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "只暴露 6 个只读工具，收敛模型行为空间",
+     "code": [
+      "tools := []Tool{file_read, file_find, code_search, file_read_diff, code_comment, task_done}",
+      "// MainTask ReAct 循环仅注册这 6 个签名，表外能力不可调用",
+      "// code_comment 强制注入 path：由定位组件计算精确行号，模型无法编造路径"
+     ],
+     "desc": "工具清单经线上调用轨迹分析取舍沉淀：只读 6 工具满足审查全部需求，直接贡献 token 省 5-15x；code_comment 强制 path 从源头拦截幻觉路径评论"
+    },
+    {
+     "type": "con",
+     "title": "给审查 Agent 暴露 bash / write_file 等执行写工具",
+     "code": [
+      "tools := []Tool{bash, write_file, file_read, ...} // 反例：暴露写/执行能力",
+      "// 轨迹分析显示：模型频繁误用 bash/write_file 且产出无效评论",
+      "// 审查是只读场景，写操作只引入风险与 token 浪费"
+     ],
+     "desc": "线上轨迹实证：写/执行类工具被模型高频误用，既无收益又引入安全风险，是无效 token 消耗的主要来源"
+    },
+    {
+     "type": "pro",
+     "title": "task_done 作为明确的终止信号，配合超时与预算双保险",
+     "code": [
+      "if tool == task_done { break } // 模型判定审查完成，终止本文件 ReAct 循环",
+      "// 兜底：ConcurrentTaskTimeout 每文件超时",
+      "// 兜底：used+estimateDiffFileTokens > MaxTokensBudget 即停"
+     ],
+     "desc": "task_done 是正常出口，超时与预算前瞻是异常出口：正常路径不打断，异常路径不死循环、不超预算"
+    },
+    {
+     "type": "con",
+     "title": "无终止信号的开放式循环",
+     "code": [
+      "// 反例：模型每次思考后总能调用更多工具，无 task_done、无超时",
+      "for { comments = append(comments, llm.Step(ctx)) } // 模型在无关文件间无限试探",
+      "// 单文件可耗尽整个会话预算 → token 雪球"
+     ],
+     "desc": "缺少明确终止机制时模型倾向于继续探索，token 呈雪球式膨胀，单文件即可拖垮整批审查的预算"
+    }
+   ]
+  },
+  {
+   "id": "arch-reflection",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "Ground A 否决目标不在 diff 中的评论",
+     "code": [
+      "// 评论目标行号不在 diff 变更行集合内",
+      "if !inDiff(comment.TargetLine, diffHunks) { veto(comment, GROUND_A) }",
+      "// 例：模型评论了未改动的既有函数 → 否决"
+     ],
+     "desc": "证伪优先的最快路径：多数无效评论是评论了未变更代码，Ground A 无需语义分析即可确定性否决，避免噪音审查"
+    },
+    {
+     "type": "con",
+     "title": "用同一模型自审（把评论丢回给模型复核）",
+     "code": [
+      "// 反例：复核仍由审查模型执行",
+      "selfCheck := llm.Verify(comments) // 确认偏差：模型倾向认可自己产出",
+      "// Ground A/B 检查被语义化讨论取代 → 无效评论漏网"
+     ],
+     "desc": "自审产生确认偏差，证伪优先失效；反思必须是独立组件，仅凭 diff+评论 JSON 做确定性判定"
+    },
+    {
+     "type": "pro",
+     "title": "保护主题豁免：高价值主题证据不足也放行",
+     "code": [
+      "protected := {内存安全, 并发, 链接一致性, 行为兼容性, 未用参数}",
+      "if comment.Topic ∈ protected && !groundA && !groundB { approve(comment) } // 证据不足不否决",
+      "// 若 Ground A/B 硬性命中则仍否决"
+     ],
+     "desc": "非对称信息边界下反思组件看不到完整文件，保护主题豁免防止误杀真问题；但豁免不等于永不否决，硬证据命中仍否决"
+    },
+    {
+     "type": "con",
+     "title": "把保护主题豁免误解为『保护主题永不否决』",
+     "code": [
+      "// 反例：保护主题直接跳过所有检查",
+      "if comment.Topic ∈ protected { approve(comment); continue } // Ground A/B 不再执行",
+      "// 模型对未改动代码编造的并发问题评论被放行"
+     ],
+     "desc": "豁免只适用于『证据不足』情形，若 Ground A（目标不在 diff）或 Ground B（字面反驳）硬性命中，保护主题评论同样应被否决"
+    }
+   ]
+  },
+  {
+   "id": "arch-parallel",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "每文件独立上下文 + 信号量 8 并发",
+     "code": [
+      "sem := make(chan struct{}, 8)",
+      "for _, entry := range filteredFiles {",
+      "  sem <- struct{}{}",
+      "  go func(e FileEntry){ defer func(){ <-sem; recover() }(); runFileTask(e) }(entry)",
+      "}",
+      "// 每个 goroutine 拥有独立 Plan/ReAct/评论集/token 预算，零共享可变状态"
+     ],
+     "desc": "文件级隔离使并行无锁竞争，goroutine 间零共享；默认 8 并发平衡吞吐与预算，panic recover 把单文件崩溃降级为局部失败"
+    },
+    {
+     "type": "con",
+     "title": "所有文件共享一个全局上下文",
+     "code": [
+      "// 反例：先读全部文件再统一审查",
+      "allFiles := readAll(filteredFiles)",
+      "review(allFiles) // 文件间上下文互相串扰",
+      "// A 文件的代码可能被误引到 B 文件的评论中，预算同时失控"
+     ],
+     "desc": "共享上下文导致评论张冠李戴（文件归属错误），且总预算被全体文件同时消耗，规模化审查不可行"
+    },
+    {
+     "type": "pro",
+     "title": "预算前瞻：used+estimateDiffFileTokens 超限即停",
+     "code": [
+      "// 每轮 ReAct 迭代前检查",
+      "if used + estimateDiffFileTokens(entry) > MaxTokensBudget {",
+      "  stopFileTask(entry) // 提前终止该文件，而非等待触发",
+      "}",
+      "// filterLargeDiffs: 超过 80% MaxTokens 的文件分派前即丢弃"
+     ],
+     "desc": "前瞻式预算控制把『超限』从事后补救变成事前预防：异常膨胀的 ReAct 循环被及时终止，超大文件根本不进队列"
+    },
+    {
+     "type": "con",
+     "title": "无预算检查、无超时地运行子任务",
+     "code": [
+      "// 反例：裸 goroutine 无任何约束",
+      "go runFileTask(entry) // 无 ConcurrentTaskTimeout、无预算前瞻",
+      "// 一个 ReAct 死循环的文件可无限占用预算直到整批 OOM/超时"
+     ],
+     "desc": "真实仓库存在异常文件（工具死循环、diff 超大），无超时无预算约束时单文件即可拖垮整批审查"
+    }
+   ]
+  },
+  {
+   "id": "eng-diff",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "审 merge 提交用 --diff-merges=first-parent",
+     "code": [
+      "git show --diff-merges=first-parent <merge_commit>",
+      "# 只与主父分支对比，diff 体积与语义可控",
+      "# 反例（默认行为）: git show <merge_commit> 产生 combined diff，多父分支变更交织"
+     ],
+     "desc": "first-parent 规避 merge 组合 diff 的体积爆炸与语义混乱：模型上下文不被无关父分支的变更污染"
+    },
+    {
+     "type": "con",
+     "title": "审 merge 提交用默认 git show 拿到 combined diff",
+     "code": [
+      "git show <merge_commit> # 默认输出 combined diff",
+      "# 多个父分支的变更被压缩交织展示（diff --cc），行号语义混乱",
+      "# 模型上下文被无关父分支变更污染，评论定位失真"
+     ],
+     "desc": "combined diff 体积膨胀且语义混乱，模型难以区分哪个父分支引入了哪行变更，评论误报率上升"
+    },
+    {
+     "type": "pro",
+     "title": "range 模式带 --find-renames 识别重命名文件",
+     "code": [
+      "git diff -U3 --find-renames merge-base..to",
+      "# 重命名+微改的文件以 rename 形式呈现（similarity index）",
+      "# 过滤链与评论定位按新路径处理，不会误判为删旧增新"
+     ],
+     "desc": "--find-renames 使重命名文件被识别为『移动+修改』而非『删除+新增』，避免两条记录与路径错位导致的误报"
+    },
+    {
+     "type": "con",
+     "title": "缺少 --find-renames 时重命名被拆成删除+新增",
+     "code": [
+      "git diff -U3 merge-base..to # 未开 --find-renames",
+      "# 旧路径显示为 deleted、新路径显示为 new file",
+      "# 过滤链对旧路径执行 deleted 处理，评论 path 错位，误报删旧增新"
+     ],
+     "desc": "rename 被拆成两条记录后，过滤与评论定位（path）都会产生误报；且删除文件不进审查，重命名中的真实改动可能被漏审"
+    }
+   ]
+  },
+  {
+   "id": "eng-filter",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "8000 字节二进制嗅探兜底改名二进制",
+     "code": [
+      "sniff := readFirstBytes(path, 8000) // 前 8000 字节采样",
+      "if isBinary(sniff) { exclude(entry, ExcludeReason_binary) }",
+      "# 按 NUL 字节/不可打印字符比例判定，与扩展名无关",
+      "# 例：图片改名 .go 后缀混进 PR 仍被拦截"
+     ],
+     "desc": "内容嗅探比扩展名判断更可靠：改名二进制（.png→.go）无法绕过白名单，二进制内容不会注入模型上下文"
+    },
+    {
+     "type": "con",
+     "title": "只用扩展名列表判断二进制",
+     "code": [
+      "binaryExt := map[string]bool{\".png\": true, \".jpg\": true, \".zip\": true}",
+      "if binaryExt[ext(path)] { exclude(entry) }",
+      "# 改名后的二进制（evil.png → evil.go）绕过判断，二进制内容进入模型上下文"
+     ],
+     "desc": "扩展名可被轻易改名绕过，二进制内容（大量不可打印字节）进入上下文既污染审查又浪费 token，必须内容嗅探兜底"
+    },
+    {
+     "type": "pro",
+     "title": "2MiB 硬上限 + ExcludeReason 可审计过滤",
+     "code": [
+      "if entry.Size > 2*1024*1024 { exclude(entry, ExcludeReason_size_limit) }",
+      "// 每条排除记录原因：user_exclude / unsupported_ext / default_path / deleted / binary",
+      "// manifest 输出 '为什么没审这个文件'，过滤链可审计可单测"
+     ],
+     "desc": "2MiB 上限与 filterLargeDiffs（80% MaxTokens）构成双层大文件防线；ExcludeReason 让过滤结果可解释，排障时可定位是哪一层拦截"
+    },
+    {
+     "type": "con",
+     "title": "无大小上限、过滤后不记录原因",
+     "code": [
+      "# 反例：只靠 filterLargeDiffs 的 80% MaxTokens",
+      "# 单一大文件即使小于 80% 也可能吃掉大半预算",
+      "# 且排除时不写 ExcludeReason → 用户无法审计为什么没审某文件"
+     ],
+     "desc": "缺少 2MiB 硬上限时单文件仍可消耗巨量 token；无原因记录的过滤链不可解释，『文件为何没被审』的排障直接断线"
+    }
+   ]
+  },
+  {
+   "id": "eng-bundling",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "按语言分桶+key 排序，任务序列确定可复现",
+     "code": [
+      "# BatchStrategy: by-language（扩展名转小写作桶 key）",
+      "bucket = strings.ToLower(filepath.Ext(path))   # .GO -> .go",
+      "buckets[bucket] = append(buckets[bucket], file)",
+      "sort.Strings(bucketKeys)                        # 确定性排序",
+      "batches = chunk(bucket, BatchSize)              # 按 BatchSize 切块"
+     ],
+     "desc": "同语言文件归入同一桶，桶 key 排序后按 BatchSize 切块，同一输入集合任何时刻产生相同任务序列，为 reviewItemFingerprint 指纹复用与断点续审提供确定性基础。"
+    },
+    {
+     "type": "con",
+     "title": "用 none 策略+map 迭代序分发，任务划分不可复现",
+     "code": [
+      "for k := range fileMap {   // map 迭代顺序随机",
+      "    dispatch(k)            // 任务顺序每次运行都不同",
+      "}"
+     ],
+     "desc": "不分桶直接整体审查超大仓库会撑爆单任务上下文；依赖 map 迭代顺序还会让任务序列每次运行不同，指纹复用与断点续审全部失效。"
+    },
+    {
+     "type": "pro",
+     "title": "delegate 模式按 (source|pattern|text) 三元组聚簇",
+     "code": [
+      "clusterKey = source + \"|\" + pattern + \"|\" + text",
+      "groups[clusterKey] = append(groups[clusterKey], req)"
+     ],
+     "desc": "定向委托请求按三元组聚簇成组，同一源码+模式+文本的请求合并为一个任务批次，减少重复读取与重复审查开销。"
+    },
+    {
+     "type": "con",
+     "title": "把 delegate 三元组聚簇误当文件分桶",
+     "code": [
+      "# 错误：按文件路径给 delegate 请求分桶",
+      "bucket = filepath.Dir(req.Source)  # 语义错误",
+      "# 正确：按 (source|pattern|text) 三元组聚簇"
+     ],
+     "desc": "delegate 模式的任务粒度由调用方语义决定，按文件路径分桶会打散本应合并的同类委托请求，增加重复审查成本。"
+    }
+   ]
+  },
+  {
+   "id": "eng-locator",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "先 normalizeLine 再 matchConsecutive 精确连续匹配",
+     "code": [
+      "line := normalizeLine(raw)      // 去掉 + - 前缀与首尾空白",
+      "if matchConsecutive(hunk.NewLines, lines) {",
+      "    return hunk.NewStartLine + offset   // 新行号命中",
+      "}"
+     ],
+     "desc": "逐行清洗后再按行序做精确连续匹配，避免 +/空格等 diff 噪音干扰，命中即返回新行号区间，是第一级定位的正确实现。"
+    },
+    {
+     "type": "con",
+     "title": "跳过 normalizeLine 直接匹配带 +/- 前缀的行",
+     "code": [
+      "# 错误：直接用 diff 原始行匹配",
+      "if rawLine == targetLine {   // \"+foo()\" 永远匹配不上 \"foo()\"",
+      "    ...",
+      "}"
+     ],
+     "desc": "不先去除 +/- 前缀与首尾空白，文本恒不相等，全链路匹配失败，评论被迫降级到成本更高的跨文件/LLM 定位。"
+    },
+    {
+     "type": "pro",
+     "title": "hunk 匹配失败后按级降级：旧侧→全文件滑动窗口→跨文件→LLM",
+     "code": [
+      "1) hunk 新侧(context+added) 精确连续匹配 -> 新行号",
+      "2) hunk 旧侧(context+deleted) -> 旧行号",
+      "3) NewFileContent 滑动窗口(可跳空行)",
+      "4) RelocateAcrossFiles 跨文件纯字符串匹配",
+      "5) LLM ReLocateComment 推理兜底"
+     ],
+     "desc": "五级回退逐级降级，能用机械匹配解决的绝不提前动用 LLM；滑动窗口跳空行容忍格式噪音，保证定位结果稳定且低成本。"
+    },
+    {
+     "type": "con",
+     "title": "用子串模糊匹配代替精确连续匹配",
+     "code": [
+      "# 错误：strings.Contains 模糊匹配",
+      "if strings.Contains(fileText, target) {  // 可能命中多个位置",
+      "    line = guessLine   // 行号是猜的",
+      "}"
+     ],
+     "desc": "模糊匹配可能命中多处或错位，行号污染评论落点，用户点击跳到错误代码，破坏审查可信度。"
+    }
+   ]
+  },
+  {
+   "id": "eng-relocate",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "RelocateAcrossFiles 恰好 1 命中才迁移",
+     "code": [
+      "hits := findStringInOtherDiffs(existingCode)  // 逐字摘录匹配",
+      "if len(hits) == 1 {",
+      "    migrate(comment, hits[0].Path, hits[0].StartLine, hits[0].EndLine)",
+      "}",
+      "# 0 命中或 >1 命中都拒绝，防歧义"
+     ],
+     "desc": "ExistingCode 逐字摘录后在其他文件 diff 中纯字符串匹配，恰好 1 命中才将 Path+StartLine+EndLine 整体迁移；0/多命中拒绝避免把评论错误安放到无关代码上。"
+    },
+    {
+     "type": "con",
+     "title": "首次命中即接受，多拷贝场景评论错位",
+     "code": [
+      "# 错误：找到第一个匹配就迁移",
+      "if hit := findFirst(hits); hit != nil {",
+      "    migrate(comment, hit)   # 同名代码在 3 个文件都有",
+      "}"
+     ],
+     "desc": "同一代码块在多个文件重复出现时，首次命中可能不是真实目标，评论被错误安放到无关拷贝上，且无任何告警。"
+    },
+    {
+     "type": "pro",
+     "title": "ReLocateComment 失败回退原 snippet",
+     "code": [
+      "msg := BuildReLocationMessages({diff, existing_code, suggestion_content})",
+      "block := extractCodeBlock(llm(msg))",
+      "if !resolveComment(block) {",
+      "    fallbackToOriginal(comment)   # 保留原文件+原行号",
+      "}"
+     ],
+     "desc": "LLM 按 {diff}/{existing_code}/{suggestion_content} 三要素推理定位，extractCodeBlock 清洗后重试 ResolveComment；失败回填原 snippet，保证评论内容永不丢失。"
+    },
+    {
+     "type": "con",
+     "title": "LLM 输出不经 extractCodeBlock 直接当答案",
+     "code": [
+      "# 错误：整段输出当定位结果",
+      "answer := llm(msg)            # 混有解释文字",
+      "resolveComment(answer)        # 解析失败",
+      "dropComment(comment)          # 甚至直接丢弃评论"
+     ],
+     "desc": "不提取代码块会把解释性文本混入定位结果导致失败；失败路径丢弃评论违反『评论不丢失』契约，内容不可恢复。"
+    }
+   ]
+  },
+  {
+   "id": "eng-compression",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "60% 软阈值后台异步压缩+摘要追加 user 消息",
+     "code": [
+      "if usage >= 60% && !compressing {",
+      "    go compressAsync(state)   // 后台异步，不阻塞审查",
+      "    summary := llmSummarize(compressZone)",
+      "    appendToUserMsg(\"previous_review_summary\", summary)",
+      "}"
+     ],
+     "desc": "达到 60% 软阈值后台异步把 compress 区摘要为 previous_review_summary 追加进 user 消息，审查无感继续，后续轮次仍能引用早期结论。"
+    },
+    {
+     "type": "con",
+     "title": "压缩失败后仍截断丢弃历史消息",
+     "code": [
+      "# 错误：压缩失败也执行截断",
+      "if compressFailed {",
+      "    truncate(compressZone)   # 历史被硬砍掉",
+      "}",
+      "# 正确：失败保留原消息"
+     ],
+     "desc": "违反『失败保留原消息』契约：审查连续性断裂，后续轮次无法引用早期审查结论，甚至导致定位链上下文缺失。"
+    },
+    {
+     "type": "pro",
+     "title": "80% 警告阈值同步立即压缩",
+     "code": [
+      "if usage >= 80% {",
+      "    compressSync(compressZone)   // 同步兜底，防溢出",
+      "    keepActive(activeZone, K)    // 保留最近 K 轮",
+      "}"
+     ],
+     "desc": "接近溢出时同步立即压缩强制腾出空间，active 区按剩余预算保留最近 K 轮，防止当前请求因上下文溢出而失败。"
+    },
+    {
+     "type": "con",
+     "title": "全局共享单一 compressionState，多会话互踩",
+     "code": [
+      "# 错误：包级单例压缩状态",
+      "var state = &compressionState{}   // 所有文件会话共用",
+      "compress(state, sessionA)        // A 的压缩",
+      "# B 会话的 active 区被误清"
+     ],
+     "desc": "多文件会话共享压缩状态会导致 A 会话的压缩清掉 B 会话的 active 区；每会话独立 compressionState 才能防跨文件互踩。"
+    }
+   ]
+  },
+  {
+   "id": "eng-session",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "一文件一会话，AppendTaskRecord 全量记录",
+     "code": [
+      "sess := GetOrCreateFileSession(newPath)   // ~/.opencodereview/sessions/",
+      "sess.AppendTaskRecord(Plan)",
+      "sess.AppendTaskRecord(Main)",
+      "sess.AppendTaskRecord(ReLocation)",
+      "sess.AppendTaskRecord(session_end)        // 结束标记落盘"
+     ],
+     "desc": "每个文件独立 JSONL 会话，Plan/Main/MemoryCompression/ReLocation/ReviewFilter 全任务类型落盘，session_end 标记正常结束，可回放可审计。"
+    },
+    {
+     "type": "con",
+     "title": "多文件共用单一会话文件且不写 session_end",
+     "code": [
+      "# 错误：全局单会话文件",
+      "sess := GetOrCreateFileSession(\"all-files\")",
+      "sess.AppendTaskRecord(taskA)   // 并行事件交错",
+      "# 崩溃后无法区分正常结束与中断"
+     ],
+     "desc": "并行审查事件交错无法还原单文件时序，session_end 缺失使回放无法区分『正常结束』与『中断』，审计与断点续审双双失效。"
+    },
+    {
+     "type": "pro",
+     "title": "会话文件可回放定位崩溃点与审计决策",
+     "code": [
+      "# 审计：只查 ReLocation 事件",
+      "grep '\"task\":\"ReLocation\"' ~/.opencodereview/sessions/<session>.jsonl",
+      "# 回放：逐行重建任务时序",
+      "cat ~/.opencodereview/sessions/<session>.jsonl"
+     ],
+     "desc": "JSONL 逐行记录全部关键任务，审计时可按任务类型过滤，回放时逐行重建执行过程，崩溃现场可通过缺失的 session_end 精确定位。"
+    },
+    {
+     "type": "con",
+     "title": "只记结果不记过程，审计失去意义",
+     "code": [
+      "# 错误：只记最终评论",
+      "sess.AppendTaskRecord(ReviewResult)",
+      "# 缺少 Plan/Main/ReLocation 中间过程"
+     ],
+     "desc": "跳过中间任务类型后，无法回答『每条评论怎么来的、走了哪条定位链』，审计与故障排查价值归零。"
+    }
+   ]
+  },
+  {
+   "id": "eng-resume",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "指纹含 mode+oldPath+newPath+diffText，父 manifest 状态驱动复用",
+     "code": [
+      "fp := sha256(mode + oldPath + newPath + diffText)",
+      "if m.Status(fp) == Completed || m.Status(fp) == Reused {",
+      "    collector.Backfill(comment(fp))   // 直接回填，不再调 LLM",
+      "} else {",
+      "    rerun(fp)                          // 未决项重跑",
+      "}"
+     ],
+     "desc": "reviewItemFingerprint 覆盖模式/路径/diff 全身份要素，父 manifest 中 completed/reused 的评论直接回填 Collector，未决项才重跑，断点续审 O(1) 恢复。"
+    },
+    {
+     "type": "con",
+     "title": "指纹漏分量或依赖可变 ref，身份漂移",
+     "code": [
+      "# 错误：指纹缺 diffText",
+      "fp := sha256(mode + oldPath + newPath)",
+      "# 错误：用分支名而非冻结 commit",
+      "input.Ref = \"main\"   // ref 移动导致前后身份不一致"
+     ],
+     "desc": "指纹遗漏分量会让同一 diff 不同模式产出相同指纹，错误复用评论；依赖可变 ref 而非 SealedInput 冻结的 commit 端点，审查期间 ref 移动即身份漂移、评论错位。"
+    },
+    {
+     "type": "pro",
+     "title": "SealedInput 冻结 commit 端点",
+     "code": [
+      "input := SealedInput{",
+      "    Commit: repo.Resolve(\"HEAD\").Hash,  // 启动时冻结 commit hash",
+      "}",
+      "# 审查全程引用冻结端点，远端 push 不影响本会话"
+     ],
+     "desc": "会话启动时把输入冻结在 commit hash 级别，审查期间远端仓库即使被 push 新 commit，本会话仍引用冻结端点，评论身份不漂移。"
+    },
+    {
+     "type": "con",
+     "title": "续审时全量重建而非按指纹差量续跑",
+     "code": [
+      "# 错误：--resume 后仍全量重审",
+      "reviewAll()",
+      "# 正确：ocr review --resume <session-id> 按指纹差量续跑"
+     ],
+     "desc": "不按指纹差量续跑退化为全量重审，已完成工作的 LLM 开销全部浪费，断点续审失去意义。"
+    }
+   ]
+  },
+  {
+   "id": "eng-manifest",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "预算截断用 SetPendingFailureCause，与 SetRunFailure 分离",
+     "code": [
+      "RegisterSelected(items)",
+      "SealSelected(items)",
+      "# 预算耗尽，剩余项未审",
+      "SetPendingFailureCause(items[60:], BudgetTruncated)",
+      "# 而非 SetRunFailure() 整体判失败",
+      "Finalize(input, repository, coverage)   // 冻结快照"
+     ],
+     "desc": "pending（预算截断）与 failure 语义分离：剩余项记为未决而非失败，覆盖度报告不失真；Finalize 冻结 input/repository/coverage 供审计引用。"
+    },
+    {
+     "type": "con",
+     "title": "把 pending 项标 failed，覆盖度报告失真",
+     "code": [
+      "# 错误：预算截断当失败",
+      "MarkFailed(items[60:])",
+      "# 覆盖度统计：60/80 失败，实际是未审完"
+     ],
+     "desc": "把『没审完』误判为『审坏了』，误导重试策略与覆盖度统计，审计结论全面失真。"
+    },
+    {
+     "type": "pro",
+     "title": "失败按 FailureClass 8 类归因，可机器分类重试",
+     "code": [
+      "switch failure.Class {",
+      "case ContextOverflow: retryWithLargerBudget(item)",
+      "case LLMCallFailed:   retryWithBackoff(item)",
+      "case LocateFailed:    fallbackToRelocate(item)",
+      "case Timeout:         requeue(item)",
+      "}",
+      "# 每项 MarkCompleted/Reused/Failed 更新台账"
+     ],
+     "desc": "逐项状态 + 8 类失败归因形成逐项覆盖度台账，重试逻辑可按类精确处理，而不是对整次运行一刀切。"
+    },
+    {
+     "type": "con",
+     "title": "失败只记布尔值且跳过 Finalize",
+     "code": [
+      "# 错误：失败不归因",
+      "item.Failed = true   // 无法自动分类重试",
+      "# 错误：不冻结快照",
+      "runDone()            // 无 input/repository/coverage 快照"
+     ],
+     "desc": "布尔失败标记让机器无法自动分类重试；跳过 Finalize 后审计无法确认输入与产出的严格对应关系，覆盖度契约名存实亡。"
+    }
+   ]
+  },
+  {
+   "id": "eng-scan",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "2MiB 上限+8000 字节嗅探，过滤不可审内容",
+     "code": [
+      "items := Provider.Enumerate()   // git ls-files + 未跟踪",
+      "items = filterScanItems(items)",
+      "items = filterLargeScans(items, 2*1024*1024)  // 2MiB 上限",
+      "for it := range items {",
+      "    if sniff(it, 8000) == Binary { skip(it) }  // 字节嗅探",
+      "}"
+     ],
+     "desc": "超大文件在进入子任务前被 2MiB 上限剔除，8000 字节取样嗅探跳过二进制，避免大文件拖垮上下文、二进制产出垃圾评论。"
+    },
+    {
+     "type": "con",
+     "title": "不设上限不嗅探，超大/二进制文件直接进子任务",
+     "code": [
+      "# 错误：全量扫描不过滤",
+      "for _, f := range enumerateAll() {",
+      "    dispatch(ScanItem{Content: readAll(f)})   # 5MB 文件+二进制",
+      "}"
+     ],
+     "desc": "超大文件直接进子任务撑爆上下文导致该任务失败，二进制文件被当文本扫描产出无意义评论，白白消耗预算。"
+    },
+    {
+     "type": "pro",
+     "title": "DEDUP_TASK 批次级去重 + PROJECT_SUMMARY_TASK 项目级结论",
+     "code": [
+      "snap := collector.Snapshot()",
+      "since := collector.Since(snap)",
+      "collector.ReplaceSince(dedup(since))   // 批次级去重",
+      "maybeRunProjectSummary(items)          // 项目级总结",
+      "WaitBackground()",
+      "Finalize()"
+     ],
+     "desc": "CommentCollector.Snapshot/Since/ReplaceSince 实现批次级去重，同一模式被多个子任务重复评论时只保留一条；PROJECT_SUMMARY_TASK 补充项目级整体结论。"
+    },
+    {
+     "type": "con",
+     "title": "不做去重，批次重复评论成倍污染结果",
+     "code": [
+      "# 错误：各子任务评论直接汇入",
+      "collector.AddAll(subtaskResults)   # 相同问题重复 N 条",
+      "# 无 Snapshot/Since/ReplaceSince 去重"
+     ],
+     "desc": "多个子任务对同一代码模式给出相同评论时不做批次级去重，重复评论成倍污染最终审查结果，开发者被迫处理大量冗余噪音。"
+    }
+   ]
+  },
+  {
+   "id": "cli-overview",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "npm 全局安装后验证版本与命令树",
+     "code": [
+      "npm install -g @alibaba-group/open-code-review",
+      "ocr -V",
+      "ocr --help"
+     ],
+     "desc": "先确认 Git>=2.41（git --version），npm 安装后 ocr -V 输出版本号、ocr --help 展示完整命令树，说明安装与 PATH 均正常，可进入实际使用。"
+    },
+    {
+     "type": "con",
+     "title": "Git 版本低于 2.41 直接安装使用",
+     "code": [
+      "git --version  # 输出 git version 2.39.0",
+      "npm install -g @alibaba-group/open-code-review",
+      "ocr review"
+     ],
+     "desc": "底层 git diff/搜索/仓库操作依赖 Git>=2.41，版本不足时 review 报 git 相关错误或行为异常，浪费排查时间。应先升级 Git 再安装。"
+    },
+    {
+     "type": "pro",
+     "title": "无 npm 环境用 Release 二进制并校验 PATH",
+     "code": [
+      "curl -L -o ocr https://github.com/alibaba/open-code-review/releases/latest/download/ocr-linux-amd64",
+      "chmod +x ocr && sudo mv ocr /usr/local/bin/",
+      "ocr --version"
+     ],
+     "desc": "下载预编译二进制放入 PATH 后直接验证，适合 CI 或无 Node 环境；安装后立即 ocr --version 确认 PATH 命中，避免 command not found。"
+    },
+    {
+     "type": "con",
+     "title": "二进制未加入 PATH 就执行命令",
+     "code": [
+      "curl -L -o ~/downloads/ocr ...",
+      "ocr review  # bash: ocr: command not found"
+     ],
+     "desc": "二进制只在下载目录而未加入 PATH，执行报 command not found，误以为安装失败反复重下。应 mv 到 PATH 目录或使用完整路径执行。"
+    },
+    {
+     "type": "pro",
+     "title": "源码构建（Makefile）安装",
+     "code": [
+      "git clone https://github.com/alibaba/open-code-review.git",
+      "cd open-code-review && make build",
+      "./bin/ocr --version"
+     ],
+     "desc": "有 Go 工具链的环境可通过源码构建获取最新版本，构建产物路径随 Makefile 约定（如 bin/），构建后验证版本即完成安装。"
+    },
+    {
+     "type": "con",
+     "title": "多安装方式混用导致旧版本命中",
+     "code": [
+      "npm install -g @alibaba-group/open-code-review",
+      "mv ./ocr-linux-amd64 /usr/local/bin/ocr",
+      "ocr -V  # 显示旧版本号"
+     ],
+     "desc": "npm 全局版与手动放置的二进制同时存在时 PATH 优先命中其一，版本与文档不符；应只保留一种安装方式并核对 ocr -V 版本一致。"
+    }
+   ]
+  },
+  {
+   "id": "cli-review",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "分支合并前对比审查",
+     "code": [
+      "ocr review --from main --to feature-branch"
+     ],
+     "desc": "以 main 为基准对比 feature-branch 的全部差异，聚焦本次合并将引入的改动，是 PR 合并前把关的标准用法。"
+    },
+    {
+     "type": "con",
+     "title": "不指定基准导致审查范围错误",
+     "code": [
+      "ocr review  # 仅审 workspace，漏掉分支上已提交的改动",
+      "git status  # 输出空，误以为没有变更"
+     ],
+     "desc": "裸 ocr review 只覆盖暂存+未暂存+未跟踪改动，分支间已提交的差异不会进入审查，合并前必须用 --from/--to 显式指定基准。"
+    },
+    {
+     "type": "pro",
+     "title": "超时与并发参数保障大仓库审查",
+     "code": [
+      "ocr review --from main --to feature-branch --timeout 30m --concurrency 8 --max-git-procs 4"
+     ],
+     "desc": "显式放宽超时（默认 10 分钟）并保守设置并发与 git 子进程数，避免大变更中途超时或 git 进程冲突。"
+    },
+    {
+     "type": "con",
+     "title": "大仓库不调超时直接跑，超时后未续审",
+     "code": [
+      "ocr review --from main --to feature-branch  # 10 分钟后超时中断",
+      "ocr review --from main --to feature-branch  # 从头重跑，token 双倍浪费"
+     ],
+     "desc": "默认 10 分钟超时对大型变更不够，中断后不查 ocr session list 并 --resume 续审，导致已消耗 token 与时间全部浪费。"
+    },
+    {
+     "type": "pro",
+     "title": "后台审查 + 会话续审",
+     "code": [
+      "ocr review --background --background-file review.jsonl",
+      "ocr session list",
+      "ocr review --resume <session-id>"
+     ],
+     "desc": "后台执行把进度与结果落在会话中，中断后用 ocr review --resume <session-id> 从断点继续，长任务可中断恢复。"
+    },
+    {
+     "type": "con",
+     "title": "并发拉满触发限流与进程冲突",
+     "code": [
+      "ocr review --concurrency 32 --max-git-procs 32",
+      "ERROR: rate limit exceeded / git: unable to start 32 processes"
+     ],
+     "desc": "并发与 git 子进程数过高导致 LLM API 限流报错或 git 进程冲突、diff 计算互相干扰，应按仓库规模与限流阈值保守设置。"
+    }
+   ]
+  },
+  {
+   "id": "cli-scan",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "指定目录分批扫描控制成本",
+     "code": [
+      "ocr scan --path internal/agent --batch by-directory"
+     ],
+     "desc": "收窄到模块目录并按目录分批，单轮上下文与 token 成本可控，适合先摸清重点模块再决定是否扩大范围。"
+    },
+    {
+     "type": "con",
+     "title": "大仓库默认全量扫描撑爆预算",
+     "code": [
+      "ocr scan  # 全仓扫描上下文爆炸",
+      "ERROR: token budget exceeded / 长时间无响应"
+     ],
+     "desc": "大仓库裸跑默认全量，上下文与 token 预算被撑爆、耗时超长；应先 --path 收窄或显式 --batch 分批。"
+    },
+    {
+     "type": "pro",
+     "title": "中断后用 resume 续扫",
+     "code": [
+      "ocr scan --batch by-directory  # 中途断网中断",
+      "ocr scan --resume <session-id>"
+     ],
+     "desc": "长扫描被网络/断电打断后从断点继续，已完成的批次不重复扫描，token 与时间不浪费。"
+    },
+    {
+     "type": "con",
+     "title": "关闭去重导致重复问题报告",
+     "code": [
+      "ocr scan --no-dedup"
+     ],
+     "desc": "跨文件相似代码会被重复报告，处理问题时须结合 DEDUP 阶段去重信息合并同类项，否则同一问题被反复统计与修复。"
+    },
+    {
+     "type": "pro",
+     "title": "跳过计划阶段快速试跑",
+     "code": [
+      "ocr scan --path internal/agent/main.go --no-plan --no-summary"
+     ],
+     "desc": "针对单个文件关闭计划与汇总阶段，快速获得该文件的问题列表，适合小范围试跑验证配置与连通性。"
+    },
+    {
+     "type": "con",
+     "title": "把 scan 当日常增量审查使用",
+     "code": [
+      "ocr scan  # 每次全量成本",
+      "ocr review  # 增量场景应使用 diff 驱动"
+     ],
+     "desc": "scan 是全文件模式每次都是全量成本，日常增量审查应使用 diff 驱动的 ocr review，否则开销成倍增长。"
+    }
+   ]
+  },
+  {
+   "id": "cli-delegate",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "preview 输出结构化元数据供宿主 Agent 消费",
+     "code": [
+      "ocr delegate preview --format json"
+     ],
+     "desc": "输出 mode（workspace/range/commit）、merge_base、可审查文件清单与 excluded_files，宿主 Agent 可精确复现审查范围，全程无需 OCR API Key。"
+    },
+    {
+     "type": "con",
+     "title": "期望 delegate 直接产出审查结论",
+     "code": [
+      "ocr delegate preview --format json  # 只返回元数据，无审查意见",
+      "# 误以为工具故障，实际是委托模式不调 LLM"
+     ],
+     "desc": "delegate 只做分析准备（preview/rule），不调 LLM 也不产出审查意见；把产出归零当工具故障是常见误解，审查需由宿主 Agent 完成。"
+    },
+    {
+     "type": "pro",
+     "title": "rule 子命令获取规则聚类结构",
+     "code": [
+      "ocr delegate rule internal/agent"
+     ],
+     "desc": "按 source|pattern|text 三元组聚类输出规则结构，宿主 Agent 据此理解将应用的规则体系，再结合 preview 文件清单执行审查。"
+    },
+    {
+     "type": "con",
+     "title": "忽略 mode/merge_base 导致范围错误",
+     "code": [
+      "ocr delegate preview --format json",
+      "# 不核对 mode/merge_base 直接开审，审了不该审的文件"
+     ],
+     "desc": "preview 的 mode 与 merge_base 决定审查口径，忽略它们会让宿主 Agent 审错范围（漏掉关键变更或误审无关文件）。"
+    },
+    {
+     "type": "pro",
+     "title": "无模型额度场景委托给已有 Agent 生态",
+     "code": [
+      "ocr delegate preview --format json",
+      "ocr delegate rule .",
+      "# 宿主 Agent 用自己的 LLM 逐文件审查"
+     ],
+     "desc": "本机未配置 OCR API Key 或不想在 ocr 侧消耗模型额度时，delegate 把分析准备交给 ocr、审查交给宿主 Agent，模型费用由宿主承担。"
+    },
+    {
+     "type": "con",
+     "title": "把 rule 输出当最终规则文件直接套用",
+     "code": [
+      "ocr delegate rule . > rules.json  # 当作生效规则文件",
+      "ocr rules check src/foo.go  # 实际规则命中以四层链为准"
+     ],
+     "desc": "delegate rule 只是规则结构的聚类视图，规则生效链路仍要回到 ocr rules check 与四层规则链（custom/project/global/system）确认。"
+    }
+   ]
+  },
+  {
+   "id": "cli-config",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "set 切换提供商与模型",
+     "code": [
+      "ocr config set provider deepseek",
+      "ocr config set model deepseek-chat",
+      "ocr llm test"
+     ],
+     "desc": "点分键配置一次切换全部生效，set 后用 ocr llm test 立即验证连通性，闭环确认配置正确。"
+    },
+    {
+     "type": "con",
+     "title": "手改配置文件破坏 JSON 格式",
+     "code": [
+      "vim ~/.opencodereview/config.json  # 误删逗号/引号",
+      "ocr review  # 静默回退默认配置，行为与预期不符"
+     ],
+     "desc": "手改 JSON 产生语法或字段拼写错误时工具静默回退默认配置，难以察觉；应优先用 ocr config set/unset 与 TUI 向导。"
+    },
+    {
+     "type": "pro",
+     "title": "TUI 向导完成首次配置",
+     "code": [
+      "ocr config provider  # 选择官方 provider、输入 API key、测试连接",
+      "ocr config model"
+     ],
+     "desc": "Bubble Tea 交互向导引导完成 provider 选择、API key 输入与连接测试，新手无需记忆键名即可完成配置。"
+    },
+    {
+     "type": "con",
+     "title": "混淆 providers 与 custom_providers 键域",
+     "code": [
+      "ocr config set providers.myprovider.apiKey sk-xxx  # 自定义字段写进内置键域",
+      "ocr llm test  # 不生效"
+     ],
+     "desc": "自定义提供商字段应写入 custom_providers.<name>.<field>，误写进 providers.<name>.<field>（内置提供商字段）导致配置不生效。"
+    },
+    {
+     "type": "pro",
+     "title": "多环境隔离读取配置",
+     "code": [
+      "OCR_CONFIG_PATH=/path/to/ci-config.json ocr config set provider openai",
+      "OCR_CONFIG_PATH=/path/to/ci-config.json ocr llm test"
+     ],
+     "desc": "CI 中用 OCR_CONFIG_PATH 指向项目私有配置读取，避免污染共享配置；需注意写路径强制为默认位置，敏感信息不会落到意外文件。"
+    },
+    {
+     "type": "con",
+     "title": "误以为 OCR_CONFIG_PATH 也覆盖写路径",
+     "code": [
+      "OCR_CONFIG_PATH=/path/to/ci-config.json ocr config set model gpt-4o",
+      "# 实际写入 ~/.opencodereview/config.json，误以为未生效"
+     ],
+     "desc": "OCR_CONFIG_PATH 只覆盖读路径，写路径强制默认位置（防泄漏设计）；据此排查会发现 set 已生效但写入了默认文件。"
+    }
+   ]
+  },
+  {
+   "id": "cli-session",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "按仓库过滤并放大条数查看会话",
+     "code": [
+      "ocr session list --repo myrepo --limit 50"
+     ],
+     "desc": "会话多于默认 20 条时用 --limit 放大、--repo 过滤，精确找回目标仓库的历史审查记录。"
+    },
+    {
+     "type": "con",
+     "title": "依赖默认 limit 20 以为会话丢失",
+     "code": [
+      "ocr session list  # 只显示前 20 条，旧会话不可见"
+     ],
+     "desc": "找不到旧会话并非被清理，而是默认 limit=20 截断；应先用 --limit 放大或 --repo 过滤，而不是误判会话丢失。"
+    },
+    {
+     "type": "pro",
+     "title": "中断后 resume 续审",
+     "code": [
+      "ocr review --from main --to feature-branch  # 中断",
+      "ocr session list --repo myrepo",
+      "ocr review --resume <session-id>"
+     ],
+     "desc": "长审查断网后用 session list 定位会话，--resume 从断点继续，已消耗 token 不浪费。"
+    },
+    {
+     "type": "con",
+     "title": "随手清理 sessions 目录",
+     "code": [
+      "rm -rf ~/.opencodereview/sessions/"
+     ],
+     "desc": "删除会话文件后 ocr review --resume 失效、历史评论不可查；删除前应确认无续审与审计需求，必要时先导出备份。"
+    },
+    {
+     "type": "pro",
+     "title": "按严重级别导出评论集中修复",
+     "code": [
+      "ocr session comments <session-id> --severity high --json"
+     ],
+     "desc": "过滤高严重度评论并以 JSON 导出，集中修复与上报，避免在低危噪音中遗漏关键问题。"
+    },
+    {
+     "type": "con",
+     "title": "混淆 show 与 comments 的用途",
+     "code": [
+      "ocr session show <session-id>  # 只有会话详情，没有评论",
+      "ocr session comments <session-id>  # 评论在另一个子命令"
+     ],
+     "desc": "show 看会话整体详情、comments 看具体评论，二者输出不同；用错命令会漏掉评论或拿不到过程信息。"
+    }
+   ]
+  },
+  {
+   "id": "cli-viewer",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "本地回放会话审查流水",
+     "code": [
+      "ocr viewer",
+      "# 浏览器打开 http://localhost:5483/r/{repo}/{sessionID}"
+     ],
+     "desc": "默认监听 localhost:5483，按任务类型（Plan/Main/压缩/重定位/反思）卡片化回放 session JSONL，数据不出本机。"
+    },
+    {
+     "type": "con",
+     "title": "把 --addr 绑到公网网卡暴露代码",
+     "code": [
+      "ocr viewer --addr 0.0.0.0:9000  # 公网可访问，无鉴权"
+     ],
+     "desc": "viewer 回放完整源码变更内容，绑定 0.0.0.0 且无鉴权等于把代码公开；应保持 localhost 或仅在可信内网临时使用。"
+    },
+    {
+     "type": "pro",
+     "title": "自定义本地监听端口",
+     "code": [
+      "ocr viewer --addr 127.0.0.1:8080",
+      "# 浏览器打开 http://127.0.0.1:8080/r/{repo}/{sessionID}"
+     ],
+     "desc": "端口冲突或习惯偏好时显式指定回环地址与端口，仍保持仅本机可访问的安全性。"
+    },
+    {
+     "type": "con",
+     "title": "自定义域名访问被 hostGuard 拦截",
+     "code": [
+      "echo '127.0.0.1 evil.example.com' >> /etc/hosts",
+      "curl http://evil.example.com:5483/r/{repo}/{id}  # 被拦截"
+     ],
+     "desc": "hostGuard 防 DNS-rebind 攻击，把恶意域名指向 localhost 访问会被拦截（这是预期行为），本地访问应直接用 localhost/127.0.0.1。"
+    },
+    {
+     "type": "pro",
+     "title": "用 session list 定位后回放指定会话",
+     "code": [
+      "ocr session list --repo myrepo --json",
+      "ocr viewer",
+      "# 浏览器打开 /r/myrepo/{sessionID} 逐卡片回放 Plan→Main→反思"
+     ],
+     "desc": "先拿 repo 与 sessionID 再在 viewer 中定位，复盘大型审查各阶段判断依据，用于审计与证据链留档。"
+    },
+    {
+     "type": "con",
+     "title": "误以为 viewer 可以编辑会话",
+     "code": [
+      "ocr viewer  # 界面只有回放，没有编辑入口"
+     ],
+     "desc": "viewer 是只读回放工具，不修改任何会话内容；找不到编辑入口属正常，修改需回到命令行操作。"
+    }
+   ]
+  },
+  {
+   "id": "cli-rules",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "check 验证规则命中与层级",
+     "code": [
+      "ocr rules check src/foo.go"
+     ],
+     "desc": "输出该文件命中的规则层（custom/project/global/system）与匹配模式，回答'为什么这个文件被这样审查'，是规则调试的第一入口。"
+    },
+    {
+     "type": "con",
+     "title": "改完规则不 check 直接跑完整 review",
+     "code": [
+      "vim ~/.opencodereview/rules/xxx.json  # 修改规则",
+      "ocr review  # 成本高且结论混杂模型因素"
+     ],
+     "desc": "跳过 check 直接全量 review 验证规则，成本高且结论混杂模型因素；应先 ocr rules check <file-path> 快速确认命中变化。"
+    },
+    {
+     "type": "pro",
+     "title": "目录级批量检查",
+     "code": [
+      "ocr rules check internal/agent"
+     ],
+     "desc": "对目录下文件批量检查规则命中，快速核对四层规则链（custom/project/global/system）的优先级是否按预期工作。"
+    },
+    {
+     "type": "con",
+     "title": "忽视规则层优先级导致'规则不生效'假象",
+     "code": [
+      "ocr rules check src/foo.go  # 显示命中的是 project 层而非 custom 层"
+     ],
+     "desc": "custom 与 project 规则冲突时按层优先级裁决，check 输出显示最终命中层；误读优先级会得出规则'不生效'的错误结论。"
+    },
+    {
+     "type": "pro",
+     "title": "排查文件被意外忽略的原因",
+     "code": [
+      "ocr review --from main --to feature-branch  # 某文件未被审查",
+      "ocr rules check config/secret.toml  # 发现被排除模式命中"
+     ],
+     "desc": "文件没被审时用 check 定位到某层规则的排除模式命中，修正规则后再 review，快速区分规则问题与模型问题。"
+    },
+    {
+     "type": "con",
+     "title": "把 check 当 lint 工具使用",
+     "code": [
+      "ocr rules check src/foo.go  # 只输出规则命中，无审查意见"
+     ],
+     "desc": "check 只回答规则命中问题，不产出审查意见；用它替代 review/scan 会得出'规则系统正常'的错误安全感，问题漏审。"
+    }
+   ]
+  },
+  {
+   "id": "cli-llm",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "test 验证连通性后进入审查",
+     "code": [
+      "ocr llm test",
+      "ocr review --from main --to feature-branch"
+     ],
+     "desc": "review 前先 test 秒级验证模型连通性（key/网络/模型名），模型层问题与工具层问题快速隔离，避免整轮 review 空耗。"
+    },
+    {
+     "type": "con",
+     "title": "跳过 test 直接 review，超时才失败",
+     "code": [
+      "ocr review  # 模型不可用，10 分钟后超时失败"
+     ],
+     "desc": "模型配置错误是审查失败最高频根因，跳过 test 时整轮 review 在超时后才失败，浪费大量时间与上下文；应先 ocr llm test。"
+    },
+    {
+     "type": "pro",
+     "title": "providers 核对名称后配置",
+     "code": [
+      "ocr llm providers",
+      "ocr config set provider <清单中的真实名称>",
+      "ocr llm test"
+     ],
+     "desc": "27 个内置 provider 以清单为准，核对真实名称后配置再 test 验证，避免凭记忆编造名称导致配置静默不生效。"
+    },
+    {
+     "type": "con",
+     "title": "编造 provider 名称配置静默不生效",
+     "code": [
+      "ocr config set provider openai-xyz  # 清单中不存在",
+      "ocr llm test  # 失败/不生效，长时间无法定位"
+     ],
+     "desc": "凭记忆输入不存在的 provider 名，配置静默不生效；应先 ocr llm providers 核对清单再 set。"
+    },
+    {
+     "type": "pro",
+     "title": "按错误类别对症修复",
+     "code": [
+      "ocr llm test  # 报 authentication failed",
+      "ocr config set providers.openai.apiKey sk-xxx",
+      "ocr llm test  # 通过"
+     ],
+     "desc": "test 错误信息区分认证/网络/模型名三类问题，401 场景直接更新对应 provider 字段后复测通过，问题收敛快。"
+    },
+    {
+     "type": "con",
+     "title": "不看错误类别反复改 key",
+     "code": [
+      "ocr llm test  # 实际是网络不通",
+      "ocr config set providers.openai.apiKey sk-xxx2  # 重复改 key 无效"
+     ],
+     "desc": "错误是网络层却反复改 key，问题无法收敛；应按 test 错误类别对症修改（网络/认证/模型名各归其位）。"
+    }
+   ]
+  },
+  {
+   "id": "cfg-providers",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "国内用户直连 DeepSeek 内置 provider",
+     "code": [
+      "{",
+      "  \"providers\": {",
+      "    \"deepseek\": {",
+      "      \"models\": [\"deepseek-chat\", \"deepseek-reasoner\"]",
+      "    }",
+      "  }",
+      "}"
+     ],
+     "desc": "27 个内置 provider 均已携带 BaseURL/AuthHeader/EnvVar/Models 元数据，deepseek 属国内端点，直连无需代理；密钥经其对应 EnvVar 注入，代码零改动即用。"
+    },
+    {
+     "type": "con",
+     "title": "海外 provider 无密钥且无代理直连",
+     "code": [
+      "{",
+      "  \"providers\": {",
+      "    \"openai\": {",
+      "      \"models\": [\"gpt-4o\"]",
+      "    }",
+      "  }",
+      "}"
+     ],
+     "desc": "未设置 openai 对应 EnvVar 的密钥，且国内环境无代理直连海外端点：要么 401 鉴权失败，要么连接超时。应改用 deepseek/dashscope 等国内 provider。"
+    },
+    {
+     "type": "pro",
+     "title": "custom_providers 接入私有化端点",
+     "code": [
+      "{",
+      "  \"custom_providers\": {",
+      "    \"internal-llm\": {",
+      "      \"base_url\": \"http://llm.internal:8080\",",
+      "      \"auth_header\": \"Authorization: Bearer\",",
+      "      \"env_var\": \"INTERNAL_LLM_TOKEN\",",
+      "      \"models\": [\"internal-model\"]",
+      "    }",
+      "  }",
+      "}"
+     ],
+     "desc": "自定义端点 + 对应鉴权头与密钥环境变量，审查数据不出内网；同时按端点能力选协议（OpenAI 兼容选 openai，Claude 兼容选 anthropic）。"
+    },
+    {
+     "type": "con",
+     "title": "custom_providers 只配 base_url",
+     "code": [
+      "{",
+      "  \"custom_providers\": {",
+      "    \"internal-llm\": {",
+      "      \"base_url\": \"http://llm.internal:8080\"",
+      "    }",
+      "  }",
+      "}"
+     ],
+     "desc": "缺 auth_header/env_var 时鉴权必然 401；若协议也未与端点匹配（如端点实为 Anthropic 兼容却走了 openai 协议），请求格式同样报错。"
+    },
+    {
+     "type": "pro",
+     "title": "AWS 场景选 bedrock provider + SigV4 协议",
+     "code": [
+      "ocr review --provider bedrock --model <bedrock-model>",
+      "# 协议配 anthropic-bedrock（SigV4 签名，模型名进 URL 路径）"
+     ],
+     "desc": "bedrock 内置 provider 与 anthropic-bedrock 协议组合，AWS 凭证签名后即可调用 Bedrock 模型。"
+    },
+    {
+     "type": "con",
+     "title": "混淆 provider 与协议",
+     "code": [
+      "ocr review --provider bedrock --model <bedrock-model>",
+      "export OCR_LLM_PROTOCOL=openai"
+     ],
+     "desc": "bedrock 必须配 anthropic-bedrock 协议完成 SigV4 签名；配 openai 协议缺失签名，请求返回 403。provider 决定连谁，协议决定怎么连，两者不能混搭。"
+    }
+   ]
+  },
+  {
+   "id": "cfg-protocol",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "openai 协议对接 OpenAI 兼容端点",
+     "code": [
+      "export OCR_LLM_PROTOCOL=openai",
+      "export OCR_LLM_URL=https://api.openai.com/v1",
+      "export OCR_LLM_MODEL=gpt-4o"
+     ],
+     "desc": "走 /v1/chat/completions（openai-go/v3），流式响应经 ssestream 正确解析，OpenAI 兼容网关（vLLM/OneAPI 等）同样适用。"
+    },
+    {
+     "type": "con",
+     "title": "anthropic 协议打 OpenAI 端点",
+     "code": [
+      "export OCR_LLM_PROTOCOL=anthropic",
+      "export OCR_LLM_URL=https://api.openai.com/v1"
+     ],
+     "desc": "Messages API（anthropic-sdk-go）与 Chat Completions 的消息结构、工具调用格式不兼容，请求返回 400 格式错误。协议必须与端点匹配。"
+    },
+    {
+     "type": "pro",
+     "title": "anthropic 协议对接 Claude 端点",
+     "code": [
+      "export OCR_LLM_PROTOCOL=anthropic",
+      "export OCR_LLM_URL=https://api.anthropic.com"
+     ],
+     "desc": "走 Messages API，Claude 官方端点或 Anthropic 兼容端点均可；USE_ANTHROPIC=true 可作兼容开关。"
+    },
+    {
+     "type": "con",
+     "title": "Bedrock 端点忘了 SigV4 签名",
+     "code": [
+      "export OCR_LLM_PROTOCOL=anthropic",
+      "# 目标其实是 AWS Bedrock 端点"
+     ],
+     "desc": "对 Bedrock 端点必须选 anthropic-bedrock 协议做 SigV4 签名（模型名进 URL 路径）；选 anthropic 无签名，请求 403。"
+    },
+    {
+     "type": "pro",
+     "title": "openai-responses 协议自动补后缀",
+     "code": [
+      "export OCR_LLM_PROTOCOL=openai-responses",
+      "export OCR_LLM_URL=https://api.openai.com"
+     ],
+     "desc": "URL 自动补 /v1/responses 后缀，无需手动拼路径；注意 Responses API 无状态，每个请求需携带全量对话历史。"
+    },
+    {
+     "type": "con",
+     "title": "手动拼接 /v1/responses 造成重复路径",
+     "code": [
+      "export OCR_LLM_PROTOCOL=openai-responses",
+      "export OCR_LLM_URL=https://api.openai.com/v1/responses"
+     ],
+     "desc": "协议已自动补 /v1/responses 后缀，再手动拼接路径重复，请求 404。"
+    }
+   ]
+  },
+  {
+   "id": "cfg-priority",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "命令行参数一级覆盖全部配置",
+     "code": [
+      "ocr review --provider openai --model gpt-4o"
+     ],
+     "desc": "显式 --provider/--model 参数是五级优先级链的最高级，覆盖 config.json、OCR_* 环境变量、ANTHROPIC_* 与 shell RC，适合临时指定。"
+    },
+    {
+     "type": "con",
+     "title": "误以为环境变量优先于配置文件",
+     "code": [
+      "{",
+      "  \"providers\": {",
+      "    \"deepseek\": { \"models\": [\"deepseek-chat\"] }",
+      "  }",
+      "}",
+      "# export OCR_LLM_MODEL=deepseek-reasoner  <- 以为能覆盖"
+     ],
+     "desc": "实际 config.json 的 providers 段（二级）优先于 OCR_* 环境变量（三级），env 改动不生效时先查 config.json，而非反复 export。"
+    },
+    {
+     "type": "pro",
+     "title": "CI 用三级 OCR_* 变量压过用户 shell 五级配置",
+     "code": [
+      "# CI 步骤中注入（三级）",
+      "export OCR_LLM_URL=https://api.example.com/v1",
+      "export OCR_LLM_MODEL=deepseek-chat",
+      "# 用户 shell RC（五级）export ANTHROPIC_MODEL=claude-3-5-sonnet"
+     ],
+     "desc": "三级 > 五级，CI 注入的 OCR_* 变量确定性覆盖用户本机 shell 里的 ANTHROPIC_* 默认值，审查端点/模型可控。"
+    },
+    {
+     "type": "con",
+     "title": "shell RC 改动后未重开终端",
+     "code": [
+      "# .zshrc 中新增",
+      "export ANTHROPIC_BASE_URL=https://new.example.com"
+     ],
+     "desc": "当前 shell 未 source .zshrc 时运行时仍是旧值，误判\"配置不生效\"；修改 shell RC 后需新开终端或 source 生效。"
+    },
+    {
+     "type": "pro",
+     "title": "零配置复用 Claude Code 环境（四级）",
+     "code": [
+      "export ANTHROPIC_BASE_URL=...",
+      "export ANTHROPIC_AUTH_TOKEN=...",
+      "export ANTHROPIC_MODEL=..."
+     ],
+     "desc": "已有 Claude Code 环境变量的用户无需任何配置即可运行；没有其他来源时四级环境直接生效。"
+    },
+    {
+     "type": "con",
+     "title": "OCR_* 与 ANTHROPIC_* 两组变量并存难排查",
+     "code": [
+      "export OCR_LLM_URL=https://a.example.com",
+      "export ANTHROPIC_BASE_URL=https://b.example.com"
+     ],
+     "desc": "两组变量并存时按优先级链裁决（OCR_* 三级 > ANTHROPIC_* 四级），实际生效端点可能与预期不符；排查时应对照 internal/llm/resolver.go 的 ResolveEndpointWithOptions 逐级确认取值来源。"
+    }
+   ]
+  },
+  {
+   "id": "cfg-rules-chain",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "保留系统规则并叠加项目层规则",
+     "code": [
+      "{",
+      "  \"merge_system_rule\": true",
+      "}",
+      "# <repo>/.opencodereview/rule.json 追加仓库规则",
+      "# 优先级：custom(--rule) > project > global > system，首匹配优先"
+     ],
+     "desc": "merge_system_rule: true 使系统内置 10+ 语言规则集（Java/TS/Go/Python/Kotlin/Rust/C++/C）及 NPE、线程安全、XSS、SQL 注入专项规则保持生效，项目层只按需追加。"
+    },
+    {
+     "type": "con",
+     "title": "关闭 merge_system_rule 导致安全规则全失效",
+     "code": [
+      "{",
+      "  \"merge_system_rule\": false",
+      "}"
+     ],
+     "desc": "系统内嵌 system_rules.json 与 rule_docs/44 个语言规则 md 全部不再参与，NPE/XSS/SQL 注入等专项审查静默消失。"
+    },
+    {
+     "type": "pro",
+     "title": "doublestar glob 精确圈定文件范围",
+     "code": [
+      "\"**/src/**/*.java\"   # ** 递归匹配任意层目录",
+      "\"**/*.{ts,tsx}\"      # {a,b} 花括号展开"
+     ],
+     "desc": "规则匹配支持 ** 递归与花括号展开，按仓库目录结构与语言精确圈定审查范围，与 gitignore 风格一致。"
+    },
+    {
+     "type": "con",
+     "title": "用 * 代替 ** 导致规则静默失效",
+     "code": [
+      "\"*/*.java\""
+     ],
+     "desc": "* 只匹配单层目录，src/main/java 等多层目录下的 Java 文件全部不命中，规则看似配置了却不生效，且无任何报错提示。"
+    },
+    {
+     "type": "pro",
+     "title": "长规则内容外置 .md/.txt 文件",
+     "code": [
+      "# rule.json 中规则值引用外部文件（仅相对路径）",
+      "\"rules/java-npe.md\""
+     ],
+     "desc": "规则值可引用 .md/.txt 文件路径作为内容源，长文本不塞进 JSON；相对路径机制同时防目录穿越。"
+    },
+    {
+     "type": "con",
+     "title": "规则引用绝对路径或越级相对路径",
+     "code": [
+      "\"/etc/rules/x.md\"",
+      "\"../../outside.md\""
+     ],
+     "desc": "绝对路径或越级相对路径构成目录穿越风险，应只用受限相对路径引用规则文件。"
+    }
+   ]
+  },
+  {
+   "id": "cfg-mcp",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "remote 传输 + $ENV_VAR 展开注入密钥",
+     "code": [
+      "{",
+      "  \"mcp_servers\": {",
+      "    \"vuln-db\": {",
+      "      \"type\": \"remote\",",
+      "      \"url\": \"https://mcp.internal.example.com\",",
+      "      \"headers\": { \"Authorization\": \"Bearer $MCP_TOKEN\" },",
+      "      \"tools\": [\"query_vuln\"]",
+      "    }",
+      "  }",
+      "}"
+     ],
+     "desc": "headerTransport 支持 $ENV_VAR 环境变量展开，密钥不落盘；tools 白名单收敛工具面，工具经 ToToolDef 接入统一工具调用链路。"
+    },
+    {
+     "type": "con",
+     "title": "密钥明文写进 headers",
+     "code": [
+      "{",
+      "  \"mcp_servers\": {",
+      "    \"vuln-db\": {",
+      "      \"type\": \"remote\",",
+      "      \"url\": \"https://mcp.example.com\",",
+      "      \"headers\": { \"Authorization\": \"Bearer sk-live-xxx\" }",
+      "    }",
+      "  }",
+      "}"
+     ],
+     "desc": "明文密钥随配置入库即泄露；鉴权失败时 remote 传输对 401/403 有友好报错，应据此排查而非盲目重试。"
+    },
+    {
+     "type": "pro",
+     "title": "stdio 子进程传输拉起本地 MCP server",
+     "code": [
+      "{",
+      "  \"mcp_servers\": {",
+      "    \"git-tools\": {",
+      "      \"type\": \"stdio\",",
+      "      \"command\": \"npx\",",
+      "      \"args\": [\"-y\", \"@org/mcp-git-tools\"]",
+      "    }",
+      "  }",
+      "}"
+     ],
+     "desc": "mcp.CommandTransport 以子进程方式启动本地 MCP server，适合 CLI 型工具接入。"
+    },
+    {
+     "type": "con",
+     "title": "stdio 缺 command/args 子进程起不来",
+     "code": [
+      "{",
+      "  \"mcp_servers\": {",
+      "    \"git-tools\": { \"type\": \"stdio\" }",
+      "  }",
+      "}"
+     ],
+     "desc": "stdio 模式未配 command/args，子进程无法启动且无明确提示，工具静默不可用。"
+    },
+    {
+     "type": "pro",
+     "title": "allowlist 过滤 + 保留名冲突自动跳过",
+     "code": [
+      "{",
+      "  \"mcp_servers\": {",
+      "    \"tools-a\": {",
+      "      \"type\": \"remote\",",
+      "      \"url\": \"https://mcp.example.com\",",
+      "      \"tools\": [\"list_files\", \"read_file\"]",
+      "    }",
+      "  }",
+      "}"
+     ],
+     "desc": "RegisterAll 注册时按 allowlist 过滤工具面，保留名冲突自动跳过，不覆盖内置工具，安全边界明确。"
+    },
+    {
+     "type": "con",
+     "title": "自定义工具与内置保留名冲突",
+     "code": [
+      "{",
+      "  \"mcp_servers\": {",
+      "    \"review\": { \"type\": \"remote\", \"url\": \"https://mcp.example.com\" }",
+      "  }",
+      "}"
+     ],
+     "desc": "server 名/工具名与内置保留名冲突时被 RegisterAll 静默跳过，误以为注册成功，实际模型调不到该工具。"
+    }
+   ]
+  },
+  {
+   "id": "int-gha",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "标准 PR 审查完整配置",
+     "code": [
+      "- uses: alibaba/open-code-review@latest",
+      "  with:",
+      "    llm_url: ${{ secrets.LLM_URL }}",
+      "    llm_auth_token: ${{ secrets.LLM_AUTH_TOKEN }}",
+      "    llm_model: deepseek-chat",
+      "    llm_use_anthropic: 'false'",
+      "    language: Chinese",
+      "    incremental: 'true'",
+      "    sticky_summary: 'true'"
+     ],
+     "desc": "4 个必填入参 + 增量审查（IoU 默认 0.6 去重）+ sticky 摘要；composite action 内部走 fork-safe PR 解析 → merge-base → ocr review --from MERGE_BASE --to HEAD_SHA --audience agent --format json → post-review-comments.js。"
+    },
+    {
+     "type": "con",
+     "title": "布尔值陷阱：incremental 等必须用字符串",
+     "code": [
+      "with:",
+      "  incremental: true",
+      "  sticky_summary: true",
+      "  upload_artifacts: true"
+     ],
+     "desc": "upload_artifacts/sticky_summary/incremental 三个入参必须用字面字符串 'true'/'false'，写成 YAML 布尔值会解析失效，增量去重与摘要静默不生效。"
+    },
+    {
+     "type": "pro",
+     "title": "路由分流 + 批量控制评论噪音",
+     "code": [
+      "with:",
+      "  route_severity_below: info",
+      "  route_categories: security,bug",
+      "  review_comment_batch_size: 50"
+     ],
+     "desc": "按严重级/类别路由 finding，评论 50 条批量提交；后处理 fail-open 设计保证即使脚本出错也不丢 finding。"
+    },
+    {
+     "type": "con",
+     "title": "fork PR 自行 checkout 取错 base",
+     "code": [
+      "- uses: actions/checkout@v4",
+      "  with:",
+      "    ref: ${{ github.event.pull_request.head.ref }}"
+     ],
+     "desc": "不依赖 action 内置的 fork-safe PR 解析（checkout base + fetch pull/N/head），fork 场景 head.ref 解析易错，merge-base 计算错误导致审查范围错误。"
+    },
+    {
+     "type": "pro",
+     "title": "消费 outputs 驱动后续步骤",
+     "code": [
+      "- id: ocr",
+      "  uses: alibaba/open-code-review@latest",
+      "  with:",
+      "    llm_url: ${{ secrets.LLM_URL }}",
+      "    llm_auth_token: ${{ secrets.LLM_AUTH_TOKEN }}",
+      "    llm_model: deepseek-chat",
+      "    llm_use_anthropic: 'false'",
+      "- run: |",
+      "    echo \"total=${{ steps.ocr.outputs.comments_total }}\"",
+      "    echo \"url=${{ steps.ocr.outputs.summary_comment_url }}\""
+     ],
+     "desc": "outputs 提供 comments_total/comments_inline/comments_skipped/comments_routed/comments_failed/summary_comment_url，可驱动门禁或通知步骤。"
+    },
+    {
+     "type": "con",
+     "title": "background 模式立即读 outputs 为空",
+     "code": [
+      "with:",
+      "  background: true",
+      "# 后续步骤立即读 outputs"
+     ],
+     "desc": "background 为异步执行不阻塞 CI，立即读取 outputs 得到空值；应等待审查完成后再收集统计。"
+    }
+   ]
+  },
+  {
+   "id": "int-cicd",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "GitLab CI 变量注入 + 重试配置",
+     "code": [
+      "variables:",
+      "  OCR_LLM_URL: \"$LLM_URL\"",
+      "  OCR_LLM_TOKEN: \"$LLM_TOKEN\"",
+      "  OCR_LLM_MODEL: \"deepseek-chat\"",
+      "  OCR_RETRY_BASE_DELAY: \"1\"",
+      "  OCR_MAX_RETRIES: \"3\""
+     ],
+     "desc": "gitlab_ci 模板用 OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL 三件套注入连接，OCR_RETRY_BASE_DELAY 与 OCR_MAX_RETRIES 配合应对网络抖动。"
+    },
+    {
+     "type": "con",
+     "title": "忘记三件套任务启动即失败",
+     "code": [
+      "variables:",
+      "  OCR_LLM_MODEL: \"deepseek-chat\""
+     ],
+     "desc": "缺 OCR_LLM_URL 与 OCR_LLM_TOKEN 时任务启动即鉴权失败，且错误只出现在运行时而非配置期。"
+    },
+    {
+     "type": "pro",
+     "title": "失败策略 + 产物留档",
+     "code": [
+      "variables:",
+      "  OCR_FAIL_ON_SEVERITY: \"high\"",
+      "  OCR_STICKY_SUMMARY: \"true\"",
+      "  OCR_INCREMENTAL: \"true\"",
+      "after_script:",
+      "  - cat .ocr/ocr-stats.env"
+     ],
+     "desc": "OCR_FAIL_ON_SEVERITY 达 high 才阻断 CI；产物 .ocr/ocr-stats.env + result.json + stderr.log 供事后排查，增量/粘性行为与 GHA 版对齐。"
+    },
+    {
+     "type": "con",
+     "title": "乱设 OCR_FAIL_ON_SEVERITY 阻塞流水线",
+     "code": [
+      "variables:",
+      "  OCR_FAIL_ON_SEVERITY: \"info\""
+     ],
+     "desc": "严重度门槛设得过低，低危 finding 也会令 CI 失败，频繁阻塞流水线与发布。"
+    },
+    {
+     "type": "pro",
+     "title": "fork MR 与多平台覆盖",
+     "code": [
+      "# examples/gitlab_ci：.gitlab-ci.yml + post_review.py，支持 fork MR",
+      "# examples/gerrit_ci：Jenkinsfile + post_review.py",
+      "# examples/codeup_ci：阿里云 Codeup codeup-flow.yml + post_review.py"
+     ],
+     "desc": "examples/ 提供 6 套模板（gitlab_ci/gerrit_ci/gitflic_ci/bitbucket_pipelines/codeup_ci），gitlab_ci 支持 fork MR，行为与 GHA 版对齐（OCR_INCREMENTAL/OCR_STICKY_SUMMARY/OCR_ROUTE_*）。"
+    },
+    {
+     "type": "con",
+     "title": "照抄 GHA 输入名到其他 CI",
+     "code": [
+      "variables:",
+      "  llm_url: \"https://...\"",
+      "  llm_model: \"deepseek-chat\""
+     ],
+     "desc": "非 GitHub 集成使用 OCR_* 环境变量体系（OCR_LLM_URL/TOKEN/MODEL 等），照抄 GHA 的 llm_url/llm_model 输入名不会被识别，配置静默不生效。"
+    }
+   ]
+  },
+  {
+   "id": "int-claude",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "完整走插件市场安装流程，两条斜杠命令就位",
+     "code": [
+      "/plugin marketplace add alibaba/open-code-review",
+      "/plugin install open-code-review@open-code-review",
+      "/open-code-review:review --target=src/"
+     ],
+     "desc": "先 add 市场源再 install，插件命令才真正注册到会话；随后直接输入 /open-code-review:review 即可发起审查。正确顺序是「先 add 后 install」，缺一不可。"
+    },
+    {
+     "type": "con",
+     "title": "只 add marketplace 不 install，命令「不存在」",
+     "code": [
+      "/plugin marketplace add alibaba/open-code-review",
+      "/open-code-review:review  # 报错：未找到该命令"
+     ],
+     "desc": "只添加市场源只是让仓库「可见」，命令本体尚未安装；此时输入斜杠命令会提示命令不存在。常见误解是认为 add 即完成安装，实际必须再执行 install 步骤。"
+    },
+    {
+     "type": "pro",
+     "title": "轻量场景直接复用仓库内置命令",
+     "code": [
+      "cp .claude/commands/open-code-review.md .claude/commands/",
+      "cp .claude/commands/commit.md .claude/commands/",
+      "/open-code-review:review"
+     ],
+     "desc": "仓库根目录 .claude/commands/ 已内置 open-code-review.md（另有 commit.md/tag.md），复制到项目即可获得斜杠命令，适合不想走插件市场的简单场景，且审查、提交、打标签闭环齐全。"
+    },
+    {
+     "type": "con",
+     "title": "插件与内置命令双通道同时安装，命令注册冲突",
+     "code": [
+      "/plugin marketplace add alibaba/open-code-review",
+      "/plugin install open-code-review@open-code-review",
+      "cp .claude/commands/open-code-review.md .claude/commands/",
+      "/open-code-review:review  # 行为不确定/双重注册"
+     ],
+     "desc": "既走插件市场又手动复制内置命令，同一命令可能注册两次导致行为冲突或二选一失效。两条通道任选其一，不要叠加。"
+    },
+    {
+     "type": "pro",
+     "title": "安全敏感仓库用 delegate-review 做职责分离",
+     "code": [
+      "/open-code-review:delegate-review",
+      "# Claude 仅汇总与裁决，OCR 侧执行审查"
+     ],
+     "desc": "委托审查路径让 OCR 承担实际审查、宿主模型只负责汇总裁决，适合安全敏感仓库的职责分离诉求。"
+    },
+    {
+     "type": "con",
+     "title": "普通审查误用 delegate-review，模型配置错位",
+     "code": [
+      "/open-code-review:delegate-review  # 普通场景误用",
+      "# 走不到预期模型的直接审查配置"
+     ],
+     "desc": "review 与 delegate-review 的审查范围与权限模型不同，普通代码审查误用委托命令可能走不到预期的模型配置。先用 /open-code-review:review 覆盖日常场景。"
+    }
+   ]
+  },
+  {
+   "id": "int-codex",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "标准三步：市场源 → 安装 → 面板启用",
+     "code": [
+      "codex plugin marketplace add alibaba/open-code-review",
+      "codex plugin install open-code-review",
+      "/plugins  # 面板中启用该插件"
+     ],
+     "desc": "Codex 插件经 add → install → /plugins 启用三步后，@Open Code Review 才可调用；插件的 Read-only interface 只申请读取能力，符合审查工具最小权限定位。"
+    },
+    {
+     "type": "con",
+     "title": "跳过 /plugins 启用，调用静默失败",
+     "code": [
+      "codex plugin marketplace add alibaba/open-code-review",
+      "@Open Code Review review src/  # 无响应/报错"
+     ],
+     "desc": "只 add marketplace 或只 install 而未在 /plugins 面板启用，插件处于未激活状态，@Open Code Review 调用失败。启用步骤最易被忽略。"
+    },
+    {
+     "type": "pro",
+     "title": "在默认模板基础上限定审查范围",
+     "code": [
+      "@Open Code Review review src/",
+      "@Open Code Review review <diff 范围>"
+     ],
+     "desc": "defaultPrompt 已内置 3 条默认提示词，调用时附加文件/目录/diff 范围即可精准审查；大范围重构场景用 diff 范围限定，避免无关文件噪音。"
+    },
+    {
+     "type": "con",
+     "title": "把插件当「能自动修复」的全能工具",
+     "code": [
+      "@Open Code Review review .  # 期待插件直接改代码",
+      "# 插件 interface 仅声明 Read capability"
+     ],
+     "desc": "插件只申请 Read 能力，不会也不应直接写入代码；期待它「顺手修复」会落空，修复必须在宿主 Codex 中显式执行。"
+    }
+   ]
+  },
+  {
+   "id": "int-cursor",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "整体复制插件目录并重启，技能正常加载",
+     "code": [
+      "mkdir -p ~/.cursor/plugins/local/open-code-review/",
+      "cp -r plugins/open-code-review/* ~/.cursor/plugins/local/open-code-review/",
+      "# 重启 Cursor 后触发 review 技能"
+     ],
+     "desc": "保持仓库原始目录结构（含 .cursor-plugin/ 与 skills 相对路径 ../skills/）整体复制到 ~/.cursor/plugins/local/ 下，重启后 Cursor 即识别本地插件。"
+    },
+    {
+     "type": "con",
+     "title": "复制漏掉 .cursor-plugin 目录，插件不被识别",
+     "code": [
+      "cp plugins/open-code-review/plugin.json ~/.cursor/plugins/local/open-code-review/",
+      "# 缺少 .cursor-plugin/ 清单目录，Cursor 扫描不到"
+     ],
+     "desc": "只复制单个文件或散落复制导致 .cursor-plugin 子目录缺失，Cursor 无法识别该目录为插件。必须按原始结构整体搬运。"
+    },
+    {
+     "type": "pro",
+     "title": "团队脚本分发插件，内网离线可用",
+     "code": [
+      "bootstrap.sh: cp -r plugins/open-code-review ~/.cursor/plugins/local/open-code-review/",
+      "# 内网环境无插件市场依赖"
+     ],
+     "desc": "手动复制模式天然支持离线分发：把复制命令固化进初始化脚本，每台开发机开箱即用，适合无法访问插件市场的内网环境。"
+    },
+    {
+     "type": "con",
+     "title": "复制后不重启 Cursor 直接调用",
+     "code": [
+      "cp -r plugins/open-code-review ~/.cursor/plugins/local/",
+      "# 未重启，直接在会话中调用 → 插件不存在"
+     ],
+     "desc": "Cursor 对本地插件的扫描发生在启动/重载时，复制后不重启会提示插件不存在。复制完成后必须重启或触发插件重载。"
+    }
+   ]
+  },
+  {
+   "id": "int-opencode",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "用 from/to 限定提交范围，互斥校验兜底",
+     "code": [
+      "tool: ocr review --audience agent --format json",
+      "params: { from: \"HEAD~2\", to: \"HEAD\" }"
+     ],
+     "desc": "在 OpenCode 会话中让模型以原生工具调用触发审查，提交范围用 from/to 指定；参数校验保证一次只携带一种范围语义，结果以 JSON 回流可程序化消费。"
+    },
+    {
+     "type": "con",
+     "title": "混用互斥参数，工具调用被直接拒绝",
+     "code": [
+      "params: { commit: \"abc123\", from: \"HEAD~2\", to: \"HEAD\" }",
+      "# 校验失败：commit 与 from/to 互斥"
+     ],
+     "desc": "commit/from/to/resume/preview 之间存在互斥约束，同时传入会被工具层拦截拒绝。每次调用只应指定一种范围语义。"
+    },
+    {
+     "type": "pro",
+     "title": "大范围审查前先 preview 验证意图",
+     "code": [
+      "params: { preview: true, from: \"HEAD~5\", to: \"HEAD\" }",
+      "# 确认范围无误后再正式执行"
+     ],
+     "desc": "preview 参数先行预览审查意图，确认目标范围正确后再正式执行，避免误审大范围代码造成 token 浪费。"
+    },
+    {
+     "type": "con",
+     "title": "不装 CLI 直接依赖插件，spawn 必然失败",
+     "code": [
+      "# 本机无 ocr 可执行文件",
+      "tool: spawn 'ocr review --audience agent --format json' → 失败"
+     ],
+     "desc": "插件内部 spawn 'ocr review' 子进程，本机未安装 ocr CLI（或未配 Key）时工具必然失败。任何 OpenCode 集成前先验证 ocr 可独立运行。"
+    }
+   ]
+  },
+  {
+   "id": "int-qca",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "宿主按模板委托 preview/rule，OCR 侧零 LLM 调用",
+     "code": [
+      "ocr delegate preview --scope=src/",
+      "ocr delegate rule --scope=src/",
+      "# 宿主按 template.example.json 构造请求"
+     ],
+     "desc": "遵循 qca/system-prompt.md 的约束，宿主只调用 ocr delegate preview / rule 两个只读子能力；推理在宿主侧完成，OCR 零 LLM 消耗，无需为 OCR 单独配 Key。"
+    },
+    {
+     "type": "con",
+     "title": "宿主绕过约束调用 ocr review，破坏只读架构",
+     "code": [
+      "ocr review --scope=src/  # 违反 system-prompt 禁令",
+      "# 触发 LLM 调用与意外成本，审计口径被破坏"
+     ],
+     "desc": "system-prompt 明确禁止 ocr review，宿主若绕过约束直接调用，将破坏「零 LLM 调用、纯只读」的架构承诺并产生意外成本，合规环境还会违反只读审计要求。"
+    },
+    {
+     "type": "pro",
+     "title": "多宿主团队统一契约委托",
+     "code": [
+      "# 各宿主均按 template.example.json 字段构造委托请求",
+      "ocr delegate preview --scope=src/  # 审查口径一致"
+     ],
+     "desc": "不同成员用不同宿主模型，统一按模板契约向同一 OCR 实例委托 preview/rule，保证审查口径一致，适合已有统一模型网关（QCA）的组织。"
+    },
+    {
+     "type": "con",
+     "title": "把模板当固定配置硬套，请求解析失败",
+     "code": [
+      "# 直接复制 template.example.json 不按宿主调整字段",
+      "ocr delegate preview → 契约不匹配，委托失败"
+     ],
+     "desc": "template.example.json 是示例而非固定配置，不同宿主/场景需按实际字段调整；直接硬套会导致委托请求与 OCR 期望契约不匹配而解析失败。"
+    }
+   ]
+  },
+  {
+   "id": "int-skill",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "整目录复制 skill 并以 agent 模式调用",
+     "code": [
+      "cp -r skills/open-code-review/ <agent>/skills/",
+      "ocr review --audience agent --background src/",
+      "# JSON 输出可解析，severity×category 分级"
+     ],
+     "desc": "整目录复制（含配套文件）并在目标 Agent 中启用，以 --audience agent --background 调用获得机器可解析输出；按 severity×category 分级后先 filter 再 report，噪音可控。"
+    },
+    {
+     "type": "con",
+     "title": "只复制 SKILL.md，工作流中途失败",
+     "code": [
+      "cp skills/open-code-review/SKILL.md <agent>/skills/",
+      "# 缺配套文件，四步流程中途报错"
+     ],
+     "desc": "skill 目录常含辅助脚本/示例，只复制 SKILL.md 会导致工作流在中途因缺文件失败；应整目录复制而非单文件。"
+    },
+    {
+     "type": "pro",
+     "title": "委托场景走 delegate 六步流程",
+     "code": [
+      "ocr delegate preview --scope=src/",
+      "ocr delegate rule --scope=src/",
+      "# git diff → 逐文件审查 → 格式化 → 覆盖率报告"
+     ],
+     "desc": "审计/精细委托场景加载 open-code-review-delegate skill，按 preview→rule→git diff→逐文件审查→格式化→覆盖率报告六步执行，产出可归档的审查档案。"
+    },
+    {
+     "type": "con",
+     "title": "跳过 filter 直接全量汇报，噪音淹没重点",
+     "code": [
+      "ocr review --audience agent --background src/",
+      "# 跳过 filter，低严重度问题直接全量上报"
+     ],
+     "desc": "四步流程中 filter 是控制噪音的关键环节；跳过 filter 会导致低严重度问题淹没高严重度问题，severity×category 分级失去意义。"
+    }
+   ]
+  },
+  {
+   "id": "int-vscode",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "先配置后审查，webview 全链路可用",
+     "code": [
+      "# 打开配置面板（ConfigPanelProvider）",
+      "配置 ocr 命令路径 + 模型/API Key",
+      "# 侧边栏选择目标 → 触发审查 → CommentProvider 展示"
+     ],
+     "desc": "首次使用先在配置面板完成 ocr 路径与 Key 配置（ConfigService 持久化），再从侧边栏发起审查；CliService 封装调用、ReviewSession 管理会话、结果以评论形式就地展示。"
+    },
+    {
+     "type": "con",
+     "title": "跳过配置直接审查，点击无反应",
+     "code": [
+      "# 未配置 CLI 路径/Key",
+      "侧边栏点击审查 → CliService 找不到可执行文件，失败"
+     ],
+     "desc": "不通过 ConfigPanel 配置 ocr 命令路径与 Key，CliService 找不到可执行文件或凭证，审查表现为点击无反应或报错；首次使用必须先完成配置。"
+    },
+    {
+     "type": "pro",
+     "title": "大范围审查用取消能力兜底",
+     "code": [
+      "# 审查中发现范围不对",
+      "触发取消 → CliService 中止子进程 → ReviewSession 保留进度"
+     ],
+     "desc": "CliService 支持取消操作：大范围审查发现范围不对时可随时中止，ReviewSession 保留会话状态，调整范围后重新发起，避免浪费计算资源。"
+    },
+    {
+     "type": "con",
+     "title": "不构建直接加载源码目录",
+     "code": [
+      "# 直接打开 extensions/vscode/ 源码目录",
+      "webpack 产物缺失 → 扩展加载失败"
+     ],
+     "desc": "扩展需要 webpack 构建产物（或 vsix 包）才能加载，直接加载源码目录会失败；应先 npm install 并执行构建（jest 测试通过后打包）。"
+    }
+   ]
+  },
+  {
+   "id": "q-bench",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "同模型同 backend 对比，SEM-F1 提升 2.17x",
+     "code": [
+      "OCR vs 基线（同模型同 backend）",
+      "SEM-F1: 25.10% vs 11.57% → 最高 2.17x",
+      "token 消耗约 1/9，耗时更快"
+     ],
+     "desc": "AACR-Bench（50 仓库/200 PR/10 语言，80+ 工程师交叉标注 1505 问题）在控制变量下给出可信对比：SEM-F1 最高 2.17x 且 token 约 1/9、耗时更快，数据开源可复现（HuggingFace Alibaba-Aone/aacr-bench）。"
+    },
+    {
+     "type": "con",
+     "title": "跨 backend 对比，结论失真",
+     "code": [
+      "模型A（backend X）vs 模型A（backend Y）",
+      "# 不同推理服务/参数下 SEM-F1 不可比"
+     ],
+     "desc": "基准明确要求同模型同 backend 才可比；用不同后端跑出的 SEM-F1 差异可能来自基础设施而非审查方法本身，对比结论误导选型。"
+    },
+    {
+     "type": "pro",
+     "title": "与 Codex 对比时同成本口径评估",
+     "code": [
+      "OCR vs Codex（AACR-Bench）",
+      "SEM-F1: 2.5x @ 同成本",
+      "Recall 略低 = 精度优先、降误报的设计取舍"
+     ],
+     "desc": "参照论文口径：相对 Codex 有 2.5x SEM-F1、同成本；Recall 略低是精度优先、降误报的主动取舍，审查场景低误报比高召回更有工程价值，应结合误报率一起解读。"
+    },
+    {
+     "type": "con",
+     "title": "只报 SEM-F1 单指标，以偏概全",
+     "code": [
+      "宣传口径：SEM-F1 2.17x ✔",
+      "忽略：token 约 1/9、耗时更快、Recall 略低"
+     ],
+     "desc": "2.17x 只是精度收益，成本（token 约 1/9）与 Recall 取舍同样关键；单指标宣传会掩盖完整权衡，评估与发布都应四指标同看（SEM-F1/token/耗时/Recall）。"
+    }
+   ]
+  },
+  {
+   "id": "q-telemetry",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "OTLP 导出接入可观测平台，全链路可追踪",
+     "code": [
+      "OCR_ENABLE_TELEMETRY=1",
+      "OTEL_SERVICE_NAME=ocr-pr-review",
+      "OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318",
+      "OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf",
+      "ocr review --from main --to feature-branch"
+     ],
+     "desc": "开启遥测并按 http/protobuf 协议导出到 Collector，trace+metric 双管道让审查各阶段耗时与 token 消耗进入统一大盘，故障定位从黑盒变白盒。"
+    },
+    {
+     "type": "con",
+     "title": "协议与端点不匹配，数据静默丢失",
+     "code": [
+      "OCR_ENABLE_TELEMETRY=1",
+      "OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318",
+      "OTEL_EXPORTER_OTLP_PROTOCOL=grpc",
+      "ocr review"
+     ],
+     "desc": "gRPC 走 4317 端口而 http/protobuf 走 4318，协议与端点错配时不报错但无任何数据上送，排查时先核对协议与端口是否对应。"
+    },
+    {
+     "type": "pro",
+     "title": "console 输出本地快速验证埋点链路",
+     "code": [
+      "OCR_ENABLE_TELEMETRY=1 ocr review",
+      "# 终端直接观察 trace 输出，确认任务开始/模型调用/token 统计各 span 完整"
+     ],
+     "desc": "不搭平台也能验证埋点是否生效，适合本地调试与回归对比（升级模型后对比各阶段耗时）。"
+    },
+    {
+     "type": "con",
+     "title": "内容日志与 OTLP 同开，源码随导出外泄",
+     "code": [
+      "OCR_ENABLE_TELEMETRY=1",
+      "OCR_CONTENT_LOGGING=1",
+      "OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318",
+      "ocr review"
+     ],
+     "desc": "OCR_CONTENT_LOGGING=1 记录审查内容，若同时导出到远端 Collector，源码内容可能进入第三方平台，生产/涉密环境需评估合规或脱敏。"
+    },
+    {
+     "type": "pro",
+     "title": "环境变量分层覆盖，CI 按流水线注入",
+     "code": [
+      "# config.json 保留 telemetry 默认段，CI 中仅用环境变量覆盖",
+      "OCR_ENABLE_TELEMETRY=1 OTEL_SERVICE_NAME=ci-${CI_PROJECT_NAME} ocr review"
+     ],
+     "desc": "环境变量优先级高于 config.json，无需改配置文件即可按流水线/项目注入不同的服务名与端点。"
+    },
+    {
+     "type": "con",
+     "title": "只用 config.json 配置遥测，多项目数据混淆",
+     "code": [
+      "# 所有项目共用同一 config.json 的 telemetry 段，未设 OTEL_SERVICE_NAME",
+      "ocr review"
+     ],
+     "desc": "缺少 OTEL_SERVICE_NAME 区分时，多仓库数据混入同一 Collector，后续无法按项目拆分成本与性能指标。"
+    }
+   ]
+  },
+  {
+   "id": "q-security",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "路径穿越防护拦截符号链接逃逸",
+     "code": [
+      "# 规则文件仅使用仓库内相对路径，如",
+      "rules: [\"rules/go-security.md\"]",
+      "# FileReader 内部自动执行 pathutil.WithinBase + EvalSymlinks 双重校验"
+     ],
+     "desc": "即使用户构造含符号链接或 ../ 的路径，读取也被限制在仓库根目录内，不受信 PR 分支无法诱导模型读取仓库外文件。"
+    },
+    {
+     "type": "con",
+     "title": "自定义规则用绝对路径引用仓库外文件",
+     "code": [
+      "rules: [\"/etc/secret-config.md\"]",
+      "# 或 \"../../outside/repo.md\""
+     ],
+     "desc": "绕过相对路径约束破坏目录穿越防护，使审查读取范围逃逸仓库，且路径错误时静默失败难以察觉。"
+    },
+    {
+     "type": "pro",
+     "title": "file_read 500 行上限防止上下文滥用",
+     "code": [
+      "# 模型请求超大文件时自动截断",
+      "> file_read: tool_calls.py (truncated at 500 lines)",
+      "大文件改走分片/摘要路径"
+     ],
+     "desc": "500 行上限阻止模型一次性读取超长文件，既防上下文爆炸也压缩注入面，是纵深防御的一部分。"
+    },
+    {
+     "type": "con",
+     "title": "盲目调高 file_read 上限换取‘审查深度’",
+     "code": [
+      "# 为审查大文件调高上限甚至禁用截断",
+      "file_read_max_lines = 100000",
+      "ocr scan"
+     ],
+     "desc": "模型被喂入超大全文，上下文被无关内容稀释且注入面放大，成本与安全双双恶化。"
+    },
+    {
+     "type": "pro",
+     "title": "hostGuard 拦截伪造 Host 的 DNS-rebind 请求",
+     "code": [
+      "curl -H \"Host: evil.example.com\" http://127.0.0.1:PORT/",
+      "# 403/拒绝响应，非授权 Host 无法读取含源码的 JSONL"
+     ],
+     "desc": "启用 viewer 前用非授权 Host 头验证 hostGuard 生效，恶意网页无法通过 DNS 重绑定窃取本地审查数据。"
+    },
+    {
+     "type": "con",
+     "title": "viewer 开放到 0.0.0.0 且不校验 Host",
+     "code": [
+      "# 监听 0.0.0.0 或关闭 hostGuard",
+      "ocr viewer --host 0.0.0.0"
+     ],
+     "desc": "局域网内其他机器可访问 viewer，DNS-rebind 攻击面重新打开，含源码的审查数据面临被窃取风险。"
+    }
+   ]
+  },
+  {
+   "id": "q-retry",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "429 限流命中 RetryCodes 自动退避重试",
+     "code": [
+      "# 默认 max-retries=5 + x-should-retry 注入",
+      "retry_report: attempts=3, classes=[429,429], final=success"
+     ],
+     "desc": "模型 API 限流时自动退避重试，审查最终成功，报告中按 ErrorClass 记录每次尝试的类别与结果。"
+    },
+    {
+     "type": "con",
+     "title": "把 401/403 加入 RetryCodes，重试永远失败",
+     "code": [
+      "RetryCodes = [401, 403, 429, 500, 502, 503]",
+      "retry_report: attempts=5, classes=[401,401,401,401,401], final=failed"
+     ],
+     "desc": "客户端错误重试不可能成功，5 次尝试纯浪费 token 与时间，且掩盖了凭据配置错误的真实问题。"
+    },
+    {
+     "type": "pro",
+     "title": "按 retry_report 的 ErrorClass 决策",
+     "code": [
+      "# 报告显示 network 类占大头但重试后成功",
+      "ocr review 2>&1 | tail retry_report",
+      "# 结论：网络抖动，默认重试已覆盖，无需调参"
+     ],
+     "desc": "classifyBoundaryError/classifyStreamError 将错误归入 timeout/cancelled/network/provider/unknown 并标注 FailurePhase，据此精准决策。"
+    },
+    {
+     "type": "con",
+     "title": "忽略报告盲目调大重试次数",
+     "code": [
+      "# provider 类错误（如 5xx 服务端故障）重试全失败",
+      "OCR_RETRY_MAX=10 ocr review",
+      "# 仍失败，多花一倍请求成本"
+     ],
+     "desc": "不区分 ErrorClass 就加大重试，provider 侧真实故障被掩盖，成本翻倍而问题依旧。"
+    },
+    {
+     "type": "pro",
+     "title": "CI 中用 OCR_RETRY_* 环境变量调优重试",
+     "code": [
+      "# GitLab CI 作业注入，不改代码",
+      "OCR_RETRY_MAX=5 OCR_RETRY_BACKOFF=2.0 ocr review"
+     ],
+     "desc": "在 CI/生产环境按 provider 特性调整重试参数，避免为调参而改代码重新发布。"
+    },
+    {
+     "type": "con",
+     "title": "在无重试语义的自建服务上依赖 x-should-retry",
+     "code": [
+      "# 自建网关不识别 x-should-retry 头",
+      "OCR_RETRY_MAX=5 ocr review"
+     ],
+     "desc": "服务端不识别注入的 x-should-retry，重试行为与预期不符，重试报告与实际限流语义错位。"
+    }
+   ]
+  },
+  {
+   "id": "q-release",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "install.sh + sha256sum 校验安装",
+     "code": [
+      "curl -sSL https://raw.githubusercontent.com/alibaba/open-code-review/main/install.sh | bash",
+      "# 经 GitHub API 解析 latest tag 后下载，sha256sum 校验通过才落盘",
+      "OCR_INSTALL_DIR=/opt/ocr OCR_VERSION=v1.x.x ./install.sh"
+     ],
+     "desc": "固定版本 + 校验和验证保证供应链安全，OCR_INSTALL_DIR 自定义安装目录，国内环境可用 OCR_GITHUB_MIRROR。"
+    },
+    {
+     "type": "con",
+     "title": "跳过校验直接下载 Release 二进制",
+     "code": [
+      "curl -sSL https://github.com/alibaba/open-code-review/releases/download/xxx/ocr-linux-x64 -o ocr",
+      "chmod +x ocr"
+     ],
+     "desc": "绕过 npm postinstall 与 sha256sum 校验，无法确认二进制完整性，供应链风险敞口，内网场景易被替换。"
+    },
+    {
+     "type": "pro",
+     "title": "make coverage 90% 门禁守住发布质量",
+     "code": [
+      "make test   # race 检测",
+      "make coverage  # 覆盖率低于 90% 即失败",
+      "make build-all  # CGO_ENABLED=0 六平台交叉编译",
+      "make sha256sum dist"
+     ],
+     "desc": "race 检测 + 覆盖率门禁 + vet/check 在发布前拦截质量问题，静态二进制降低运行时依赖。"
+    },
+    {
+     "type": "con",
+     "title": "CI 每次装最新版不锁版本",
+     "code": [
+      "curl -sSL .../install.sh | bash  # 无 OCR_VERSION"
+     ],
+     "desc": "上游发布即影响构建结果，昨日通过的流水线今日失败且不可复现，排障成本高。"
+    },
+    {
+     "type": "pro",
+     "title": "受控环境禁用自动更新",
+     "code": [
+      "export OCR_NO_UPDATE=1",
+      "ocr review"
+     ],
+     "desc": "启动时不再触发后台 update.js 版本检查（默认 18 分钟冷却），版本行为可预期，适合生产与离线环境。"
+    },
+    {
+     "type": "con",
+     "title": "内网安装失败后改用不校验方式",
+     "code": [
+      "# GitHub 直连超时后，不走 OCR_GITHUB_MIRROR",
+      "wget <不可信镜像> && chmod +x ocr"
+     ],
+     "desc": "放弃校验的下载方式换来可用性，二进制来源不可信，供应链风险与可用性改善不成比例。"
+    }
+   ]
+  },
+  {
+   "id": "q-token",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "filterLargeDiffs 自动丢弃超大文件",
+     "code": [
+      "# 单文件 diff 超过 MaxTokens 80% 时",
+      "filter_large_diffs: dropped tool_calls.py (9213 tokens > 80% of 8192)"
+     ],
+     "desc": "超大 diff 自动跳过而非撑爆上下文，审查继续完成且注意力不被稀释，成本与质量双赢。"
+    },
+    {
+     "type": "con",
+     "title": "调高阈值甚至禁用过滤",
+     "code": [
+      "filter_large_diffs: disabled  # 或 threshold=95%"
+     ],
+     "desc": "2000 行文件全量入模，token 账单飙升且审查焦点被稀释，一次审查的成本抵得上十次正常审查。"
+    },
+    {
+     "type": "pro",
+     "title": "稳定 prompt 结构命中前缀缓存",
+     "code": [
+      "# 同一会话+任务+文件组合重复审查",
+      "ocr review --commit abc123",
+      "ocr review --commit abc123  # 第二次运行命中 provider 前缀缓存"
+     ],
+     "desc": "prompt-cache affinity key 按（会话+任务+文件）生成，重复任务命中缓存后 input 成本节省约 98%。"
+    },
+    {
+     "type": "con",
+     "title": "频繁改动 prompt 前缀破坏缓存",
+     "code": [
+      "# 每次审查前改系统提示/规则顺序",
+      "ocr review --rule \"A\" && ocr review --rule \"B\""
+     ],
+     "desc": "前缀字节变化导致整个缓存失效，98% 的 input 成本节省归零，token 账单回到全价。"
+    },
+    {
+     "type": "pro",
+     "title": "按模型口径准确计费",
+     "code": [
+      "# o1/o3/o4 系列走 o200k_base，其余走 cl100k_base",
+      "estimate.go: model=o3, tokenizer=o200k_base, estimated_input=12.4k"
+     ],
+     "desc": "审查前 estimate.go 给出与模型匹配的 token 预估与预算前瞻，成本决策有据可依。"
+    },
+    {
+     "type": "con",
+     "title": "用错分词口径估算 o1 系列",
+     "code": [
+      "# 按 cl100k_base 估算 o1 任务 token",
+      "estimate: 9.8k tokens (实际应走 o200k_base 口径)"
+     ],
+     "desc": "预估与账单口径不一致，预算前瞻失真，月底对账对不上才发现成本超支。"
+    }
+   ]
+  },
+  {
+   "id": "use-pr-review",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "分支 diff 审查无需 checkout",
+     "code": [
+      "cd repo && ocr review --from main --to feature-branch"
+     ],
+     "desc": "直接审查任意分支间变更，无需切换工作区，合并前即可完成全量复核。"
+    },
+    {
+     "type": "con",
+     "title": "对无 diff 场景误用 review 模式",
+     "code": [
+      "# 新仓库/无 git 历史目录直接跑",
+      "ocr review"
+     ],
+     "desc": "没有可审查的变更来源，审查空转或报错，此类场景应改用 ocr scan 整库扫描。"
+    },
+    {
+     "type": "pro",
+     "title": "PR 评论触发 + 权限收敛",
+     "code": [
+      "# .github/workflows/ocr-review.yml",
+      "on:",
+      "  pull_request_target: {types: [opened, synchronize, reopened]}",
+      "  issue_comment: {types: [created]}",
+      "# 仅 MEMBER/OWNER/COLLABORATOR 的 '/open-code-review' 可触发"
+     ],
+     "desc": "事件自动触发 + 评论手动复核双通道，权限限定防止陌生人滥用工作流消耗 token。"
+    },
+    {
+     "type": "con",
+     "title": "放开触发权限给所有人",
+     "code": [
+      "# 未限制 actor，任何人对 PR 评论 '/open-code-review' 均触发",
+      "issue_comment: {types: [created]}"
+     ],
+     "desc": "外部贡献者可通过评论反复触发审查，工作流被滥用，token 账单被他人消耗。"
+    },
+    {
+     "type": "pro",
+     "title": "并发组防重复审查",
+     "code": [
+      "concurrency:",
+      "  group: ocr-${{ github.event.pull_request.number }}"
+     ],
+     "desc": "同一 PR 反复 push 时并发组 ocr-<pr> 保证同时只跑一个审查，评论不重复。"
+    },
+    {
+     "type": "con",
+     "title": "忽略并发组配置",
+     "code": [
+      "# 未配置 concurrency，push 风暴时多个审查并行",
+      "uses: alibaba/open-code-review@main"
+     ],
+     "desc": "同一 PR 多个审查并发执行，重复评论刷屏且账单翻倍，开发者需手工清理重复评论。"
+    }
+   ]
+  },
+  {
+   "id": "use-scan-codebase",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "按目录分束控制扫描规模",
+     "code": [
+      "ocr scan --batch by-directory",
+      "# 或限定范围",
+      "ocr scan --path internal/agent"
+     ],
+     "desc": "把全库扫描切成可管理批次，单批输入不超限，接手遗留项目时先聚焦核心模块。"
+    },
+    {
+     "type": "con",
+     "title": "超大仓库不做分束直接全量扫描",
+     "code": [
+      "ocr scan  # 无 --batch，单批塞入全部文件"
+     ],
+     "desc": "单批输入超限导致任务失败或成本爆炸，一次审计跑不完还留下高额账单。"
+    },
+    {
+     "type": "pro",
+     "title": "保留 DEDUP 去重输出干净问题清单",
+     "code": [
+      "ocr scan",
+      "# DEDUP: 同一问题跨文件只报一次",
+      "found 23 unique issues across 41 files"
+     ],
+     "desc": "跨文件/跨批次重复问题被去重，问题列表干净可信，审计人力聚焦真正的高价值发现。"
+    },
+    {
+     "type": "con",
+     "title": "关闭去重导致重复问题刷屏",
+     "code": [
+      "ocr scan --no-dedup"
+     ],
+     "desc": "同一问题在数十个文件重复评论，列表被刷屏，真实风险被噪音掩盖，审计报告不可信。"
+    },
+    {
+     "type": "pro",
+     "title": "PROJECT_SUMMARY 作为改造排期输入",
+     "code": [
+      "ocr scan",
+      "# 输出项目级总结：共性风险、技术债集中模块",
+      "PROJECT_SUMMARY: 12 modules, 3 high-risk patterns (panic, sql concat, no tls)"
+     ],
+     "desc": "项目级总结把零散发现提升为对项目的整体判断，直接作为遗留代码改造计划与安全审计结论的输入。"
+    },
+    {
+     "type": "con",
+     "title": "把扫描报告当最终结论直接派工",
+     "code": [
+      "# 不做人工验证，直接把去重问题列表全量派单"
+     ],
+     "desc": "扫描结果未经验证即派工，假阳性进入任务系统，修复成本与信任度双输。"
+    }
+   ]
+  },
+  {
+   "id": "use-no-key",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "preview 圈定委托范围",
+     "code": [
+      "ocr delegate preview --format json",
+      "# 返回可审查文件清单，确认范围后再委托"
+     ],
+     "desc": "委托前先看文件清单，避免覆盖无关文件，也让宿主 Agent 的审查范围可控。"
+    },
+    {
+     "type": "con",
+     "title": "把 preview 输出当审查结果",
+     "code": [
+      "ocr delegate preview --format json > result.json",
+      "# 直接把文件清单当结论归档"
+     ],
+     "desc": "preview 只是文件清单而非审查结论，真正的审查仍需宿主 Agent 按规则执行，误用导致结果空洞。"
+    },
+    {
+     "type": "pro",
+     "title": "delegate rule + git diff 喂给宿主 Agent",
+     "code": [
+      "ocr delegate rule src/main.go src/handler.go > rules.md",
+      "git diff > diff.patch",
+      "# 宿主 Agent: 按 rules.md 审查 diff.patch，输出结构化评论"
+     ],
+     "desc": "OCR 负责高质量规则、宿主 Agent 负责执行，各用所长，无 LLM Key 也能获得规则化审查。"
+    },
+    {
+     "type": "con",
+     "title": "宿主 Agent 裸审不取规则",
+     "code": [
+      "git diff | claude -p \"review this diff\""
+     ],
+     "desc": "放弃 delegate rule 等于放弃 OCR 沉淀的审查规则，审查质量回到裸模型水平，且评论格式不可控。"
+    },
+    {
+     "type": "pro",
+     "title": "插件内嵌委托命令融入既有工作流",
+     "code": [
+      "# QCA/Claude Code 插件中内嵌",
+      "ocr delegate rule src/ > /tmp/ocr-rules.md",
+      "# 宿主按规则审查并回贴"
+     ],
+     "desc": "审查能力嵌入已有宿主 Agent 工作流，团队成员共享同一套规则标准，无需各自申请 Key。"
+    },
+    {
+     "type": "con",
+     "title": "委托链丢失 diff 上下文",
+     "code": [
+      "# 只把文件全文交给宿主 Agent，无 git diff",
+      "cat src/main.go | claude -p \"review\""
+     ],
+     "desc": "宿主 Agent 拿到全文而非变更，审查失去 diff 焦点，评论大量命中历史代码而非本次改动。"
+    }
+   ]
+  },
+  {
+   "id": "use-ci",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "Actions 三必填 + 字符串字面量布尔",
+     "code": [
+      "- uses: alibaba/open-code-review@main",
+      "  with:",
+      "    llm_url: ${{ secrets.LLM_URL }}",
+      "    llm_auth_token: ${{ secrets.LLM_AUTH_TOKEN }}",
+      "    llm_model: deepseek-v3",
+      "    llm_use_anthropic: 'false'"
+     ],
+     "desc": "llm_url/llm_auth_token/llm_model 三个必填项 + 密钥走 secrets，布尔输入用引号包裹为字符串字面量，传参可靠。"
+    },
+    {
+     "type": "con",
+     "title": "布尔不写字符串字面量导致静默失败",
+     "code": [
+      "llm_use_anthropic: false  # YAML 解析为布尔而非字符串"
+     ],
+     "desc": "裸布尔被 YAML 解析为布尔类型，action 收到类型不符的输入而静默失败，审查不跑且无报错提示。"
+    },
+    {
+     "type": "pro",
+     "title": "GitLab 回贴 discussion 让结论与代码行绑定",
+     "code": [
+      "# .gitlab-ci.yml 审查作业",
+      "ocr review --to ci",
+      "python post_review.py .ocr/result.json  # 回贴为 MR discussion"
+     ],
+     "desc": "审查结论回贴到对应代码行，开发者在原处处理，评审闭环在平台内完成。"
+    },
+    {
+     "type": "con",
+     "title": "凭据明文写进工作流文件",
+     "code": [
+      "llm_auth_token: sk-xxxx  # 硬编码而非 secrets"
+     ],
+     "desc": "凭据随仓库泄漏，任何有仓库读权限的人都能提取并使用，账单与安全双风险。"
+    },
+    {
+     "type": "pro",
+     "title": "消费 .ocr/ 产物接入度量",
+     "code": [
+      "cat .ocr/ocr-stats.env",
+      "# OCR_COMMENTS=12 OCR_TOKENS=38421",
+      "# 推送机器人摘要 + 汇总到月度面板"
+     ],
+     "desc": "审查统计进入团队度量（覆盖率/评论密度/token 成本），结果不只在日志里转瞬即逝。"
+    },
+    {
+     "type": "con",
+     "title": "忽略 .ocr/ 产物只留日志",
+     "code": [
+      "# 审查后不读取 result.json / ocr-stats.env"
+     ],
+     "desc": "审查结果无法被通知、度量与归档消费，团队无法度量审查价值，问题也无人跟进。"
+    }
+   ]
+  },
+  {
+   "id": "use-configure",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "标准上手三连：provider → model → language",
+     "code": [
+      "ocr config provider  # 选 DashScope/DeepSeek 或自定义端点",
+      "ocr config model    # 自动测连通，失败即反馈",
+      "ocr config set language zh-CN"
+     ],
+     "desc": "连通性自动测试当场暴露配错的模型名/端点，审查评论以中文输出，首次上手按序执行即可用。"
+    },
+    {
+     "type": "con",
+     "title": "跳过连通性测试直接开跑",
+     "code": [
+      "# 只配了 provider 就 ocr review"
+     ],
+     "desc": "模型未配置或配错时审查静默失败，排查成本高，且错误被延迟到审查时才暴露。"
+    },
+    {
+     "type": "pro",
+     "title": "项目规则 + doublestar glob + rules check 验证",
+     "code": [
+      "# .opencodereview/rule.json",
+      "{\"include\": [\"**/internal/**/*.go\"], \"exclude\": [\"**/*_test.go\"], \"rules\": [...]}",
+      "ocr rules check  # 确认规则命中目标文件"
+     ],
+     "desc": "include/exclude 用 doublestar glob（** 多级匹配）精确圈定范围，rules check 在正式审查前验证规则确实生效。"
+    },
+    {
+     "type": "con",
+     "title": "glob 写错且不验证导致规则静默失效",
+     "code": [
+      "\"include\": [\"*/internal/*.go\"]  # 单 * 无法匹配多级目录",
+      "# 且未运行 ocr rules check"
+     ],
+     "desc": "规则从未命中目标文件却无人察觉，审查跑完发现规则形同虚设，返工成本高。"
+    },
+    {
+     "type": "pro",
+     "title": "--rule 临时规则一次生效不污染配置",
+     "code": [
+      "ocr review --rule '禁止硬编码密钥'",
+      "# 单次命令生效，项目/全局配置不受影响"
+     ],
+     "desc": "临时检查场景（如发布前专项扫描）用完即走，不写入任何配置文件。"
+    },
+    {
+     "type": "con",
+     "title": "把 --rule 当持久配置",
+     "code": [
+      "# 以为 --rule 已全局生效，下次不带参数直接审查"
+     ],
+     "desc": "--rule 仅单次命令生效，下次审查不带则规则缺失，误判为工具 bug 而非使用方式问题。"
+    }
+   ]
+  },
+  {
+   "id": "use-extend",
+   "evidence": [
+    {
+     "type": "pro",
+     "title": "MCP 接入外部工具联动审查",
+     "code": [
+      "# config.json",
+      "\"mcp_servers\": {\"dep-scan\": {\"type\": \"stdio\", \"command\": \"dep-scanner\", \"args\": [\"--json\"]}}",
+      "# 审查中调用 dep-scan 交叉验证依赖版本"
+     ],
+     "desc": "审查从『读代码』升级为『查事实』：依赖漏洞、schema 一致性等外部事实可实时核对。"
+    },
+    {
+     "type": "con",
+     "title": "MCP 配置不可信 remote 端点",
+     "code": [
+      "\"mcp_servers\": {\"tool\": {\"type\": \"remote\", \"url\": \"http://unknown-host:8080\"}}"
+     ],
+     "desc": "审查数据可能被发送到不可信远程端点，源码外泄风险；remote 模式必须先确认信任边界。"
+    },
+    {
+     "type": "pro",
+     "title": "规则值引用 .md 文件承载复杂指令",
+     "code": [
+      "# rule.json 中规则值引用文档路径",
+      "\"rules\": [{\"name\": \"compliance\", \"value\": \"rules/compliance.md\"}]",
+      "# 数十条细则写在 compliance.md 中"
+     ],
+     "desc": "长指令与配置分离，评审修改只动文档不改 JSON，可读性与可维护性双提升。"
+    },
+    {
+     "type": "con",
+     "title": "长指令内联进 rule.json 字符串",
+     "code": [
+      "\"rules\": [{\"value\": \"禁止1、禁止2、禁止3…（数十条细则内联）\"}]"
+     ],
+     "desc": "JSON 转义与换行处理困难，评审每次改动都触碰配置文件，容易引入语法错误。"
+    },
+    {
+     "type": "pro",
+     "title": "--rule ad-hoc 补充专项检查",
+     "code": [
+      "ocr review --rule '禁止在事务中执行耗时查询'"
+     ],
+     "desc": "内置 10+ 语言规则之外的专项约束随时补充，一次性生效，适合现场临时检查。"
+    },
+    {
+     "type": "con",
+     "title": "自定义规则与内置规则命名冲突",
+     "code": [
+      "# 自定义规则与内置规则同名且作用域重叠",
+      "ocr review"
+     ],
+     "desc": "规则互相覆盖导致行为不可预测，改动前应先用 ocr rules check 验证命中与覆盖关系。"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>审查引擎 · 组索引 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+.treenav{display:block;}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <span>审查引擎</span></div>
+  <h1>审查引擎</h1>
+  <div class="badges"><span class="badge kind" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">架构/机制</span><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span> <span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span> <span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge cnt" style="color:#9aa0ab;background:#23272f;border-color:#3a3f4a">10 节点</span></div>
+</header>
+<main>
+  <div class="treenav"><span class="label">组目录:</span><a href="G-A.html">核心架构</a><a href="G-B.html">审查引擎</a><a href="G-C.html">命令行工具</a><a href="G-D.html">配置与模型</a><a href="G-E.html">集成生态</a><a href="G-F.html">工程保障</a><a href="G-S.html">使用场景索引</a></div>
+  <div class="navseq"><a class="nav-index" href="../03-groups/index.html"><span class="dir">&#8592; 上一页</span><span class="v">组总索引</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-node" href="../02-node-pages/eng-bundling.html"><span class="dir">进入本组首个节点</span><span class="v">文件分束</span></a></div>
+  <div class="section"><h2>组简介</h2><p>本组 <strong>10</strong> 个节点，属于 <strong>核心机制</strong> 域，类型为 <strong>架构/机制</strong>，覆盖阶段 <strong>基础 / 进阶 / 高级</strong>。</p><p class="dim">组节点：Git Diff 获取与解析、文件选择与过滤、文件分束、行号定位回退链、跨文件与 LLM 重定位、上下文三区压缩、会话 JSONL 持久化、断点续审与指纹复用、Run Manifest 覆盖度契约、全文件扫描引擎</p></div>
+  <div class="section"><h2>节点目录 <span class="dim">(10 个)</span></h2><div class="tblwrap"><table><tr><th>节点 ID</th><th>名称</th><th>来源</th><th>阶段</th><th>简介</th></tr><tr><td class="nid"><a href="../02-node-pages/eng-diff.html">eng-diff</a></td><td><a href="../02-node-pages/eng-diff.html" class="nname">Git Diff 获取与解析</a></td><td><span class="badge src" style="color:#6fd3ae;background:#0f2b1f;border-color:#2fb98a">桥接</span></td><td><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span></td><td class="brief">diff 获取支持三种 Provider，按用户场景选择：range（区间对比）、commit（单提交审查）、workspace（工作区未提交改动）</td></tr><tr><td class="nid"><a href="../02-node-pages/eng-filter.html">eng-filter</a></td><td><a href="../02-node-pages/eng-filter.html" class="nname">文件选择与过滤</a></td><td><span class="badge src" style="color:#6fd3ae;background:#0f2b1f;border-color:#2fb98a">桥接</span></td><td><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span></td><td class="brief">文件过滤由 whyExcluded 过滤链完成，按固定顺序执行：binary（二进制）→ 用户 exclude（显式排除）→ 用户 include（显式包含覆盖）→ 扩展名白名单（unsupported_ext）→ 默认路径黑名单（default_path）</td></tr><tr><td class="nid"><a href="../02-node-pages/eng-bundling.html">eng-bundling</a></td><td><a href="../02-node-pages/eng-bundling.html" class="nname">文件分束</a></td><td><span class="badge src" style="color:#6fd3ae;background:#0f2b1f;border-color:#2fb98a">桥接</span></td><td><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span></td><td class="brief">文件分束是 open-code-review 将一次评审拆解为多个可并行子任务的核心调度机制，决定 diff/文件集合如何被组织成独立任务单元</td></tr><tr><td class="nid"><a href="../02-node-pages/eng-locator.html">eng-locator</a></td><td><a href="../02-node-pages/eng-locator.html" class="nname">行号定位回退链</a></td><td><span class="badge src" style="color:#6fd3ae;background:#0f2b1f;border-color:#2fb98a">桥接</span></td><td><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span></td><td class="brief">行号定位回退链解决『审查评论最终必须落在哪个文件的哪几行』的定位问题，是评论回填 Collector 前的最后一步精确对齐</td></tr><tr><td class="nid"><a href="../02-node-pages/eng-relocate.html">eng-relocate</a></td><td><a href="../02-node-pages/eng-relocate.html" class="nname">跨文件与 LLM 重定位</a></td><td><span class="badge src" style="color:#6fd3ae;background:#0f2b1f;border-color:#2fb98a">桥接</span></td><td><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span></td><td class="brief">重定位机制负责把在原文件无法定位的评论迁移到正确的目标文件与行号，分确定性层（RelocateAcrossFiles）与推理层（ReLocateComment）</td></tr><tr><td class="nid"><a href="../02-node-pages/eng-compression.html">eng-compression</a></td><td><a href="../02-node-pages/eng-compression.html" class="nname">上下文三区压缩</a></td><td><span class="badge src" style="color:#6fd3ae;background:#0f2b1f;border-color:#2fb98a">桥接</span></td><td><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span></td><td class="brief">上下文压缩把会话消息划分为三个区：frozen（messages[0:2] 系统/前置固定区）+ compress 区（可压缩区）+ active 区（最近活动区）</td></tr><tr><td class="nid"><a href="../02-node-pages/eng-session.html">eng-session</a></td><td><a href="../02-node-pages/eng-session.html" class="nname">会话 JSONL 持久化</a></td><td><span class="badge src" style="color:#6fd3ae;background:#0f2b1f;border-color:#2fb98a">桥接</span></td><td><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span></td><td class="brief">会话持久化把每次代码审查的完整执行轨迹以 JSONL 落盘，默认目录 ~/.opencodereview/sessions/</td></tr><tr><td class="nid"><a href="../02-node-pages/eng-resume.html">eng-resume</a></td><td><a href="../02-node-pages/eng-resume.html" class="nname">断点续审与指纹复用</a></td><td><span class="badge src" style="color:#6fd3ae;background:#0f2b1f;border-color:#2fb98a">桥接</span></td><td><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span></td><td class="brief">断点续审通过任务指纹复用跳过已完成审查，从断点继续执行未决项</td></tr><tr><td class="nid"><a href="../02-node-pages/eng-manifest.html">eng-manifest</a></td><td><a href="../02-node-pages/eng-manifest.html" class="nname">Run Manifest 覆盖度契约</a></td><td><span class="badge src" style="color:#6fd3ae;background:#0f2b1f;border-color:#2fb98a">桥接</span></td><td><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span></td><td class="brief">Run Manifest 是审查运行的覆盖度契约，声明本次审查覆盖了哪些项、每项什么状态、哪些失败，schema 标识为 &#x27;ocr.run-manifest/v1&#x27;</td></tr><tr><td class="nid"><a href="../02-node-pages/eng-scan.html">eng-scan</a></td><td><a href="../02-node-pages/eng-scan.html" class="nname">全文件扫描引擎</a></td><td><span class="badge src" style="color:#6fd3ae;background:#0f2b1f;border-color:#2fb98a">桥接</span></td><td><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span></td><td class="brief">全文件扫描引擎实现无 diff 审查：不依赖 git diff，对仓库全量文件内容做审查</td></tr></table></div></div>
+<div class="section"><h2>学习路径提示</h2><p class="dim">本组内存在 <strong>7</strong> 条前置依赖边（prerequisite），推荐先掌握前置知识点，再进入依赖它的节点。</p><div class="pathbox"><div class="path-label">推荐阅读顺序（拓扑序）</div><div class="path-seq"><a href="../02-node-pages/eng-bundling.html">文件分束</a> &rarr; <a href="../02-node-pages/eng-compression.html">上下文三区压缩</a> &rarr; <a href="../02-node-pages/eng-diff.html">Git Diff 获取与解析</a> &rarr; <a href="../02-node-pages/eng-scan.html">全文件扫描引擎</a> &rarr; <a href="../02-node-pages/eng-session.html">会话 JSONL 持久化</a> &rarr; <a href="../02-node-pages/eng-filter.html">文件选择与过滤</a> &rarr; <a href="../02-node-pages/eng-manifest.html">Run Manifest 覆盖度契约</a> &rarr; <a href="../02-node-pages/eng-locator.html">行号定位回退链</a> &rarr; <a href="../02-node-pages/eng-resume.html">断点续审与指纹复用</a> &rarr; <a href="../02-node-pages/eng-relocate.html">跨文件与 LLM 重定位</a></div></div><ul class="dep-list"><li><a href="../02-node-pages/eng-diff.html">Git Diff 获取与解析</a> &rarr; <a href="../02-node-pages/eng-filter.html">文件选择与过滤</a><span class="evi">过滤基于解析后的 diff</span></li><li><a href="../02-node-pages/eng-diff.html">Git Diff 获取与解析</a> &rarr; <a href="../02-node-pages/eng-locator.html">行号定位回退链</a><span class="evi">行号映射基于 hunk</span></li><li><a href="../02-node-pages/eng-filter.html">文件选择与过滤</a> &rarr; <a href="../02-node-pages/eng-locator.html">行号定位回退链</a><span class="evi">定位发生在保留文件上</span></li><li><a href="../02-node-pages/eng-locator.html">行号定位回退链</a> &rarr; <a href="../02-node-pages/eng-relocate.html">跨文件与 LLM 重定位</a><span class="evi">定位失败才触发重定位</span></li><li><a href="../02-node-pages/eng-session.html">会话 JSONL 持久化</a> &rarr; <a href="../02-node-pages/eng-resume.html">断点续审与指纹复用</a><span class="evi">续审依赖会话持久化</span></li><li><a href="../02-node-pages/eng-session.html">会话 JSONL 持久化</a> &rarr; <a href="../02-node-pages/eng-manifest.html">Run Manifest 覆盖度契约</a><span class="evi">manifest 随会话落盘</span></li><li><a href="../02-node-pages/eng-manifest.html">Run Manifest 覆盖度契约</a> &rarr; <a href="../02-node-pages/eng-resume.html">断点续审与指纹复用</a><span class="evi">复用必须过父 manifest</span></li></ul><h3>入组前置依赖（组外节点 → 本组成员）</h3><ul class="dep-list"><li><a href="../02-node-pages/arch-dispatch.html">规则引导分派</a> &rarr; <a href="../02-node-pages/eng-bundling.html">文件分束</a><span class="evi">分派再做文件分束</span></li><li><a href="../02-node-pages/arch-grounded-tools.html">受限工具集审查</a> &rarr; <a href="../02-node-pages/eng-compression.html">上下文三区压缩</a><span class="evi">工具循环需上下文压缩</span></li><li><a href="../02-node-pages/q-token.html">Token 计费与成本控制</a> &rarr; <a href="../02-node-pages/eng-compression.html">上下文三区压缩</a><span class="evi">计费压力驱动压缩设计</span></li><li><a href="../02-node-pages/arch-pipeline.html">审查流水线</a> &rarr; <a href="../02-node-pages/eng-diff.html">Git Diff 获取与解析</a><span class="evi">流水线第一环是 diff 获取</span></li><li><a href="../02-node-pages/arch-dispatch.html">规则引导分派</a> &rarr; <a href="../02-node-pages/eng-filter.html">文件选择与过滤</a><span class="evi">分派先做文件选择过滤</span></li><li><a href="../02-node-pages/arch-grounded-tools.html">受限工具集审查</a> &rarr; <a href="../02-node-pages/eng-locator.html">行号定位回退链</a><span class="evi">工具评论需行号定位</span></li><li><a href="../02-node-pages/arch-reflection.html">独立反思</a> &rarr; <a href="../02-node-pages/eng-locator.html">行号定位回退链</a><span class="evi">反思依赖评论定位结果</span></li></ul><h3>出组依赖（本组成员 → 组外节点）</h3><ul class="dep-list"><li><a href="../02-node-pages/eng-bundling.html">文件分束</a> &rarr; <a href="../02-node-pages/cli-delegate.html">ocr delegate</a><span class="evi">委托模式按规则文本分束</span></li><li><a href="../02-node-pages/eng-resume.html">断点续审与指纹复用</a> &rarr; <a href="../02-node-pages/cli-review.html">ocr review</a><span class="evi">review 支持 --resume 续审</span></li><li><a href="../02-node-pages/eng-scan.html">全文件扫描引擎</a> &rarr; <a href="../02-node-pages/cli-scan.html">ocr scan</a><span class="evi">scan 命令由扫描引擎驱动</span></li><li><a href="../02-node-pages/eng-session.html">会话 JSONL 持久化</a> &rarr; <a href="../02-node-pages/cli-session.html">ocr session</a><span class="evi">CLI 管理 JSONL 会话</span></li><li><a href="../02-node-pages/eng-session.html">会话 JSONL 持久化</a> &rarr; <a href="../02-node-pages/cli-viewer.html">ocr viewer</a><span class="evi">查看器回放 JSONL</span></li></ul></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 组页由 07-checkpoint/gen-groups.py 生成 · 数据源 01-dag-data/opencodereview-dag.json</footer>
+</body>
+</html>

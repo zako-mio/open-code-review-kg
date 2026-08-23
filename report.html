@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission 报告：Open Code Review 项目解析知识图谱</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #161a22;
+    --panel2: #1c212c;
+    --text: #e6e8ee;
+    --muted: #9aa3b2;
+    --accent: #4f8cff;
+    --border: #2a3040;
+    --code-bg: #0b0d12;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    line-height: 1.75;
+    padding: 40px 16px;
+  }
+  .container { max-width: 920px; margin: 0 auto; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+  }
+  .panel-supp {
+    border-color: rgba(79,140,255,0.45);
+    box-shadow: 0 0 0 1px rgba(79,140,255,0.12), 0 4px 20px rgba(0,0,0,0.35);
+  }
+  h1 {
+    font-size: 26px;
+    color: var(--accent);
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+  }
+  h2 {
+    font-size: 20px;
+    color: var(--accent);
+    margin-bottom: 14px;
+    padding-left: 12px;
+    border-left: 4px solid var(--accent);
+  }
+  .panel-supp h2 { border-left-color: #7ab8ff; }
+  h3 { font-size: 16px; color: var(--text); margin: 18px 0 8px; }
+  .meta { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+  .meta code { color: var(--muted); }
+  p { margin-bottom: 12px; }
+  ul, ol { padding-left: 24px; margin-bottom: 12px; }
+  li { margin-bottom: 6px; }
+  .mono, code {
+    font-family: "JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace;
+    font-size: 0.9em;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: #a8c7ff;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  th {
+    background: var(--panel2);
+    color: var(--accent);
+    text-align: left;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+  }
+  td {
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  td code { background: transparent; border: none; padding: 0; }
+  .badge {
+    display: inline-block;
+    background: rgba(79,140,255,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(79,140,255,0.4);
+    border-radius: 20px;
+    padding: 2px 12px;
+    font-size: 13px;
+    margin: 0 4px 4px 0;
+  }
+  .badge-supp {
+    background: rgba(122,184,255,0.14);
+    color: #7ab8ff;
+    border-color: rgba(122,184,255,0.5);
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 18px 0 6px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="panel">
+    <h1>Mission 报告：Open Code Review 项目解析知识图谱</h1>
+    <p class="meta">日期：2026-08-23 ｜ 任务目录：<code>~/opencode/archive/Mission-file/2026-08/0823-open-code-review/</code></p>
+    <p class="meta"><span class="badge">GATE：范围=5 深度=5 操作=5 风险=2 → 总分=17 → Deep</span> <span class="badge badge-supp">v2：含三合一升级补充节</span></p>
+  </div>
+
+  <div class="panel">
+    <h2>一、当时情况</h2>
+    <p>用户提出"查找 GitHub 开源项目 Open Code Review（据说是阿里团队的代码审查工具）并深入了解"。第一轮调研子Agent 确认项目为 <code>alibaba/open-code-review</code>（21k+ star、Apache-2.0、Go 编写、源自阿里内部两年规模化验证的 AI 代码审查 CLI）。随后用户在选择留档方式时明确指示："下载到留档目录，参考最近的知识图谱任务，对该项目进行全面解析"，并在交付规模确认中选择<strong>全套知识图谱</strong>，要求"每个叶子 HTML 用 what-why-how 法则解释，要全面而且详细，同时该知识图谱也应该能够作为工具库索引"。</p>
+  </div>
+
+  <div class="panel">
+    <h2>二、制定计划</h2>
+    <ol>
+      <li>GATE 自评 17 分 → Deep variant。</li>
+      <li><strong>下载</strong>：git clone --depth 1 源码到留档目录（吸取 0823-12factor项目 教训：HTTP/1.1 降级、无管道吞错、显式验证工作树）。</li>
+      <li><strong>源码级解析</strong>：双路并行 explore 子Agent——核心引擎（<code>internal/agent</code>、<code>llmloop</code>、<code>tool</code>、<code>diff</code>、<code>gitcmd</code>、<code>scan</code>、<code>suggestdiff</code>、<code>session</code>、<code>viewer</code>）与外围集成（<code>cmd</code> CLI、<code>config</code>、<code>llm</code>、<code>model</code>、<code>delegate</code>、<code>mcp</code>、<code>telemetry</code>、<code>action.yml</code>、<code>examples</code>、<code>plugins</code>、<code>skills</code>、npm/发布、go.mod）。</li>
+      <li><strong>图谱设计</strong>（主 Agent）：51 节点 / 7 组 / 68 边；分组 = 核心架构 / 审查引擎 / 命令行工具 / 配置模型 / 集成生态 / 工程保障 / <strong>使用场景索引</strong>（G-S 承担"工具库索引"需求）；每节点五段式内容。</li>
+      <li><strong>内容创作</strong>：6 路并行 general 子Agent，每路 7-11 节点，prompt 内置一手源码事实要点防编造；子Agent 会话内落盘片段（resume task），主 Agent 聚合校验。</li>
+      <li><strong>生成脚本</strong>：复用 0823-12factor-methodology 的 07-checkpoint 全套脚本（gen_common/gen-nodes/gen-groups/gen-interactive/gen-md/gen-index），批量适配数据路径/样式体系；<strong>重写 gen-views.py</strong>（场景索引视图为核心新增）+ 重写 gen-index.py。</li>
+      <li><strong>质量门控</strong>：DAG 无环（Kahn）/ HTML 结构（UTF-8 无 U+FFFD、div 平衡）/ 断链 / 四向覆盖（dag↔pages↔md↔content）/ 交互 DATA 一致性 / 内容抽查。</li>
+      <li><strong>报告</strong>：report.md + report.html 双版本。</li>
+    </ol>
+  </div>
+
+  <div class="panel">
+    <h2>三、执行情况</h2>
+    <ol>
+      <li><strong>clone</strong>：首次 clone 超时 300s（无残留），ls-remote 探路确认网络通，改用 <code>git -c http.version=HTTP/1.1 -c http.postBuffer=524288000</code> 重试成功，772 文件，验证工作树非空。</li>
+      <li><strong>源码分析</strong>：两个 explore 子Agent 返回超详报告（agent.go 1899 行核心、REVIEW_FILTER 反思五步法、行号五级回退链、三区压缩、27 provider/4 协议/5 级配置优先级、GitHub Action 24 入参、6 套 CI 示例、6 个 Agent 插件、AACR-Bench 基准等）。</li>
+      <li><strong>图谱数据</strong>：主 Agent 手写 opencodereview-dag.json（51 节点/7 组/68 边），脚本预检通过（无环/无坏引用）。</li>
+      <li><strong>内容创作</strong>：6 路并行子Agent 全部 success；发现片段落盘时并行子Agent 脚本名冲突（<code>/tmp/opencode</code> 共享目录），子Agent 自愈（唯一文件名）。聚合后 51/51 节点匹配、无缺失无多余、字段全非空。</li>
+      <li><strong>脚本适配</strong>：adapt_scripts.py 批量替换 5 个脚本（含 2 处修复：src_badge 默认值引用已删除的 'bridge' 键、learning_html 误用节点索引取组名）。</li>
+      <li><strong>生成</strong>：51 节点页 + 7 组页 + 4 视图（场景索引 18KB）+ 交互 DAG + 51 MD + 根入口全部成功。</li>
+      <li><strong>门控</strong>：首轮发现 2 个问题——①门控脚本自身 bug（'open-code-review' in root 误排除全部 HTML，修复为精确路径判断）②1 处断链（gen-groups 残留对旧 04-cross-mapping.html 引用，改为 04-architecture.html）。复查全 PASS。</li>
+      <li><strong>报告</strong>：report.md 手写；report.html 委派子Agent 生成（走 HTML 质量门控）。</li>
+    </ol>
+  </div>
+
+  <div class="panel">
+    <h2>四、完成情况</h2>
+    <table>
+      <thead>
+        <tr><th>交付物</th><th>规模</th><th>位置</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>源码 clone</td><td>772 文件</td><td><code>open-code-review/</code></td></tr>
+        <tr><td>DAG 数据</td><td>51 节点/7 组/68 边 + stats.md</td><td><code>01-dag-data/</code></td></tr>
+        <tr><td>节点页</td><td>51 页（五段式：what/why/how/案例/反模式）</td><td><code>02-node-pages/</code></td></tr>
+        <tr><td>组页</td><td>7 组页 + 组总索引</td><td><code>03-groups/</code></td></tr>
+        <tr><td>交互 DAG</td><td>cytoscape + dagre（51/68/7）</td><td><code>04-interactive/</code></td></tr>
+        <tr><td>视图</td><td>场景索引（工具库索引）/ 学习路径 / 架构分层 / 入口</td><td><code>05-views/</code></td></tr>
+        <tr><td>MD 镜像</td><td>00-index + 01-groups + 02-stage + 03-learning-path + 51 节点</td><td><code>06-md/</code></td></tr>
+        <tr><td>生成脚本</td><td>9 个（可复跑）</td><td><code>07-checkpoint/</code></td></tr>
+        <tr><td>根入口</td><td>index.html</td><td>根目录</td></tr>
+        <tr><td>报告</td><td>report.md + report.html</td><td>根目录</td></tr>
+      </tbody>
+    </table>
+    <p>质量门控 7 项全 PASS。用户核心需求落实：①叶子页五段式详述（51 页平均约 900 字/页）②G-S 使用场景索引视图（场景→命令速查→关联节点，兼作工具手册）。</p>
+  </div>
+
+  <div class="panel panel-supp">
+    <h2>五（补）、三合一升级（2026-08-23 晚，用户二轮需求）</h2>
+    <p>用户提出升级：图谱不应只承载知识，应携带<strong>全部实践源码资产</strong>与 <strong>AI 可调用索引</strong>，升级为「知识 + 实践 + 工具索引」三合一；且叶子页知识承载量要充足（正反实例论证 + 实践工具索引）。</p>
+    <ol>
+      <li><strong>实践资产层</strong>：gen-assets-extract.py 从源码精选 42 个资产（CI 示例 7 / 源码节选 16 / 插件 5 / 构建 5 / Skill 2 / 配置示例 2 自建 / 脚本 1 / 工具 schema 1 / 提示词 1 / 规则 1 / 文档 1）复制/节选到 <code>assets/</code>；大文件（agent.go 1899 行等）自动节选为「头部 + 关键符号表」MD。</li>
+      <li><strong>正反实例论证</strong>：恢复 6 个内容创作会话（保留上下文），基于自写五段式内容补充 evidence——51 节点 / 260 条（130 对 pro+con），命令类节点用真实 ocr 参数，机制类用伪代码/diff 论证。</li>
+      <li><strong>AI 可调用索引</strong>：ai-index.json 三段式（node_index 51 + asset_index 42 + command_index 72），节点→命令→资产→页面全连通；命令提取用「ocr + 已知子命令」正则过滤噪音。</li>
+      <li><strong>叶子页增强</strong>：gen-nodes.py 注入两个新区块——「正反实例论证」（pro 绿卡/con 红卡 + 代码块）与「实践资产」（类型徽章 + 文件链接 + 元数据），51/51 全渲染；资产关联补全至 51/51。</li>
+      <li><strong>12 原则应用</strong>：用户指示学习 12factor-methodology 的 12 原则并应用——精读 00-index.md 提取 24 条原则（App 12 + Agent 12），设计 principles-mapping.json 逐条对照 OCR 机制给出审查结论（合规 22 / 部分合规 2），生成 <code>05-views/05-principles.html</code> + <code>06-md/05-principles.md</code>；审查发现 OCR 与 12 Factor Agent 高度同构（ag-control/ag-context/ag-small/ag-reducer 全合规）。</li>
+      <li><strong>门控 v3</strong>：新增 8 项校验（资产存在/索引合法/证据覆盖/区块渲染/原则视图），全 PASS；68 HTML 0 结构问题 0 断链。</li>
+    </ol>
+  </div>
+
+  <div class="panel">
+    <h2>五、反思 / 分析 / 建议</h2>
+    <ol>
+      <li><strong>知识图谱模式复用效率极高</strong>：12factor-methodology 的脚本骨架（gen_common + 5 生成器 + vendor）在仅改样式映射/路径后即可支撑全新项目图谱，本次从零到全量交付约 40 分钟。建议沉淀"项目解析图谱"标准模板（含场景索引视图），后续项目直接套用。</li>
+      <li><strong>"工具库索引"需求的新解法</strong>：在标准五层骨架上新增 G-S 场景组 + <code>05-views/02-scenarios.html</code> 命令速查视图，把"理解型图谱"升级为"可用型手册"。场景节点与工具节点用 prerequisite/combination 边互联，索引与架构自然打通。</li>
+      <li><strong>并行子Agent 写文件的共享目录冲突</strong>：<code>/tmp/opencode</code> 下多个子Agent 用同名脚本/输出文件会互相覆盖（本次 B/F 路都踩到）。规则应固化为：并行任务的文件名必须唯一（按片段号命名），或统一让主 Agent 写聚合。</li>
+      <li><strong>门控脚本自身也要门控</strong>：首轮门控因 walk 排除条件误伤（'open-code-review' 出现在基目录路径中）导致 HTML=0 假 PASS，复查才暴露。排查逻辑：门控输出与预期数量差异巨大时（65 vs 0）先怀疑门控本身。</li>
+      <li><strong>Reflection 联动</strong>：本任务可沉淀经验——多路内容创作委派的 prompt 要点（内置一手事实防编造）、五层骨架复用清单、工具索引视图设计模式。待用户 /reflection 审阅后写入 MEMORY.md。</li>
+    </ol>
+  </div>
+
+  <footer>生成日期：2026-08-24 ｜ Mission 报告 HTML 版 v2（由 report.md 转写，含三合一升级补充节）</footer>
+
+</div>
+</body>
+</html>

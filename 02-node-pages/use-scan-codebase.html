@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>场景：审计陌生代码库 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-S.html">使用场景索引</a> / <span>场景：审计陌生代码库</span></div>
+  <h1>场景：审计陌生代码库</h1>
+  <div class="badges"><span class="badge src" style="color:#ffb86b;background:#3a2f12;border-color:#e8933b">使用场景</span><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span><span class="badge tp" style="color:#ff8a97;background:#3a1520;border-color:#e05563">场景索引</span><span class="badge grp">G-S · 使用场景索引</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-S"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-S.html"><span class="dir">返回组</span><span class="v">使用场景索引</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">无 git 历史/无有意义 diff 时：全文件扫描，按语言/目录分束，DEDUP 去重，项目级总结</div><div class="bullet">面向无 git 历史或无有意义 diff 的仓库：接手遗留代码、安全审计、整体摸底时用扫描模式而非 diff 模式</div><div class="bullet">ocr scan 扫描整个仓库，ocr scan --path internal/agent 可限定子目录，聚焦特定模块</div><div class="bullet">--batch 支持 by-language 或 by-directory 分束：按语言或目录分批处理，控制单次扫描的规模与成本</div><div class="bullet">DEDUP 机制对跨文件/跨批次重复问题去重，防止同一问题在多文件重复评论</div><div class="bullet">PROJECT_SUMMARY 生成项目级总结：扫描后汇总整体健康状况、共性风险与改进建议，而非只给零散评论</div><div class="bullet">适用场景：接手遗留代码、安全审计、新人熟悉代码库</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>陌生代码库没有『变更』概念，diff 模式无从谈起，必须整库扫描建立基线</p><p>全库一次性送入模型不可行，by-language/by-directory 分束把扫描切成可管理的批次</p><p>审计场景下重复评论噪音极大，DEDUP 保证每条问题只出现一次，报告才可信</p><p>项目级总结把『发现的问题』提升为『对项目的判断』，正是审计报告需要的形态</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">整库扫描：在仓库根目录运行 ocr scan，等待扫描完成并查看逐文件评论</div><div class="bullet">限定范围：ocr scan --path internal/agent，只扫指定目录，快速聚焦目标模块</div><div class="bullet">分束控制规模：ocr scan --batch by-language 按语言分批，或 --batch by-directory 按目录分批，避免单批过大</div><div class="bullet">安全审计流程：先全库扫描 → 查看 DEDUP 后的去重问题列表 → 读 PROJECT_SUMMARY 项目级总结 → 按严重性逐项跟进</div><div class="bullet">遗留代码接手：扫描建立基线后，把项目级总结作为改造计划与排期的输入</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>接手遗留项目：整库扫描产出问题清单与项目总结，快速定位技术债最重的模块</td></tr><tr><td>安全审计：对指定敏感目录 ocr scan --path，配合去重列表逐条验证漏洞风险</td></tr><tr><td>技术选型评估：扫描候选第三方库源码，用项目总结判断代码质量与维护风险</td></tr><tr><td>团队代码体检：定期整库扫描，对比多次 PROJECT_SUMMARY 看质量趋势</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>对超大仓库不做 --batch 直接全量扫描，单批输入超限导致任务失败或成本爆炸</li><li>忽略 DEDUP 去重，跨文件重复问题刷屏，掩盖真正的高价值发现</li><li>把扫描报告当最终结论而非输入：不结合人工验证就把问题列表直接派工</li><li>在无 git 历史的仓库误用 review 模式（无 diff 可审），应改用 scan 模式</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">按目录分束控制扫描规模</div><div class="evcode"><code>ocr scan --batch by-directory</code><code># 或限定范围</code><code>ocr scan --path internal/agent</code></div><div class="evdesc">把全库扫描切成可管理批次，单批输入不超限，接手遗留项目时先聚焦核心模块。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">超大仓库不做分束直接全量扫描</div><div class="evcode"><code>ocr scan  # 无 --batch，单批塞入全部文件</code></div><div class="evdesc">单批输入超限导致任务失败或成本爆炸，一次审计跑不完还留下高额账单。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">保留 DEDUP 去重输出干净问题清单</div><div class="evcode"><code>ocr scan</code><code># DEDUP: 同一问题跨文件只报一次</code><code>found 23 unique issues across 41 files</code></div><div class="evdesc">跨文件/跨批次重复问题被去重，问题列表干净可信，审计人力聚焦真正的高价值发现。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">关闭去重导致重复问题刷屏</div><div class="evcode"><code>ocr scan --no-dedup</code></div><div class="evdesc">同一问题在数十个文件重复评论，列表被刷屏，真实风险被噪音掩盖，审计报告不可信。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">PROJECT_SUMMARY 作为改造排期输入</div><div class="evcode"><code>ocr scan</code><code># 输出项目级总结：共性风险、技术债集中模块</code><code>PROJECT_SUMMARY: 12 modules, 3 high-risk patterns (panic, sql concat, no tls)</code></div><div class="evdesc">项目级总结把零散发现提升为对项目的整体判断，直接作为遗留代码改造计划与安全审计结论的输入。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">把扫描报告当最终结论直接派工</div><div class="evcode"><code># 不做人工验证，直接把去重问题列表全量派单</code></div><div class="evdesc">扫描结果未经验证即派工，假阳性进入任务系统，修复成本与信任度双输。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">Skill</div><div class="assname"><a href="../assets/skills/SKILL-review.md" target="_blank">SKILL-review.md</a></div><div class="assdesc">通用 review skill：四步 review/filter/fix/report + severity×category 分级</div><div class="assmeta">skills/open-code-review/SKILL.md · 9294 B</div></div><div class="assetcard"><div class="asstype">插件</div><div class="assname"><a href="../assets/plugins/opencode-plugin.ts" target="_blank">opencode-plugin.ts</a></div><div class="assdesc">OpenCode 原生插件源码（@opencode-ai/plugin，参数互斥校验）</div><div class="assmeta">plugins/open-code-review/opencode/open-code-review.ts · 12666 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="cli-scan.html">ocr scan&#8592;代码库审计指向 scan 命令<span class="etype">前置依赖</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

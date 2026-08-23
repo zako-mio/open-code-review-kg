@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文件选择与过滤 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-B.html">审查引擎</a> / <span>文件选择与过滤</span></div>
+  <h1>文件选择与过滤</h1>
+  <div class="badges"><span class="badge src" style="color:#7fe0d8;background:#12302c;border-color:#5ad0d0">审查引擎</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-B · 审查引擎</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-B"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-B.html"><span class="dir">返回组</span><span class="v">审查引擎</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">whyExcluded 过滤链：binary→用户 exclude→include 覆盖→扩展名白名单→默认路径黑名单</div><div class="bullet">文件过滤由 whyExcluded 过滤链完成，按固定顺序执行：binary（二进制）→ 用户 exclude（显式排除）→ 用户 include（显式包含覆盖）→ 扩展名白名单（unsupported_ext）→ 默认路径黑名单（default_path）</div><div class="bullet">每条被排除的文件都带 ExcludeReason 记录原因：user_exclude/unsupported_ext/default_path/deleted/binary 五类</div><div class="bullet">大小上限 2MiB：超过该体积的文件不进审查流程，防止超大文件撑爆上下文</div><div class="bullet">8000 字节二进制嗅探：读取文件前 8000 字节判断是否为二进制，规避误判与二进制内容注入上下文</div><div class="bullet">过滤链完全确定性：同一输入必然产生同一过滤结果，可单测、可审计</div><div class="bullet">过滤与分派衔接：通过过滤的文件进入分派队列（信号量并发），被过滤文件可经 injectDiffMap 供 file_read_diff 按需读取</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>二进制文件（图片、编译产物、资源文件）对代码审查无意义且会污染上下文，二进制嗅探（8000 字节采样）比扩展名判断更可靠（改名二进制仍可识别）</p><p>用户 exclude 处理『我不想审的』，用户 include 处理『默认规则误伤的』，两者构成用户层覆盖能力，且 include 优先级高于 exclude 是明确语义</p><p>扩展名白名单限定支持语言集合：白名单外的扩展名（unsupported_ext）不进审查，保证审查聚焦于代码文件</p><p>默认路径黑名单内置常见噪声路径（vendor、依赖目录、生成目录等），开箱即用无需用户配置</p><p>2MiB 上限是上下文预算的工程保障：大文件即使只进 diff 也消耗巨量 token，上限从源头规避；8000 字节嗅探是性能与准确率的平衡采样</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">binary 检测：读取文件前 8000 字节做二进制嗅探（NUL 字节/不可打印字符比例），命中即排除并记 ExcludeReason=binary</div><div class="bullet">用户 exclude：用户配置的排除路径/模式逐条匹配，命中即排除（ExcludeReason=user_exclude），如明确排除测试目录</div><div class="bullet">用户 include：用户 include 配置可覆盖前面排除的条目（ExcludeReason 相应记录），用于把默认/排除规则误伤的文件拉回审查</div><div class="bullet">扩展名白名单：文件扩展名不在支持列表内则排除（ExcludeReason=unsupported_ext），如 .min.js、.map、各类生成物</div><div class="bullet">默认路径黑名单：路径匹配内置黑名单（依赖/生成/构建目录等）则排除（ExcludeReason=default_path）；deleted 标记用于 diff 中已删除文件</div><div class="bullet">大小检查：文件 diff 或内容超过 2MiB 上限直接排除（配合 filterLargeDiffs 的 80% MaxTokens 规则形成双层大文件防线）</div><div class="bullet">结果输出：每个文件条目携带是否排除与 ExcludeReason，manifest 中可审计『为什么没审这个文件』</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>图片被改名成 .go 后缀混进 PR：扩展名白名单无法拦截，但 8000 字节二进制嗅探检测到不可打印内容，按 binary 排除，避免二进制内容进入模型上下文</td></tr><tr><td>用户仓库依赖 vendor 目录，默认路径黑名单排除之；但某次需要核对 vendor 内特定文件的改动，用户 include 覆盖后该文件进入审查，其余 vendor 文件仍被排除</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>只用扩展名判断二进制（如 .png/.jpg 列表）——改名二进制绕过白名单，必须用 8000 字节内容嗅探兜底</li><li>include 与 exclude 优先级设计反了——若 exclude 覆盖 include，用户将无法把误伤文件拉回审查，include 覆盖 exclude 是必须语义</li><li>大文件过滤阈值只依赖 filterLargeDiffs 的 80% MaxTokens——单一大文件即使小于 80% 也可能吃掉大半预算，2MiB 硬上限是必要补充</li><li>过滤后不记录原因（无 ExcludeReason）——用户无法审计『为什么这个文件没被审』，过滤链的可解释性丢失，排障困难</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">8000 字节二进制嗅探兜底改名二进制</div><div class="evcode"><code>sniff := readFirstBytes(path, 8000) // 前 8000 字节采样</code><code>if isBinary(sniff) { exclude(entry, ExcludeReason_binary) }</code><code># 按 NUL 字节/不可打印字符比例判定，与扩展名无关</code><code># 例：图片改名 .go 后缀混进 PR 仍被拦截</code></div><div class="evdesc">内容嗅探比扩展名判断更可靠：改名二进制（.png→.go）无法绕过白名单，二进制内容不会注入模型上下文</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">只用扩展名列表判断二进制</div><div class="evcode"><code>binaryExt := map[string]bool{&quot;.png&quot;: true, &quot;.jpg&quot;: true, &quot;.zip&quot;: true}</code><code>if binaryExt[ext(path)] { exclude(entry) }</code><code># 改名后的二进制（evil.png → evil.go）绕过判断，二进制内容进入模型上下文</code></div><div class="evdesc">扩展名可被轻易改名绕过，二进制内容（大量不可打印字节）进入上下文既污染审查又浪费 token，必须内容嗅探兜底</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">2MiB 硬上限 + ExcludeReason 可审计过滤</div><div class="evcode"><code>if entry.Size &gt; 2*1024*1024 { exclude(entry, ExcludeReason_size_limit) }</code><code>// 每条排除记录原因：user_exclude / unsupported_ext / default_path / deleted / binary</code><code>// manifest 输出 &#x27;为什么没审这个文件&#x27;，过滤链可审计可单测</code></div><div class="evdesc">2MiB 上限与 filterLargeDiffs（80% MaxTokens）构成双层大文件防线；ExcludeReason 让过滤结果可解释，排障时可定位是哪一层拦截</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">无大小上限、过滤后不记录原因</div><div class="evcode"><code># 反例：只靠 filterLargeDiffs 的 80% MaxTokens</code><code># 单一大文件即使小于 80% 也可能吃掉大半预算</code><code># 且排除时不写 ExcludeReason → 用户无法审计为什么没审某文件</code></div><div class="evdesc">缺少 2MiB 硬上限时单文件仍可消耗巨量 token；无原因记录的过滤链不可解释，『文件为何没被审』的排障直接断线</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/diff-resolver.go.md" target="_blank">diff-resolver.go.md</a></div><div class="assdesc">行号解析五级回退链节选：ResolveComment / matchConsecutive</div><div class="assmeta">internal/diff/resolver.go · 2009 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="arch-dispatch.html">规则引导分派&#8592;分派先做文件选择过滤<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="eng-diff.html">Git Diff 获取与解析&#8592;过滤基于解析后的 diff<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="eng-locator.html">行号定位回退链&#8594;定位发生在保留文件上<span class="etype">前置依赖</span></a><a class="chip e-combination" href="arch-dispatch.html">规则引导分派&#8594;选择+分束组合成分派<span class="etype">组合</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

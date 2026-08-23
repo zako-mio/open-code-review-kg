@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cursor 插件 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-E.html">集成生态</a> / <span>Cursor 插件</span></div>
+  <h1>Cursor 插件</h1>
+  <div class="badges"><span class="badge src" style="color:#ff8a97;background:#3a1520;border-color:#e05563">集成生态</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-E · 集成生态</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-E"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-E.html"><span class="dir">返回组</span><span class="v">集成生态</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">.cursor-plugin/plugin.json + 可移植 skill，复制到 ~/.cursor/plugins/local/ 手动安装</div><div class="bullet">Alibaba Open Code Review 为 Cursor（AI 编辑器）提供的集成插件，清单文件 .cursor-plugin/plugin.json，其 skills 字段指向 ../skills/ 目录，即复用仓库通用 skills 目录中的同一份 Skill 定义</div><div class="bullet">安装方式为手动复制：将 plugins/open-code-review/ 整个目录复制到 ~/.cursor/plugins/local/open-code-review/ 路径下，即可被 Cursor 识别为本地插件</div><div class="bullet">其核心是可移植 skill 机制：同一份 skill 定义可被 Cursor、通用 Agent 等不同宿主共享，实现「一份技能、多处复用」</div><div class="bullet">插件本质是把通用 open-code-review Skill（含 --audience agent --background 等工作流）挂载进 Cursor 的插件体系，使 Cursor 用户获得与 CLI 一致的审查能力</div><div class="bullet">作为多生态集成的一环，Cursor 路径代表了面向编辑器的轻量集成方式：无插件市场依赖、纯本地文件复制</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>Cursor 是市场占有率高的 AI 编辑器，其本地插件机制支持从目录直接加载，手动复制是最低摩擦的交付方式，无需上架插件市场</p><p>通过复用 ../skills/ 指向的同一份 skill 定义，避免为每个宿主维护多份重复技能文件，保证 Cursor 与通用 Agent 的行为一致（单源维护）</p><p>可移植 skill 机制使技能资产跨宿主沉淀：无论用户切到 Cursor、Claude Code 还是其他支持 skill 的 Agent，审查工作流保持一致</p><p>本地插件方式便于企业内网/受限网络环境离线安装，不依赖外网插件市场</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">前置条件：本机安装 ocr CLI 并配置好模型 API Key，确保 ocr 命令可独立运行</div><div class="bullet">定位仓库中的插件目录：找到 open-code-review 仓库下的 plugins/open-code-review/ 目录（内含 .cursor-plugin/plugin.json）</div><div class="bullet">创建目标目录：mkdir -p ~/.cursor/plugins/local/open-code-review/</div><div class="bullet">执行复制安装：将插件目录内容复制到 ~/.cursor/plugins/local/open-code-review/（如 cp -r plugins/open-code-review/* ~/.cursor/plugins/local/open-code-review/），确保 .cursor-plugin 子目录一并复制</div><div class="bullet">重启 Cursor 或触发插件重载，使 Cursor 扫描并加载本地插件目录</div><div class="bullet">在 Cursor 中按插件注册的方式调用审查技能（通常通过 Agent/Skill 面板或命令入口触发），审查流程将复用通用 SKILL.md 中定义的 review 工作流（--audience agent --background 等）</div><div class="bullet">验证：发起一次小范围审查确认插件被正确加载且 ocr 调用链路通畅</div><div class="bullet">升级插件时重新复制新版本目录并重启 Cursor，覆盖旧文件</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>Cursor 用户希望在编辑器内完成审查而无需切终端：复制插件后，直接在编辑会话中触发 review 技能即可</td></tr><tr><td>团队统一在 Cursor 中使用审查：把插件目录随初始化脚本（如 dotfiles/bootstrap 脚本）分发到每台开发机 ~/.cursor/plugins/local/，实现团队级开箱即用</td></tr><tr><td>内网开发环境无法访问插件市场：采用手动复制方式离线安装，实现受限网络下的审查能力落地</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>复制路径错误：把 plugins/open-code-review/ 之外的文件或把目录内容散落复制到其他位置，导致 Cursor 无法识别；必须整体复制且 .cursor-plugin 子目录结构保持完整</li><li>复制后不重启：Cursor 对本地插件的扫描通常发生在启动/重载时，直接使用会提示插件不存在，应先重启再调用</li><li>忽略 skill 文件依赖：plugin.json 的 skills 指向 ../skills/，若复制时裁剪了上级 skills 目录或改变相对路径，技能加载将失败；应按仓库原始结构完整搬运</li><li>以为改一处配置即可全局生效：本地插件是每机器复制模式，改动后需在所有目标机器重新同步，没有插件市场式的自动更新</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">整体复制插件目录并重启，技能正常加载</div><div class="evcode"><code>mkdir -p ~/.cursor/plugins/local/open-code-review/</code><code>cp -r plugins/open-code-review/* ~/.cursor/plugins/local/open-code-review/</code><code># 重启 Cursor 后触发 review 技能</code></div><div class="evdesc">保持仓库原始目录结构（含 .cursor-plugin/ 与 skills 相对路径 ../skills/）整体复制到 ~/.cursor/plugins/local/ 下，重启后 Cursor 即识别本地插件。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">复制漏掉 .cursor-plugin 目录，插件不被识别</div><div class="evcode"><code>cp plugins/open-code-review/plugin.json ~/.cursor/plugins/local/open-code-review/</code><code># 缺少 .cursor-plugin/ 清单目录，Cursor 扫描不到</code></div><div class="evdesc">只复制单个文件或散落复制导致 .cursor-plugin 子目录缺失，Cursor 无法识别该目录为插件。必须按原始结构整体搬运。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">团队脚本分发插件，内网离线可用</div><div class="evcode"><code>bootstrap.sh: cp -r plugins/open-code-review ~/.cursor/plugins/local/open-code-review/</code><code># 内网环境无插件市场依赖</code></div><div class="evdesc">手动复制模式天然支持离线分发：把复制命令固化进初始化脚本，每台开发机开箱即用，适合无法访问插件市场的内网环境。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">复制后不重启 Cursor 直接调用</div><div class="evcode"><code>cp -r plugins/open-code-review ~/.cursor/plugins/local/</code><code># 未重启，直接在会话中调用 → 插件不存在</code></div><div class="evdesc">Cursor 对本地插件的扫描发生在启动/重载时，复制后不重启会提示插件不存在。复制完成后必须重启或触发插件重载。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">插件</div><div class="assname"><a href="../assets/plugins/cursor-plugin.json" target="_blank">cursor-plugin.json</a></div><div class="assdesc">Cursor 插件清单（复用 ../skills/）</div><div class="assmeta">plugins/open-code-review/.cursor-plugin/plugin.json · 732 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-variant" href="int-claude.html">Claude Code 插件&#8592;同为插件生态<span class="etype">变体</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

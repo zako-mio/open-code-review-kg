@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code 插件 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-E.html">集成生态</a> / <span>Claude Code 插件</span></div>
+  <h1>Claude Code 插件</h1>
+  <div class="badges"><span class="badge src" style="color:#ff8a97;background:#3a1520;border-color:#e05563">集成生态</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-E · 集成生态</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-E"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-E.html"><span class="dir">返回组</span><span class="v">集成生态</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">claude-code 插件：/open-code-review:review 与 :delegate-review 斜杠命令，marketplace 安装</div><div class="bullet">Alibaba Open Code Review 为 Claude Code 提供的官方集成插件，仓库路径为 plugins/open-code-review/claude-code/，核心清单文件为 .claude-plugin/plugin.json，其中 commands 字段指向 ./commands 目录，即插件以斜杠命令（slash command）形式暴露能力</div><div class="bullet">插件安装后为 Claude Code 注入两条核心斜杠命令：/open-code-review:review（触发代码审查）与 /open-code-review:delegate-review（触发委托审查），命令定义位于插件 commands 目录下</div><div class="bullet">除插件注册的命令外，仓库根目录还内置 .claude/commands/open-code-review.md 作为开箱即用的斜杠命令，同目录另有 commit.md（提交辅助）与 tag.md（打标签辅助）两条配套命令</div><div class="bullet">该插件本质是把 ocr CLI 的能力以 Claude Code 原生命令的方式暴露，让用户在会话中直接输入斜杠命令即可启动审查流程，无需记忆 CLI 参数</div><div class="bullet">属于仓库多 IDE/多 Agent 生态中的 Claude Code 官方入口，与 Codex、Cursor、OpenCode 等集成并列</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>Claude Code 是当前主流 AI 编码 Agent 之一，用户习惯以斜杠命令触发工作流，插件化集成可让审查能力零门槛融入既有会话，无需切换到终端手动执行 CLI</p><p>斜杠命令封装了 ocr 的复杂参数与调用链，降低使用门槛，同时通过 /open-code-review:delegate-review 提供委托审查路径，适应「宿主模型把关、OCR 干活」的组织分工场景</p><p>内置 .claude/commands/open-code-review.md 与 commit.md/tag.md 命令形成「审查—提交—打标签」的完整闭环，覆盖代码合并前的主要操作环节</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">前置条件：确保已安装 ocr CLI（ocr --version 可验证），并完成 API Key 配置，使 ocr 命令可独立运行</div><div class="bullet">从 Claude Code 的插件市场安装：执行 /plugin marketplace add alibaba/open-code-review 将阿里官方仓库添加为插件市场源</div><div class="bullet">随后执行 /plugin install open-code-review@open-code-review 安装插件本体，安装后插件命令即注册到当前会话</div><div class="bullet">重启或刷新 Claude Code 会话后，输入 /open-code-review:review 并附加目标范围参数（如文件、提交或目录）即可发起审查</div><div class="bullet">需要委托审查时，使用 /open-code-review:delegate-review 命令，按提示指定审查范围与委托配置</div><div class="bullet">若不想走插件市场，也可直接依赖仓库根目录内置命令：将仓库中的 .claude/commands/open-code-review.md（以及 commit.md、tag.md）复制到本地项目的 .claude/commands/ 目录，即可获得同等的斜杠命令体验</div><div class="bullet">执行审查后，Claude Code 会在会话内呈现审查结果，可继续以对话方式追问、过滤或修复发现的问题</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>开发者在 Claude Code 会话中完成一个 feature 分支的编码后，直接输入 /open-code-review:review 审查改动文件，在提交前拦截潜在缺陷</td></tr><tr><td>团队采用「AI 审查 + 人工确认」流程：开发者在合并前先跑 /open-code-review:review，再针对高严重度问题与 Claude 讨论修复方案，最后用内置 commit.md 生成规范提交信息</td></tr><tr><td>安全敏感仓库中，开发者通过 /open-code-review:delegate-review 将审查委托给 OCR 模型执行，Claude 仅负责汇总与裁决，实现职责分离</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>只装插件不装 CLI：插件本质是 CLI 的薄封装，若本机缺少 ocr 可执行文件或未配置 Key，命令会直接失败；应先用终端验证 ocr --version 与一次最小审查通过</li><li>重复安装源：先 add marketplace 又手动复制 .claude/commands 文件，可能导致同一命令被注册两次、行为冲突；二选一即可</li><li>在会话中混淆 review 与 delegate-review：两者审查范围与权限模型不同，普通代码审查误用 delegate-review 可能走不到预期模型配置，应先明确两条命令的差异再选用</li><li>忽略内置命令差异：误以为只有插件才有命令，实际仓库根的 .claude/commands 已内置 open-code-review.md，直接复制即可用，无需为简单场景搭建插件市场流程</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">完整走插件市场安装流程，两条斜杠命令就位</div><div class="evcode"><code>/plugin marketplace add alibaba/open-code-review</code><code>/plugin install open-code-review@open-code-review</code><code>/open-code-review:review --target=src/</code></div><div class="evdesc">先 add 市场源再 install，插件命令才真正注册到会话；随后直接输入 /open-code-review:review 即可发起审查。正确顺序是「先 add 后 install」，缺一不可。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">只 add marketplace 不 install，命令「不存在」</div><div class="evcode"><code>/plugin marketplace add alibaba/open-code-review</code><code>/open-code-review:review  # 报错：未找到该命令</code></div><div class="evdesc">只添加市场源只是让仓库「可见」，命令本体尚未安装；此时输入斜杠命令会提示命令不存在。常见误解是认为 add 即完成安装，实际必须再执行 install 步骤。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">轻量场景直接复用仓库内置命令</div><div class="evcode"><code>cp .claude/commands/open-code-review.md .claude/commands/</code><code>cp .claude/commands/commit.md .claude/commands/</code><code>/open-code-review:review</code></div><div class="evdesc">仓库根目录 .claude/commands/ 已内置 open-code-review.md（另有 commit.md/tag.md），复制到项目即可获得斜杠命令，适合不想走插件市场的简单场景，且审查、提交、打标签闭环齐全。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">插件与内置命令双通道同时安装，命令注册冲突</div><div class="evcode"><code>/plugin marketplace add alibaba/open-code-review</code><code>/plugin install open-code-review@open-code-review</code><code>cp .claude/commands/open-code-review.md .claude/commands/</code><code>/open-code-review:review  # 行为不确定/双重注册</code></div><div class="evdesc">既走插件市场又手动复制内置命令，同一命令可能注册两次导致行为冲突或二选一失效。两条通道任选其一，不要叠加。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">安全敏感仓库用 delegate-review 做职责分离</div><div class="evcode"><code>/open-code-review:delegate-review</code><code># Claude 仅汇总与裁决，OCR 侧执行审查</code></div><div class="evdesc">委托审查路径让 OCR 承担实际审查、宿主模型只负责汇总裁决，适合安全敏感仓库的职责分离诉求。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">普通审查误用 delegate-review，模型配置错位</div><div class="evcode"><code>/open-code-review:delegate-review  # 普通场景误用</code><code># 走不到预期模型的直接审查配置</code></div><div class="evdesc">review 与 delegate-review 的审查范围与权限模型不同，普通代码审查误用委托命令可能走不到预期的模型配置。先用 /open-code-review:review 覆盖日常场景。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">插件</div><div class="assname"><a href="../assets/plugins/claude-slash-command.md" target="_blank">claude-slash-command.md</a></div><div class="assdesc">Claude Code 斜杠命令定义</div><div class="assmeta">.claude/commands/open-code-review.md · 1595 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-cooccurrence" href="int-skill.html">通用 Agent Skill&#8592;Skill 机制与插件生态共现<span class="etype">共现</span></a><a class="chip e-prerequisite" href="cli-delegate.html">ocr delegate&#8594;Claude 插件可走委托模式<span class="etype">前置依赖</span></a><a class="chip e-variant" href="int-codex.html">Codex 插件&#8594;同为插件生态<span class="etype">变体</span></a><a class="chip e-variant" href="int-cursor.html">Cursor 插件&#8594;同为插件生态<span class="etype">变体</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

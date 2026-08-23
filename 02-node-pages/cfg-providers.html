@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Provider 体系 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-D.html">配置与模型</a> / <span>Provider 体系</span></div>
+  <h1>Provider 体系</h1>
+  <div class="badges"><span class="badge src" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">配置模型</span><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-D · 配置与模型</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-D"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-D.html"><span class="dir">返回组</span><span class="v">配置与模型</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">27 个内置 LLM provider（anthropic/openai/dashscope/deepseek/z-ai/kimi/...）+ 自定义端点，覆盖国内外主流模型</div><div class="bullet">内置 27 个 LLM provider，覆盖国内外主流大模型服务商：anthropic、bedrock(AWS SigV4)、openai、edenai、gemini、dashscope、dashscope-tokenplan、volcengine、deepseek、tencent-tokenhub、hy-tokenplan、iflytek、kimi、kimi-global、z-ai、z-ai-coding、mimo、minimax、minimax-cn、baidu-qianfan、ollama-cloud、novita、xai、litellm、siliconflow、siliconflow-cn、mistral</div><div class="bullet">每个 provider 携带完整的连接元数据：BaseURL（API 端点）、AuthHeader（认证头格式）、EnvVar（对应环境变量名）、Models（可用模型列表），开箱即用</div><div class="bullet">支持 custom_providers 自定义 provider，可指向任意端点，包括私有化部署的 LLM（内网/自建网关）</div><div class="bullet">国内用户可直接选择 DashScope（阿里通义）或 DeepSeek，无需海外网络即可使用</div><div class="bullet">provider 体系与协议层解耦：provider 决定连谁，协议（openai/anthropic 等）决定怎么连</div><div class="bullet">provider 选择可通过 config.json 的 providers/custom_providers 段或命令行 --provider 参数指定</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>避免厂商锁定：一套 CLI 即可在 OpenAI/Anthropic/国内各家模型间切换，评估与迁移成本低</p><p>适配国内网络与合规环境：内置 DashScope、DeepSeek、Volcengine、百度千帆等国内端点，直连无需代理</p><p>满足私有化需求：企业可通过 custom_providers 接入内网模型网关，代码审查数据不出内网</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">持久配置：在 config.json 的 providers 段配置官方 provider（models 列表、max_tokens 等参数）</div><div class="bullet">私有化接入：在 custom_providers 段定义自定义端点，配置 base_url、auth_header、env_var、models 等字段</div><div class="bullet">命令行指定：ocr review --provider deepseek --model deepseek-chat</div><div class="bullet">环境变量覆盖：OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL 可覆盖 provider 的连接信息</div><div class="bullet">AWS 场景：选 bedrock provider，配合 anthropic-bedrock 协议（SigV4 签名）走通鉴权</div><div class="bullet">查看当前生效的 provider 与模型配置，确认 BaseURL/AuthHeader 与密钥是否就绪</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>国内用户：--provider deepseek --model deepseek-chat 直连使用，无需代理</td></tr><tr><td>阿里云用户：选 dashscope（通义千问系列），与云上环境天然匹配</td></tr><tr><td>企业私有化：custom_providers 指向内网 vLLM/统一网关端点，审查数据不出内网</td></tr><tr><td>AWS 环境：bedrock provider + anthropic-bedrock 协议，模型名进 URL 路径完成 SigV4 请求</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>误以为 27 个 provider 全部开箱即用：未设置 provider 对应 EnvVar 的密钥时鉴权必然失败</li><li>选海外 provider（openai/gemini 等）而不考虑网络：国内直连可能超时，应改用国内 provider 或代理</li><li>混淆 provider 与协议：bedrock 必须配 anthropic-bedrock 协议做 SigV4 签名，配成 openai/anthropic 会 403</li><li>custom_providers 只配 base_url 不配 AuthHeader/协议，导致 401 或协议不匹配报错</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">国内用户直连 DeepSeek 内置 provider</div><div class="evcode"><code>{</code><code>  &quot;providers&quot;: {</code><code>    &quot;deepseek&quot;: {</code><code>      &quot;models&quot;: [&quot;deepseek-chat&quot;, &quot;deepseek-reasoner&quot;]</code><code>    }</code><code>  }</code><code>}</code></div><div class="evdesc">27 个内置 provider 均已携带 BaseURL/AuthHeader/EnvVar/Models 元数据，deepseek 属国内端点，直连无需代理；密钥经其对应 EnvVar 注入，代码零改动即用。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">海外 provider 无密钥且无代理直连</div><div class="evcode"><code>{</code><code>  &quot;providers&quot;: {</code><code>    &quot;openai&quot;: {</code><code>      &quot;models&quot;: [&quot;gpt-4o&quot;]</code><code>    }</code><code>  }</code><code>}</code></div><div class="evdesc">未设置 openai 对应 EnvVar 的密钥，且国内环境无代理直连海外端点：要么 401 鉴权失败，要么连接超时。应改用 deepseek/dashscope 等国内 provider。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">custom_providers 接入私有化端点</div><div class="evcode"><code>{</code><code>  &quot;custom_providers&quot;: {</code><code>    &quot;internal-llm&quot;: {</code><code>      &quot;base_url&quot;: &quot;http://llm.internal:8080&quot;,</code><code>      &quot;auth_header&quot;: &quot;Authorization: Bearer&quot;,</code><code>      &quot;env_var&quot;: &quot;INTERNAL_LLM_TOKEN&quot;,</code><code>      &quot;models&quot;: [&quot;internal-model&quot;]</code><code>    }</code><code>  }</code><code>}</code></div><div class="evdesc">自定义端点 + 对应鉴权头与密钥环境变量，审查数据不出内网；同时按端点能力选协议（OpenAI 兼容选 openai，Claude 兼容选 anthropic）。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">custom_providers 只配 base_url</div><div class="evcode"><code>{</code><code>  &quot;custom_providers&quot;: {</code><code>    &quot;internal-llm&quot;: {</code><code>      &quot;base_url&quot;: &quot;http://llm.internal:8080&quot;</code><code>    }</code><code>  }</code><code>}</code></div><div class="evdesc">缺 auth_header/env_var 时鉴权必然 401；若协议也未与端点匹配（如端点实为 Anthropic 兼容却走了 openai 协议），请求格式同样报错。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">AWS 场景选 bedrock provider + SigV4 协议</div><div class="evcode"><code>ocr review --provider bedrock --model &lt;bedrock-model&gt;</code><code># 协议配 anthropic-bedrock（SigV4 签名，模型名进 URL 路径）</code></div><div class="evdesc">bedrock 内置 provider 与 anthropic-bedrock 协议组合，AWS 凭证签名后即可调用 Bedrock 模型。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">混淆 provider 与协议</div><div class="evcode"><code>ocr review --provider bedrock --model &lt;bedrock-model&gt;</code><code>export OCR_LLM_PROTOCOL=openai</code></div><div class="evdesc">bedrock 必须配 anthropic-bedrock 协议完成 SigV4 签名；配 openai 协议缺失签名，请求返回 403。provider 决定连谁，协议决定怎么连，两者不能混搭。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/llm-providers.go.md" target="_blank">llm-providers.go.md</a></div><div class="assdesc">27 个内置 provider 注册表节选</div><div class="assmeta">internal/llm/providers.go · 1523 B</div></div><div class="assetcard"><div class="asstype">配置示例</div><div class="assname"><a href="../assets/configs/config.example.json" target="_blank">config.example.json</a></div><div class="assdesc">全局配置示例（provider/自定义端点/LLM/MCP/遥测）</div><div class="assmeta">(自建示例) · 1353 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="cfg-protocol.html">LLM 协议层&#8594;provider 映射到协议<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cfg-priority.html">配置优先级&#8594;provider 按优先级解析<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cli-llm.html">ocr llm&#8594;llm providers 列出内置注册表<span class="etype">前置依赖</span></a><a class="chip e-variant" href="cfg-protocol.html">LLM 协议层&#8594;provider 与协议一一映射<span class="etype">变体</span></a><a class="chip e-combination" href="use-configure.html">场景：配置模型与规则&#8594;provider+config 命令组合成配置场景<span class="etype">组合</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

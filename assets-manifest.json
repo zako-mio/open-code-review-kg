@@ -1,0 +1,567 @@
+{
+ "meta": {
+  "generated": "2026-08-23",
+  "total_assets": 42
+ },
+ "assets": [
+  {
+   "id": "asset-00",
+   "type": "ci",
+   "name": "github_actions-ocr-review.yml",
+   "path": "assets/ci/github_actions-ocr-review.yml",
+   "src_path": "examples/github_actions/ocr-review.yml",
+   "desc": "GitHub Actions 自动审查 workflow 示例（PR 事件+评论触发，并发组防重）",
+   "node_ids": [
+    "int-gha",
+    "use-pr-review",
+    "use-ci"
+   ],
+   "size_bytes": 5170
+  },
+  {
+   "id": "asset-01",
+   "type": "ci",
+   "name": "gitlab-ci.yml",
+   "path": "assets/ci/gitlab-ci.yml",
+   "src_path": "examples/gitlab_ci/.gitlab-ci.yml",
+   "desc": "GitLab CI 审查作业示例（含 OCR_* 环境变量族）",
+   "node_ids": [
+    "int-cicd",
+    "use-ci"
+   ],
+   "size_bytes": 9775
+  },
+  {
+   "id": "asset-02",
+   "type": "ci",
+   "name": "gerrit-Jenkinsfile",
+   "path": "assets/ci/gerrit-Jenkinsfile",
+   "src_path": "examples/gerrit_ci/Jenkinsfile",
+   "desc": "Gerrit 评审流 Jenkinsfile 示例",
+   "node_ids": [
+    "int-cicd"
+   ],
+   "size_bytes": 5261
+  },
+  {
+   "id": "asset-03",
+   "type": "ci",
+   "name": "codeup-flow.yml",
+   "path": "assets/ci/codeup-flow.yml",
+   "src_path": "examples/codeup_ci/codeup-flow.yml",
+   "desc": "阿里云 Codeup CI 示例",
+   "node_ids": [
+    "int-cicd"
+   ],
+   "size_bytes": 1894
+  },
+  {
+   "id": "asset-04",
+   "type": "ci",
+   "name": "gitflic-ci.yaml",
+   "path": "assets/ci/gitflic-ci.yaml",
+   "src_path": "examples/gitflic_ci/gitflic-ci.yaml",
+   "desc": "GitFlic CI 示例",
+   "node_ids": [
+    "int-cicd"
+   ],
+   "size_bytes": 3407
+  },
+  {
+   "id": "asset-05",
+   "type": "ci",
+   "name": "bitbucket-pipelines.yml",
+   "path": "assets/ci/bitbucket-pipelines.yml",
+   "src_path": "examples/bitbucket_pipelines/bitbucket-pipelines.yml",
+   "desc": "Bitbucket Pipelines 示例",
+   "node_ids": [
+    "int-cicd"
+   ],
+   "size_bytes": 10666
+  },
+  {
+   "id": "asset-06",
+   "type": "ci",
+   "name": "action.yml",
+   "path": "assets/ci/action.yml",
+   "src_path": "action.yml",
+   "desc": "GitHub Actions composite action 完整定义（24 入参 / 6 出参）",
+   "node_ids": [
+    "int-gha",
+    "use-ci",
+    "q-bench"
+   ],
+   "size_bytes": 14207
+  },
+  {
+   "id": "asset-07",
+   "type": "script",
+   "name": "post-review-comments.js",
+   "path": "assets/scripts/post-review-comments.js",
+   "src_path": "scripts/github-actions/post-review-comments.js",
+   "desc": "GHA 评论发布脚本（sticky 摘要 / 增量 IoU 去重 / 50 条批量 / severity 路由）",
+   "node_ids": [
+    "int-gha"
+   ],
+   "size_bytes": 96540
+  },
+  {
+   "id": "asset-08",
+   "type": "tool",
+   "name": "tools.json",
+   "path": "assets/tools/tools.json",
+   "src_path": "internal/config/toolsconfig/tools.json",
+   "desc": "6 个审查专用工具 schema 权威源（plan_task/main_task 相位旗标）",
+   "node_ids": [
+    "arch-grounded-tools",
+    "cli-review",
+    "cli-scan",
+    "cli-delegate",
+    "eng-bundling"
+   ],
+   "size_bytes": 10082
+  },
+  {
+   "id": "asset-09",
+   "type": "prompt",
+   "name": "review_filter_task_user.md",
+   "path": "assets/prompts/review_filter_task_user.md",
+   "src_path": "internal/config/template/prompts/review_filter_task_user.md",
+   "desc": "独立反思过滤 prompt 原文（五步法 / Ground A/B / 非对称信息边界）",
+   "node_ids": [
+    "arch-reflection"
+   ],
+   "size_bytes": 5303
+  },
+  {
+   "id": "asset-10",
+   "type": "rule",
+   "name": "system_rules.json",
+   "path": "assets/rules/system_rules.json",
+   "src_path": "internal/config/rules/system_rules.json",
+   "desc": "内置系统规则（四层规则链最底层，首匹配优先）",
+   "node_ids": [
+    "cfg-rules-chain",
+    "arch-dispatch",
+    "eng-bundling",
+    "cli-rules"
+   ],
+   "size_bytes": 1488
+  },
+  {
+   "id": "asset-11",
+   "type": "code",
+   "name": "agent.go.md",
+   "path": "assets/code/agent.go.md",
+   "src_path": "internal/agent/agent.go",
+   "desc": "agent.go 核心节选：Run 流水线 / dispatchSubtasks / executeSubtask / REVIEW_FILTER",
+   "node_ids": [
+    "arch-pipeline",
+    "arch-dispatch",
+    "arch-parallel",
+    "arch-reflection",
+    "eng-session",
+    "eng-resume",
+    "eng-manifest",
+    "q-retry"
+   ],
+   "size_bytes": 3451
+  },
+  {
+   "id": "asset-12",
+   "type": "code",
+   "name": "llmloop-loop.go.md",
+   "path": "assets/code/llmloop-loop.go.md",
+   "src_path": "internal/llmloop/loop.go",
+   "desc": "ReAct 主循环节选：RunPerFile / 终止条件 / 工具分派 / 异步评论",
+   "node_ids": [
+    "arch-grounded-tools",
+    "eng-compression",
+    "eng-scan",
+    "eng-locator"
+   ],
+   "size_bytes": 1778
+  },
+  {
+   "id": "asset-13",
+   "type": "code",
+   "name": "llmloop-compression.go.md",
+   "path": "assets/code/llmloop-compression.go.md",
+   "src_path": "internal/llmloop/compression.go",
+   "desc": "三区内存压缩节选：frozen/compress/active + 60%/80% 双阈值",
+   "node_ids": [
+    "eng-compression"
+   ],
+   "size_bytes": 2155
+  },
+  {
+   "id": "asset-14",
+   "type": "code",
+   "name": "diff-resolver.go.md",
+   "path": "assets/code/diff-resolver.go.md",
+   "src_path": "internal/diff/resolver.go",
+   "desc": "行号解析五级回退链节选：ResolveComment / matchConsecutive",
+   "node_ids": [
+    "eng-locator",
+    "eng-filter",
+    "cli-review"
+   ],
+   "size_bytes": 2009
+  },
+  {
+   "id": "asset-15",
+   "type": "code",
+   "name": "diff-relocation.go.md",
+   "path": "assets/code/diff-relocation.go.md",
+   "src_path": "internal/diff/relocation.go",
+   "desc": "跨文件与 LLM 重定位节选：RelocateAcrossFiles / ReLocateComment",
+   "node_ids": [
+    "eng-relocate"
+   ],
+   "size_bytes": 1729
+  },
+  {
+   "id": "asset-16",
+   "type": "code",
+   "name": "diff-git.go.md",
+   "path": "assets/code/diff-git.go.md",
+   "src_path": "internal/diff/git.go",
+   "desc": "三种 diff Provider 节选：range / commit / workspace",
+   "node_ids": [
+    "eng-diff"
+   ],
+   "size_bytes": 2005
+  },
+  {
+   "id": "asset-17",
+   "type": "code",
+   "name": "scan-agent.go.md",
+   "path": "assets/code/scan-agent.go.md",
+   "src_path": "internal/scan/agent.go",
+   "desc": "全文件扫描引擎节选：Run 时序 / DEDUP / PROJECT_SUMMARY",
+   "node_ids": [
+    "eng-scan",
+    "cli-scan"
+   ],
+   "size_bytes": 2732
+  },
+  {
+   "id": "asset-18",
+   "type": "code",
+   "name": "session-manifest.go.md",
+   "path": "assets/code/session-manifest.go.md",
+   "src_path": "internal/session/manifest.go",
+   "desc": "Run Manifest 覆盖度契约节选：RegisterSelected / FailureClass",
+   "node_ids": [
+    "eng-manifest",
+    "eng-session",
+    "cli-review",
+    "cli-scan"
+   ],
+   "size_bytes": 2464
+  },
+  {
+   "id": "asset-19",
+   "type": "code",
+   "name": "session-resume.go.md",
+   "path": "assets/code/session-resume.go.md",
+   "src_path": "internal/session/resume.go",
+   "desc": "断点续审节选：指纹复用 / SealedInput 冻结",
+   "node_ids": [
+    "eng-resume",
+    "cli-session"
+   ],
+   "size_bytes": 1716
+  },
+  {
+   "id": "asset-20",
+   "type": "code",
+   "name": "llm-resolver.go.md",
+   "path": "assets/code/llm-resolver.go.md",
+   "src_path": "internal/llm/resolver.go",
+   "desc": "5 级配置优先级解析节选：ResolveEndpointWithOptions",
+   "node_ids": [
+    "cfg-priority",
+    "cli-config",
+    "cli-llm",
+    "q-token"
+   ],
+   "size_bytes": 4171
+  },
+  {
+   "id": "asset-21",
+   "type": "code",
+   "name": "llm-providers.go.md",
+   "path": "assets/code/llm-providers.go.md",
+   "src_path": "internal/llm/providers.go",
+   "desc": "27 个内置 provider 注册表节选",
+   "node_ids": [
+    "cfg-providers",
+    "cli-llm",
+    "use-configure"
+   ],
+   "size_bytes": 1523
+  },
+  {
+   "id": "asset-22",
+   "type": "code",
+   "name": "llm-protocol.go.md",
+   "path": "assets/code/llm-protocol.go.md",
+   "src_path": "internal/llm/protocol.go",
+   "desc": "4 种 LLM 协议定义节选",
+   "node_ids": [
+    "cfg-protocol"
+   ],
+   "size_bytes": 1609
+  },
+  {
+   "id": "asset-23",
+   "type": "code",
+   "name": "mcp-client.go.md",
+   "path": "assets/code/mcp-client.go.md",
+   "src_path": "internal/mcp/client.go",
+   "desc": "MCP 双传输客户端节选：stdio / Streamable HTTP",
+   "node_ids": [
+    "cfg-mcp"
+   ],
+   "size_bytes": 1661
+  },
+  {
+   "id": "asset-24",
+   "type": "code",
+   "name": "viewer-server.go.md",
+   "path": "assets/code/viewer-server.go.md",
+   "src_path": "internal/viewer/server.go",
+   "desc": "viewer 服务器节选：路由 / hostGuard 防 DNS-rebind",
+   "node_ids": [
+    "cli-viewer",
+    "q-security",
+    "eng-session",
+    "use-pr-review"
+   ],
+   "size_bytes": 2089
+  },
+  {
+   "id": "asset-25",
+   "type": "code",
+   "name": "telemetry-provider.go.md",
+   "path": "assets/code/telemetry-provider.go.md",
+   "src_path": "internal/telemetry/provider.go",
+   "desc": "OpenTelemetry 双管道初始化节选",
+   "node_ids": [
+    "q-telemetry",
+    "eng-session"
+   ],
+   "size_bytes": 1317
+  },
+  {
+   "id": "asset-26",
+   "type": "code",
+   "name": "gitcmd-runner.go.md",
+   "path": "assets/code/gitcmd-runner.go.md",
+   "src_path": "internal/gitcmd/runner.go",
+   "desc": "git 子进程并发限流（默认 16）",
+   "node_ids": [
+    "eng-diff",
+    "eng-scan",
+    "arch-parallel"
+   ],
+   "size_bytes": 1271
+  },
+  {
+   "id": "asset-27",
+   "type": "skill",
+   "name": "SKILL-review.md",
+   "path": "assets/skills/SKILL-review.md",
+   "src_path": "skills/open-code-review/SKILL.md",
+   "desc": "通用 review skill：四步 review/filter/fix/report + severity×category 分级",
+   "node_ids": [
+    "int-skill",
+    "use-no-key",
+    "use-scan-codebase"
+   ],
+   "size_bytes": 9294
+  },
+  {
+   "id": "asset-28",
+   "type": "skill",
+   "name": "SKILL-delegate.md",
+   "path": "assets/skills/SKILL-delegate.md",
+   "src_path": "skills/open-code-review-delegate/SKILL.md",
+   "desc": "委托审查 skill：preview→rule→git diff→逐文件→格式化→覆盖率",
+   "node_ids": [
+    "int-skill",
+    "cli-delegate",
+    "use-extend"
+   ],
+   "size_bytes": 6162
+  },
+  {
+   "id": "asset-29",
+   "type": "plugin",
+   "name": "opencode-plugin.ts",
+   "path": "assets/plugins/opencode-plugin.ts",
+   "src_path": "plugins/open-code-review/opencode/open-code-review.ts",
+   "desc": "OpenCode 原生插件源码（@opencode-ai/plugin，参数互斥校验）",
+   "node_ids": [
+    "int-opencode",
+    "use-scan-codebase"
+   ],
+   "size_bytes": 12666
+  },
+  {
+   "id": "asset-30",
+   "type": "plugin",
+   "name": "claude-slash-command.md",
+   "path": "assets/plugins/claude-slash-command.md",
+   "src_path": ".claude/commands/open-code-review.md",
+   "desc": "Claude Code 斜杠命令定义",
+   "node_ids": [
+    "int-claude"
+   ],
+   "size_bytes": 1595
+  },
+  {
+   "id": "asset-31",
+   "type": "build",
+   "name": "Makefile",
+   "path": "assets/build/Makefile",
+   "src_path": "Makefile",
+   "desc": "构建链：build / test(race) / coverage(90% 门禁) / build-all 6 平台交叉编译",
+   "node_ids": [
+    "q-release"
+   ],
+   "size_bytes": 3469
+  },
+  {
+   "id": "asset-32",
+   "type": "build",
+   "name": "install.sh",
+   "path": "assets/build/install.sh",
+   "src_path": "install.sh",
+   "desc": "Linux/macOS 安装脚本（latest tag + sha256 校验 + OCR_GITHUB_MIRROR）",
+   "node_ids": [
+    "cli-overview",
+    "q-release"
+   ],
+   "size_bytes": 4260
+  },
+  {
+   "id": "asset-33",
+   "type": "build",
+   "name": "install.ps1",
+   "path": "assets/build/install.ps1",
+   "src_path": "install.ps1",
+   "desc": "Windows 安装脚本（PowerShell 5.1+）",
+   "node_ids": [
+    "cli-overview",
+    "q-release"
+   ],
+   "size_bytes": 5628
+  },
+  {
+   "id": "asset-34",
+   "type": "build",
+   "name": "package.json",
+   "path": "assets/build/package.json",
+   "src_path": "package.json",
+   "desc": "npm 包定义（bin: ocr → bin/ocr.js）",
+   "node_ids": [
+    "q-release",
+    "cli-overview"
+   ],
+   "size_bytes": 1385
+  },
+  {
+   "id": "asset-35",
+   "type": "build",
+   "name": "go.mod",
+   "path": "assets/build/go.mod",
+   "src_path": "go.mod",
+   "desc": "Go 依赖清单（cobra / anthropic-sdk-go / openai-go / MCP go-sdk / otel 等）",
+   "node_ids": [
+    "q-release"
+   ],
+   "size_bytes": 4600
+  },
+  {
+   "id": "asset-36",
+   "type": "doc",
+   "name": "README.zh-CN.md",
+   "path": "assets/doc/README.zh-CN.md",
+   "src_path": "README.zh-CN.md",
+   "desc": "官方中文 README（定位/基准/设计理念/快速开始）",
+   "node_ids": [
+    "cli-overview",
+    "arch-hybrid",
+    "int-vscode"
+   ],
+   "size_bytes": 12231
+  },
+  {
+   "id": "asset-37",
+   "type": "plugin",
+   "name": "codex-plugin.json",
+   "path": "assets/plugins/codex-plugin.json",
+   "src_path": "plugins/open-code-review/.codex-plugin/plugin.json",
+   "desc": "Codex 插件清单（skills + Read capability + defaultPrompt）",
+   "node_ids": [
+    "int-codex"
+   ],
+   "size_bytes": 1121
+  },
+  {
+   "id": "asset-38",
+   "type": "plugin",
+   "name": "cursor-plugin.json",
+   "path": "assets/plugins/cursor-plugin.json",
+   "src_path": "plugins/open-code-review/.cursor-plugin/plugin.json",
+   "desc": "Cursor 插件清单（复用 ../skills/）",
+   "node_ids": [
+    "int-cursor"
+   ],
+   "size_bytes": 732
+  },
+  {
+   "id": "asset-39",
+   "type": "plugin",
+   "name": "qca-system-prompt.md",
+   "path": "assets/plugins/qca-system-prompt.md",
+   "src_path": "plugins/open-code-review/qca/system-prompt.md",
+   "desc": "QCA Forward 委托系统提示（只允许 delegate preview/rule）",
+   "node_ids": [
+    "int-qca"
+   ],
+   "size_bytes": 1217
+  },
+  {
+   "id": "asset-40",
+   "type": "config",
+   "name": "rule.example.json",
+   "path": "assets/configs/rule.example.json",
+   "src_path": "(自建示例)",
+   "desc": "项目级规则示例（rule.json：include/exclude + 四规则含 glob/docs 外置）",
+   "node_ids": [
+    "cfg-rules-chain",
+    "use-configure",
+    "use-extend"
+   ],
+   "size_bytes": 1308
+  },
+  {
+   "id": "asset-41",
+   "type": "config",
+   "name": "config.example.json",
+   "path": "assets/configs/config.example.json",
+   "src_path": "(自建示例)",
+   "desc": "全局配置示例（provider/自定义端点/LLM/MCP/遥测）",
+   "node_ids": [
+    "cfg-providers",
+    "cfg-priority",
+    "cfg-mcp",
+    "use-configure"
+   ],
+   "size_bytes": 1353
+  }
+ ]
+}

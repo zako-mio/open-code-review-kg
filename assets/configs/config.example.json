@@ -1,0 +1,46 @@
+{
+  "$schema_note": "全局配置示例（~/.opencodereview/config.json）。实际配置请用 `ocr config set <key> <value>` 或交互式 `ocr config provider/model` 生成，手写 JSON 需保证字段拼写正确。配置优先级：显式 --provider/--model > 本文件 > OCR_LLM_* 环境变量 > ANTHROPIC_* 环境变量 > shell RC。",
+  "provider": "deepseek",
+  "model": "deepseek-chat",
+  "max_tokens": 8192,
+  "language": "zh-CN",
+  "providers": {
+    "deepseek": {
+      "api_key": "sk-xxx",
+      "url": "https://api.deepseek.com",
+      "protocol": "openai",
+      "models": ["deepseek-chat", "deepseek-reasoner"]
+    },
+    "dashscope": {
+      "api_key": "sk-xxx",
+      "url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "protocol": "openai",
+      "models": ["qwen-max", "qwen-plus"]
+    }
+  },
+  "custom_providers": {
+    "my-internal-gw": {
+      "api_key": "sk-xxx",
+      "url": "http://llm-gw.internal:8080/v1",
+      "protocol": "openai",
+      "models": ["internal-llm-70b"],
+      "timeout_sec": 300
+    }
+  },
+  "llm": {
+    "timeout_sec": 300
+  },
+  "mcp_servers": {
+    "vuln-db": {
+      "type": "remote",
+      "url": "https://mcp.internal/vuln",
+      "headers": {
+        "Authorization": "Bearer $VULN_DB_TOKEN"
+      },
+      "tools": ["query_cve"]
+    }
+  },
+  "telemetry": {
+    "enabled": false
+  }
+}

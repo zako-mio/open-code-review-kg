@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Open Code Review 图谱 · 交互式 DAG 总览</title>
+<style>
+
+  :root { --bg:#0f1117; --panel:#161a22; --border:#2a2f3a; --text:#e6e8ee; --dim:#9aa3b2; --accent:#4f8cff; --warn:#e0c35e; --danger:#e05563; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; height:100vh; overflow:hidden; }
+  header { position:fixed; top:0; left:0; right:0; z-index:10; background:var(--panel); border-bottom:1px solid var(--border); padding:8px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header h1 { font-size:15px; font-weight:600; white-space:nowrap; }
+  header a { color:var(--accent); text-decoration:none; font-size:13px; }
+  header a:hover { text-decoration:underline; }
+  .badge { background:#20324f; color:#7fb0ff; padding:2px 10px; border-radius:20px; font-size:12px; white-space:nowrap; }
+  .hint { color:var(--dim); font-size:11px; }
+  .controls { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .seg { display:inline-flex; background:#0b0e14; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .seg button { background:transparent; color:var(--dim); border:none; padding:5px 12px; font-size:12px; cursor:pointer; white-space:nowrap; }
+  .seg button.active { background:var(--accent); color:#fff; }
+  .seg button:hover:not(.active) { color:var(--text); }
+  .btn { background:#20324f; color:#7fb0ff; border:1px solid #2a3a55; border-radius:20px; padding:4px 14px; font-size:12px; cursor:pointer; white-space:nowrap; }
+  .btn:hover { background:#2a3a55; }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn.on { background:#0f2b1f; color:#6fd3ae; border-color:#2fb98a; }
+  #side { position:fixed; right:0; top:52px; bottom:0; width:300px; background:var(--panel); border-left:1px solid var(--border); padding:14px; overflow:auto; z-index:9; }
+  #side h2 { font-size:13px; margin-bottom:8px; color:var(--dim); }
+  #side .legend { font-size:12px; color:var(--dim); line-height:1.9; }
+  #side .legend b { color:var(--text); }
+  #side .legend .sw { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  #zoominfo { position:fixed; bottom:14px; left:18px; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:7px 12px; font-size:12px; color:var(--dim); z-index:9; }
+  #zoominfo b { color:var(--text); }
+  #crumb { position:fixed; top:52px; left:18px; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:12px; color:var(--dim); z-index:9; display:none; align-items:center; gap:8px; }
+  #crumb b { color:var(--accent); }
+  #crumb a { color:var(--dim); cursor:pointer; text-decoration:underline; }
+  #crumb a:hover { color:var(--accent); }
+  #graph { position:fixed; top:52px; left:0; right:0; bottom:0; }
+  #glegend { margin-top:6px; }
+  #glegend .row { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--dim); margin:3px 0; cursor:pointer; }
+  #glegend .row:hover { color:var(--text); }
+  #glegend .row .sw { width:14px; height:14px; border-radius:3px; flex:0 0 auto; }
+  #glegend .row.active { color:var(--text); font-weight:600; }
+  #empty { position:fixed; inset:0; top:52px; display:none; align-items:center; justify-content:center; color:var(--dim); font-size:14px; background:var(--bg); z-index:5; }
+  @media (max-width:768px){
+    #side { width:220px; }
+    header { padding:6px 10px; gap:8px; }
+    header h1 { font-size:13px; }
+    .hint { display:none; }
+  }
+
+</style>
+</head>
+<body>
+<header>
+  <h1>Open Code Review 图谱 <span class="badge">交互 DAG</span></h1>
+  <a href="../index.html">← 根入口</a>
+  <a href="../03-groups/index.html">组目录</a>
+  <span id="crumb"></span>
+  <button id="backbtn" class="btn" style="display:none;">← 返回组级</button>
+  <div class="controls">
+    <button id="bridgebtn" class="btn">桥接高亮</button>
+  </div>
+</header>
+<div id="empty"></div>
+<div id="graph"></div>
+<div id="crumb"></div>
+<div id="side">
+  <h2>图例</h2>
+  <div class="legend" id="legend"></div>
+  <h2 style="margin-top:12px;">组配色</h2>
+  <div id="glegend"></div>
+</div>
+<div id="zoominfo">模式 <b id="zmode">组级</b> · 节点 <b id="zcount">0</b></div>
+
+<script src="vendor/cytoscape.min.js"></script>
+<script src="vendor/cytoscape-dagre.min.js"></script>
+<script>
+
+(function(){
+  'use strict';
+  const DATA = {"meta":{"title":"Open Code Review 项目解析知识图谱","subtitle":"阿里开源 AI 代码审查工具 — 架构理解 × 工具索引","generated":"2026-08-23","total_groups":7,"total_nodes":51,"total_edges":68,"stages":["basic","intermediate","advanced"],"edge_types":["prerequisite","variant","combination","cooccurrence","dependency"],"dag_acyclic":true},"groups":[{"id":"G-A","name":"核心架构","domain":"架构理念","kind":"source","stage_range":["basic","intermediate","advanced"],"node_ids":["arch-hybrid","arch-pipeline","arch-dispatch","arch-grounded-tools","arch-reflection","arch-parallel"]},{"id":"G-B","name":"审查引擎","domain":"核心机制","kind":"source","stage_range":["basic","intermediate","advanced"],"node_ids":["eng-diff","eng-filter","eng-bundling","eng-locator","eng-relocate","eng-compression","eng-session","eng-resume","eng-manifest","eng-scan"]},{"id":"G-C","name":"命令行工具","domain":"CLI","kind":"tool","stage_range":["basic","intermediate","advanced"],"node_ids":["cli-overview","cli-review","cli-scan","cli-delegate","cli-config","cli-session","cli-viewer","cli-rules","cli-llm"]},{"id":"G-D","name":"配置与模型","domain":"配置体系","kind":"source","stage_range":["basic","intermediate","advanced"],"node_ids":["cfg-providers","cfg-protocol","cfg-priority","cfg-rules-chain","cfg-mcp"]},{"id":"G-E","name":"集成生态","domain":"集成","kind":"tool","stage_range":["intermediate","advanced"],"node_ids":["int-gha","int-cicd","int-claude","int-codex","int-cursor","int-opencode","int-qca","int-skill","int-vscode"]},{"id":"G-F","name":"工程保障","domain":"质量与运营","kind":"crosscut","stage_range":["intermediate","advanced"],"node_ids":["q-bench","q-telemetry","q-security","q-retry","q-release","q-token"]},{"id":"G-S","name":"使用场景索引","domain":"工具索引","kind":"scenario","stage_range":["basic","intermediate","advanced"],"node_ids":["use-pr-review","use-scan-codebase","use-no-key","use-ci","use-configure","use-extend"]}],"nodes":[{"id":"arch-hybrid","name":"确定性工程 × Agent 混合架构","type":"principle","src":"core","group":"G-A","stage":"basic","brief":"核心设计理念：能工程化保证的环节交给确定性流水线，动态决策交给 LLM Agent，各司其职"},{"id":"arch-pipeline","name":"审查流水线","type":"principle","src":"core","group":"G-A","stage":"basic","brief":"从 CLI 入口到评论输出的 8 步确定性+Agent 混合时序：diff→过滤→分派→并行子 Agent→反思→输出"},{"id":"arch-dispatch","name":"规则引导分派","type":"principle","src":"core","group":"G-A","stage":"intermediate","brief":"确定性文件选择/过滤/分束机制：用规则而非语言模型决定审什么、怎么分组"},{"id":"arch-grounded-tools","name":"受限工具集审查","type":"principle","src":"core","group":"G-A","stage":"intermediate","brief":"6 个审查专用工具（file_read/file_find/code_search/file_read_diff/code_comment/task_done）经 ReAct 循环驱动文件级子 Agent"},{"id":"arch-reflection","name":"独立反思","type":"principle","src":"core","group":"G-A","stage":"advanced","brief":"证伪优先的评论过滤器：只看到 diff 与评论，用 Ground A/B 双地面验证消除幻觉评论"},{"id":"arch-parallel","name":"文件级并行与上下文隔离","type":"principle","src":"core","group":"G-A","stage":"advanced","brief":"每文件一个子 Agent 任务、独立上下文，信号量限流（默认 8 并发），防 token 雪球"},{"id":"eng-diff","name":"Git Diff 获取与解析","type":"principle","src":"engine","group":"G-B","stage":"basic","brief":"三种 diff 来源（workspace/range/commit）+ unified diff 解析器（ParseDiffText/ParseHunks）"},{"id":"eng-filter","name":"文件选择与过滤","type":"principle","src":"engine","group":"G-B","stage":"intermediate","brief":"whyExcluded 过滤链：binary→用户 exclude→include 覆盖→扩展名白名单→默认路径黑名单"},{"id":"eng-bundling","name":"文件分束","type":"principle","src":"engine","group":"G-B","stage":"intermediate","brief":"将关联文件归并为审查单元（en/zh properties 捆审）；scan 按 by-language/by-directory 分桶，delegate 按规则文本聚簇"},{"id":"eng-locator","name":"行号定位回退链","type":"principle","src":"engine","group":"G-B","stage":"intermediate","brief":"五级回退：hunk 新侧→hunk 旧侧→全文件滑动窗口→跨文件重定位→LLM 重定位，保证评论落在真实行"},{"id":"eng-relocate","name":"跨文件与 LLM 重定位","type":"principle","src":"engine","group":"G-B","stage":"advanced","brief":"评论目标代码在别处时：纯字符串匹配迁移（唯一命中才动）+ LLM 从 diff 重生成代码块再定位"},{"id":"eng-compression","name":"上下文三区压缩","type":"principle","src":"engine","group":"G-B","stage":"advanced","brief":"frozen（前 2 条）+ compress（LLM 摘要进 previous_review_summary）+ active（最近 K 轮），60%/80% 双阈值触发"},{"id":"eng-session","name":"会话 JSONL 持久化","type":"principle","src":"engine","group":"G-B","stage":"advanced","brief":"~/.opencodereview/sessions/ 下 JSONL 记录全部任务记录（Plan/Main/压缩/重定位/反思），可回放可审计"},{"id":"eng-resume","name":"断点续审与指纹复用","type":"principle","src":"engine","group":"G-B","stage":"advanced","brief":"sha256(mode+old+new+diffText) 指纹复用已完成文件评论；SealedInput 冻结 commit 端点防 ref 漂移"},{"id":"eng-manifest","name":"Run Manifest 覆盖度契约","type":"principle","src":"engine","group":"G-B","stage":"advanced","brief":"ocr.run-manifest/v1：注册/封印/完成/失败四态跟踪每文件审查状态，8 类失败分类，预算截断≠运行失败"},{"id":"eng-scan","name":"全文件扫描引擎","type":"principle","src":"engine","group":"G-B","stage":"advanced","brief":"无 diff 审查：枚举→过滤→分束→批处理→DEDUP 去重→项目总结，ScanItem 携带全文件内容"},{"id":"cli-overview","name":"ocr 命令总览与安装","type":"tool","src":"cli","group":"G-C","stage":"basic","brief":"安装方式（npm/脚本/二进制/源码）、cobra 命令树、全局参数与 version/completion 子命令"},{"id":"cli-review","name":"ocr review","type":"tool","src":"cli","group":"G-C","stage":"basic","brief":"基于 git diff 的审查主命令：workspace/range/commit 三模式，--format text|json|sarif，--resume 断点续审"},{"id":"cli-scan","name":"ocr scan","type":"tool","src":"cli","group":"G-C","stage":"basic","brief":"全文件扫描：无需 git 历史，--path 指定目录，--batch by-language/by-directory，PLAN/DEDUP/SUMMARY 三阶段"},{"id":"cli-delegate","name":"ocr delegate","type":"tool","src":"cli","group":"G-C","stage":"intermediate","brief":"委托模式：OCR 只做文件选择+规则解析输出 spec JSON，编码 Agent 用自己的 LLM 审查，无需 OCR API Key"},{"id":"cli-config","name":"ocr config","type":"tool","src":"cli","group":"G-C","stage":"basic","brief":"配置管理：set/unset 键值 + provider/model 交互式 TUI 向导（Bubble Tea），自动测试连通性"},{"id":"cli-session","name":"ocr session","type":"tool","src":"cli","group":"G-C","stage":"intermediate","brief":"会话管理：list/show/comments 子命令，--json 输出，按 severity/category 过滤评论"},{"id":"cli-viewer","name":"ocr viewer","type":"tool","src":"cli","group":"G-C","stage":"intermediate","brief":"本地 WebUI 会话查看器（默认 localhost:5483）：浏览器回放审查会话 JSONL，hostGuard 防 DNS-rebind"},{"id":"cli-rules","name":"ocr rules","type":"tool","src":"cli","group":"G-C","stage":"advanced","brief":"规则调试：rules check <file> 显示命中规则层（custom/project/global/system）与匹配模式"},{"id":"cli-llm","name":"ocr llm","type":"tool","src":"cli","group":"G-C","stage":"advanced","brief":"LLM 工具：test 发送测试对话、providers 列出全部 27 个内置 provider"},{"id":"cfg-providers","name":"Provider 体系","type":"principle","src":"config","group":"G-D","stage":"basic","brief":"27 个内置 LLM provider（anthropic/openai/dashscope/deepseek/z-ai/kimi/...）+ 自定义端点，覆盖国内外主流模型"},{"id":"cfg-protocol","name":"LLM 协议层","type":"principle","src":"config","group":"G-D","stage":"intermediate","brief":"4 种协议：Anthropic Messages / OpenAI Chat Completions / OpenAI Responses / Bedrock SigV4，统一 CompletionsWithCtx 接口"},{"id":"cfg-priority","name":"配置优先级","type":"principle","src":"config","group":"G-D","stage":"intermediate","brief":"5 级解析：显式 --provider/--model > config.json > OCR_LLM_* 环境变量 > ANTHROPIC_* 环境变量 > shell RC"},{"id":"cfg-rules-chain","name":"四层规则链","type":"principle","src":"config","group":"G-D","stage":"intermediate","brief":"custom(--rule) > project(.opencodereview/rule.json) > global(~/.opencodereview/rule.json) > system(内嵌)，doublestar glob 匹配"},{"id":"cfg-mcp","name":"MCP 扩展","type":"principle","src":"config","group":"G-D","stage":"advanced","brief":"Model Context Protocol：stdio 子进程 + remote Streamable HTTP 双传输，外部工具接入审查工具链（allowlist 过滤）"},{"id":"int-gha","name":"GitHub Actions 集成","type":"tool","src":"integration","group":"G-E","stage":"intermediate","brief":"composite action（action.yml）：24 入参/6 出参，fork-safe PR 解析，评论发布脚本（sticky/增量 IoU 去重/路由）"},{"id":"int-cicd","name":"其他 CI 集成","type":"tool","src":"integration","group":"G-E","stage":"advanced","brief":"GitLab CI / Gerrit Jenkinsfile / GitFlic CI / Bitbucket Pipelines / 阿里云 Codeup CI + post_review.py 评论回贴"},{"id":"int-claude","name":"Claude Code 插件","type":"tool","src":"integration","group":"G-E","stage":"advanced","brief":"claude-code 插件：/open-code-review:review 与 :delegate-review 斜杠命令，marketplace 安装"},{"id":"int-codex","name":"Codex 插件","type":"tool","src":"integration","group":"G-E","stage":"advanced","brief":".codex-plugin/plugin.json + skills：以 @Open Code Review review ... 调用，interface Read capability"},{"id":"int-cursor","name":"Cursor 插件","type":"tool","src":"integration","group":"G-E","stage":"advanced","brief":".cursor-plugin/plugin.json + 可移植 skill，复制到 ~/.cursor/plugins/local/ 手动安装"},{"id":"int-opencode","name":"OpenCode 原生插件","type":"tool","src":"integration","group":"G-E","stage":"advanced","brief":"@opencode-ai/plugin：tool() 注册原生审查工具，spawn 'ocr review --audience agent --format json'，参数互斥校验"},{"id":"int-qca","name":"QCA Forward 委托","type":"tool","src":"integration","group":"G-E","stage":"advanced","brief":"QCA 宿主模型运行委托模式：只允许 ocr delegate preview/rule（只读），OCR 侧零 LLM 调用"},{"id":"int-skill","name":"通用 Agent Skill","type":"tool","src":"integration","group":"G-E","stage":"advanced","brief":"skills/open-code-review/SKILL.md：四步 review/filter/fix/report 工作流 + delegate 六步 skill，兼容任意 skill 型 Agent"},{"id":"int-vscode","name":"VSCode 扩展","type":"tool","src":"integration","group":"G-E","stage":"advanced","brief":"React webview（侧边栏/配置面板/评论面板）+ CliService 封装，i18n en/zh，webpack+jest"},{"id":"q-bench","name":"AACR-Bench 基准","type":"crosscut","src":"quality","group":"G-F","stage":"intermediate","brief":"50 仓库/200 真实 PR/10 语言/1505 人工标注问题的审查基准（HuggingFace 开源），驱动 Precision/F1/token 量化优化"},{"id":"q-telemetry","name":"OpenTelemetry 遥测","type":"crosscut","src":"quality","group":"G-F","stage":"advanced","brief":"console/OTLP 双导出（grpc/http），审查事件与指标埋点，OCR_ENABLE_TELEMETRY 环境变量开启"},{"id":"q-security","name":"安全设计","type":"crosscut","src":"quality","group":"G-F","stage":"advanced","brief":"路径穿越防护（WithinBase+EvalSymlinks）、git grep 拒 '..'、viewer hostGuard 防 DNS-rebind、manifest 哈希不含密钥"},{"id":"q-retry","name":"重试与错误分类","type":"crosscut","src":"quality","group":"G-F","stage":"advanced","brief":"SDK 内建 max-retries=5 + 可配置 RetryCodes；错误按 ErrorClass(timeout/cancelled/network/provider/unknown)+FailurePhase 分类入报告"},{"id":"q-release","name":"构建与发布体系","type":"crosscut","src":"quality","group":"G-F","stage":"advanced","brief":"npm 包（6 平台 optionalDependencies）+ GitHub Release 二进制 + install.sh/ps1，Makefile 覆盖率 90% 门禁"},{"id":"q-token","name":"Token 计费与成本控制","type":"crosscut","src":"quality","group":"G-F","stage":"intermediate","brief":"tiktoken-go 计费（o200k/cl100k_base），预算前瞻截断、80% token 大文件丢弃、prompt-cache 亲和键命中前缀缓存"},{"id":"use-pr-review","name":"场景：审查 PR/分支变更","type":"scenario","src":"scenario","group":"G-S","stage":"basic","brief":"日常审查入口：合并基准模式审 feature 分支、单 commit 审查、GitHub PR 上自动触发"},{"id":"use-scan-codebase","name":"场景：审计陌生代码库","type":"scenario","src":"scenario","group":"G-S","stage":"basic","brief":"无 git 历史/无有意义 diff 时：全文件扫描，按语言/目录分束，DEDUP 去重，项目级总结"},{"id":"use-no-key","name":"场景：免 Key 委托审查","type":"scenario","src":"scenario","group":"G-S","stage":"intermediate","brief":"没有 LLM API Key 或想用宿主 Agent 模型：ocr delegate preview/rule 输出 spec，编码 Agent 自己审"},{"id":"use-ci","name":"场景：接入 CI 流水线","type":"scenario","src":"scenario","group":"G-S","stage":"intermediate","brief":"让审查自动跑在每个 MR/PR：GitHub Actions 一步复用、GitLab/Gerrit 等加 post_review.py 回贴评论"},{"id":"use-configure","name":"场景：配置模型与规则","type":"scenario","src":"scenario","group":"G-S","stage":"intermediate","brief":"首次上手必做：选 provider/模型/API Key，按项目定制规则（rule.json）、过滤路径、调并发与预算"},{"id":"use-extend","name":"场景：扩展审查能力","type":"scenario","src":"scenario","group":"G-S","stage":"advanced","brief":"规则不够用？MCP 接入外部工具、自定义规则文件、--rule 临时规则、委托模式喂给任意 Agent"}],"edges":[{"from":"arch-hybrid","to":"arch-pipeline","type":"prerequisite","label":"混合理念决定流水线形态"},{"from":"arch-hybrid","to":"arch-dispatch","type":"prerequisite","label":"确定性部分由分派承担"},{"from":"arch-hybrid","to":"arch-grounded-tools","type":"prerequisite","label":"Agent 部分由受限工具承担"},{"from":"arch-hybrid","to":"arch-reflection","type":"prerequisite","label":"精度目标由反思承担"},{"from":"arch-pipeline","to":"eng-diff","type":"prerequisite","label":"流水线第一环是 diff 获取"},{"from":"arch-dispatch","to":"eng-filter","type":"prerequisite","label":"分派先做文件选择过滤"},{"from":"arch-dispatch","to":"eng-bundling","type":"prerequisite","label":"分派再做文件分束"},{"from":"arch-dispatch","to":"cfg-rules-chain","type":"prerequisite","label":"规则链是分派的数据源"},{"from":"arch-grounded-tools","to":"eng-locator","type":"prerequisite","label":"工具评论需行号定位"},{"from":"arch-grounded-tools","to":"eng-compression","type":"prerequisite","label":"工具循环需上下文压缩"},{"from":"arch-reflection","to":"eng-locator","type":"prerequisite","label":"反思依赖评论定位结果"},{"from":"eng-diff","to":"eng-filter","type":"prerequisite","label":"过滤基于解析后的 diff"},{"from":"eng-diff","to":"eng-locator","type":"prerequisite","label":"行号映射基于 hunk"},{"from":"eng-filter","to":"eng-locator","type":"prerequisite","label":"定位发生在保留文件上"},{"from":"eng-locator","to":"eng-relocate","type":"prerequisite","label":"定位失败才触发重定位"},{"from":"eng-session","to":"eng-resume","type":"prerequisite","label":"续审依赖会话持久化"},{"from":"eng-session","to":"eng-manifest","type":"prerequisite","label":"manifest 随会话落盘"},{"from":"eng-manifest","to":"eng-resume","type":"prerequisite","label":"复用必须过父 manifest"},{"from":"eng-session","to":"cli-session","type":"prerequisite","label":"CLI 管理 JSONL 会话"},{"from":"eng-session","to":"cli-viewer","type":"prerequisite","label":"查看器回放 JSONL"},{"from":"eng-scan","to":"cli-scan","type":"prerequisite","label":"scan 命令由扫描引擎驱动"},{"from":"eng-resume","to":"cli-review","type":"prerequisite","label":"review 支持 --resume 续审"},{"from":"cfg-providers","to":"cfg-protocol","type":"prerequisite","label":"provider 映射到协议"},{"from":"cfg-providers","to":"cfg-priority","type":"prerequisite","label":"provider 按优先级解析"},{"from":"cfg-priority","to":"cli-config","type":"prerequisite","label":"配置命令写入优先级链"},{"from":"cfg-protocol","to":"cli-config","type":"prerequisite","label":"TUI 向导配置协议端点"},{"from":"cfg-providers","to":"cli-llm","type":"prerequisite","label":"llm providers 列出内置注册表"},{"from":"cfg-rules-chain","to":"cli-rules","type":"prerequisite","label":"rules 命令调试规则链"},{"from":"cli-overview","to":"cli-review","type":"prerequisite","label":"安装后先学 review"},{"from":"cli-overview","to":"cli-scan","type":"prerequisite","label":"安装后学 scan"},{"from":"cli-overview","to":"cli-config","type":"prerequisite","label":"用前必须配置模型"},{"from":"eng-bundling","to":"cli-delegate","type":"prerequisite","label":"委托模式按规则文本分束"},{"from":"q-token","to":"eng-compression","type":"prerequisite","label":"计费压力驱动压缩设计"},{"from":"q-bench","to":"arch-hybrid","type":"prerequisite","label":"基准验证混合架构有效性"},{"from":"int-claude","to":"cli-delegate","type":"prerequisite","label":"Claude 插件可走委托模式"},{"from":"cli-review","to":"use-pr-review","type":"prerequisite","label":"PR 审查场景指向 review 命令"},{"from":"cli-scan","to":"use-scan-codebase","type":"prerequisite","label":"代码库审计指向 scan 命令"},{"from":"cli-delegate","to":"use-no-key","type":"prerequisite","label":"免 Key 场景指向 delegate"},{"from":"int-gha","to":"use-ci","type":"prerequisite","label":"CI 场景首选 GitHub Actions"},{"from":"int-cicd","to":"use-ci","type":"prerequisite","label":"其他 CI 平台也支持"},{"from":"cfg-mcp","to":"use-extend","type":"prerequisite","label":"扩展场景可接 MCP"},{"from":"cfg-rules-chain","to":"use-extend","type":"prerequisite","label":"扩展场景可加规则"},{"from":"cli-review","to":"cli-scan","type":"variant","label":"两种审查模式互为变体"},{"from":"cli-delegate","to":"cli-review","type":"variant","label":"委托 vs OCR 驱动"},{"from":"int-gha","to":"int-cicd","type":"variant","label":"不同 CI 平台变体"},{"from":"int-claude","to":"int-codex","type":"variant","label":"同为插件生态"},{"from":"int-claude","to":"int-cursor","type":"variant","label":"同为插件生态"},{"from":"int-codex","to":"int-opencode","type":"variant","label":"同为插件生态"},{"from":"cfg-providers","to":"cfg-protocol","type":"variant","label":"provider 与协议一一映射"},{"from":"eng-locator","to":"eng-relocate","type":"variant","label":"重定位是定位的升级路径"},{"from":"cli-session","to":"cli-viewer","type":"variant","label":"会话管理 CLI 与 Web 查看器"},{"from":"eng-filter","to":"arch-dispatch","type":"combination","label":"选择+分束组合成分派"},{"from":"eng-bundling","to":"arch-dispatch","type":"combination","label":"选择+分束组合成分派"},{"from":"arch-dispatch","to":"arch-pipeline","type":"combination","label":"分派+工具+反思组合成流水线"},{"from":"arch-grounded-tools","to":"arch-pipeline","type":"combination","label":"分派+工具+反思组合成流水线"},{"from":"arch-reflection","to":"arch-pipeline","type":"combination","label":"分派+工具+反思组合成流水线"},{"from":"cfg-providers","to":"use-configure","type":"combination","label":"provider+config 命令组合成配置场景"},{"from":"cli-config","to":"use-configure","type":"combination","label":"provider+config 命令组合成配置场景"},{"from":"int-gha","to":"use-pr-review","type":"combination","label":"Action+review 组合成 PR 自动审查"},{"from":"cli-review","to":"use-pr-review","type":"combination","label":"Action+review 组合成 PR 自动审查"},{"from":"eng-compression","to":"q-token","type":"cooccurrence","label":"压缩显著降低 token 消耗"},{"from":"q-telemetry","to":"eng-session","type":"cooccurrence","label":"会话 JSONL 是遥测素材"},{"from":"int-skill","to":"int-claude","type":"cooccurrence","label":"Skill 机制与插件生态共现"},{"from":"cli-delegate","to":"use-no-key","type":"cooccurrence","label":"委托模式即免 Key 场景"},{"from":"int-vscode","to":"cli-review","type":"dependency","label":"VSCode 扩展封装 CLI"},{"from":"int-opencode","to":"cli-review","type":"dependency","label":"OpenCode 插件 spawn CLI"},{"from":"cli-review","to":"eng-session","type":"dependency","label":"review 产生会话记录"},{"from":"cli-scan","to":"eng-session","type":"dependency","label":"scan 也写会话（无 manifest）"}],"groupEdges":[{"source":"G-A","target":"G-B","viaFrom":"arch-pipeline","viaTo":"eng-diff","type":"prerequisite"},{"source":"G-A","target":"G-D","viaFrom":"arch-dispatch","viaTo":"cfg-rules-chain","type":"prerequisite"},{"source":"G-B","target":"G-C","viaFrom":"eng-session","viaTo":"cli-session","type":"prerequisite"},{"source":"G-D","target":"G-C","viaFrom":"cfg-priority","viaTo":"cli-config","type":"prerequisite"},{"source":"G-F","target":"G-B","viaFrom":"q-token","viaTo":"eng-compression","type":"prerequisite"},{"source":"G-F","target":"G-A","viaFrom":"q-bench","viaTo":"arch-hybrid","type":"prerequisite"},{"source":"G-E","target":"G-C","viaFrom":"int-claude","viaTo":"cli-delegate","type":"prerequisite"},{"source":"G-C","target":"G-S","viaFrom":"cli-review","viaTo":"use-pr-review","type":"prerequisite"},{"source":"G-E","target":"G-S","viaFrom":"int-gha","viaTo":"use-ci","type":"prerequisite"},{"source":"G-D","target":"G-S","viaFrom":"cfg-mcp","viaTo":"use-extend","type":"prerequisite"}],"groupColor":{"G-A":"#4f8cff","G-B":"#7fe0d8","G-C":"#e8c66a","G-D":"#c9a8ef","G-E":"#e05563","G-F":"#2fb98a","G-S":"#ffb86b"},"stageColor":{"basic":"#4f8cff","intermediate":"#2fb98a","advanced":"#e8933b"},"edgeColor":{"prerequisite":"#4f8cff","variant":"#e0c35e","combination":"#b48ae0","cooccurrence":"#5ad0d0","dependency":"#e8933b"}};
+
+  // ===== 常量 =====
+  const EDGE_COLOR = DATA.edgeColor;
+  const STAGE_ORDER = ['basic','intermediate','advanced'];
+  const STAGE_LABEL = { basic:'基础', intermediate:'进阶', advanced:'高级' };
+  const STAGE_COLOR = DATA.stageColor;
+  const EDGE_LABEL = { prerequisite:'前置(prerequisite)', variant:'变体(variant)', combination:'组合(combination)', cooccurrence:'共现(cooccurrence)', dependency:'依赖关联(dependency)' };
+
+  const nodeById = {};
+  DATA.nodes.forEach(n => nodeById[n.id] = n);
+  const groupById = {};
+  DATA.groups.forEach(g => groupById[g.id] = g);
+  const nodeToGroup = {};
+  DATA.groups.forEach(g => g.node_ids.forEach(nid => nodeToGroup[nid] = g.id));
+  const groupNodeIndex = {};
+  DATA.groups.forEach(g => g.node_ids.forEach((nid,i) => { groupNodeIndex[nid] = i; }));
+
+  // ===== 状态 =====
+  let currentGroup = null;   // null = 组级视图
+  let bridgeMode = false;    // 桥接高亮模式
+
+  const $ = id => document.getElementById(id);
+  const crumb = $('crumb');
+
+  function isBridge(nid){ const n = nodeById[nid]; return n && (n.type === 'bridge' || n.src === 'bridge'); }
+
+  // ===== 组级视图 =====
+  function buildGroupNodes(){
+    const nodes = DATA.groups.map(g => ({
+      data:{
+        id:'grp-'+g.id, label: g.name, kind:'group', group:g.id, gname:g.name,
+        domain:g.domain, gkind:g.kind,
+        coreCount: g.node_ids.length,
+        totalCount: g.node_ids.length
+      }
+    }));
+    let edges = [];
+    DATA.groupEdges.forEach(ge => {
+      edges.push({ data:{ id:'grp-'+ge.source+'->grp-'+ge.target, source:'grp-'+ge.source, target:'grp-'+ge.target, kind:'group', type:ge.type, viaFrom:ge.viaFrom, viaTo:ge.viaTo } });
+    });
+    const seen = new Set();
+    edges = edges.filter(e => {
+      const k = e.data.source+'|'+e.data.target;
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+    return { nodes, edges };
+  }
+
+  // ===== 组内视图（含跨组 stub）=====
+  function buildGroupDrill(gid){
+    const g = groupById[gid];
+    const members = g.node_ids;
+    const memberSet = new Set(members);
+    const relatedIds = new Set(members);
+    const edges = [];
+    DATA.edges.forEach(e => {
+      if (bridgeMode && !(isBridge(e.from) || isBridge(e.to))) return;
+      const s = e.from, t = e.to;
+      const sIn = memberSet.has(s), tIn = memberSet.has(t);
+      if (sIn && tIn){
+        edges.push({ data:{ id:s+'->'+t, source:s, target:t, type:e.type, label:e.label } });
+      } else if (sIn || tIn){
+        const other = sIn ? t : s;
+        if (nodeById[other] && !memberSet.has(other)){
+          relatedIds.add(other);
+          edges.push({ data:{ id:s+'->'+t, source:s, target:t, type:e.type, label:e.label } });
+        }
+      }
+    });
+    const nodes = [];
+    relatedIds.forEach(id => {
+      const n = nodeById[id];
+      if (!n) return;
+      const isMember = memberSet.has(id);
+      nodes.push({
+        data:{
+          id, label:n.name, kind:'node', group:n.group, gname: groupById[n.group] ? groupById[n.group].name : '',
+          stage:n.stage, src:n.src, brief:n.brief || '',
+          member:isMember, mode: isMember ? 'member' : 'stub'
+        }
+      });
+    });
+    nodes.sort((a,b) => {
+      const am = a.data.member ? 0 : 1, bm = b.data.member ? 0 : 1;
+      if (am !== bm) return am - bm;
+      if (a.data.member) return groupNodeIndex[a.data.id] - groupNodeIndex[b.data.id];
+      return a.data.id < b.data.id ? -1 : 1;
+    });
+    return { nodes, edges };
+  }
+
+  // ===== 桥接模式：只看 bridge 主题及其连接边 =====
+  function buildBridgeView(){
+    const bridgeIds = DATA.nodes.filter(n => isBridge(n.id)).map(n => n.id);
+    const idSet = new Set(bridgeIds);
+    const nodes = bridgeIds.map(id => {
+      const n = nodeById[id];
+      return { data:{ id, label:n.name, kind:'node', group:n.group, gname: groupById[n.group]?groupById[n.group].name:'', stage:n.stage, src:n.src, brief:n.brief||'', member:true, mode:'member' } };
+    });
+    const edges = [];
+    DATA.edges.forEach(e => {
+      if (idSet.has(e.from) && idSet.has(e.to)){
+        edges.push({ data:{ id:e.from+'->'+e.to, source:e.from, target:e.to, type:e.type, label:e.label } });
+      }
+    });
+    return { nodes, edges };
+  }
+
+  // ===== 渲染 =====
+  function render(doFit=true){
+    let els, mode;
+    if (bridgeMode){
+      els = buildBridgeView();
+      mode = '桥接主题';
+    } else if (currentGroup === null){
+      els = buildGroupNodes();
+      mode = '组级';
+    } else {
+      els = buildGroupDrill(currentGroup);
+      mode = currentGroup + ' · ' + (groupById[currentGroup] ? groupById[currentGroup].name : '');
+    }
+    cy.elements().remove();
+    cy.add(els.nodes);
+    cy.add(els.edges);
+    applyViewStyles();
+    $('zcount').textContent = cy.nodes().length;
+    $('zmode').textContent = mode;
+    cy.layout({ name:'dagre', rankDir:'LR', nodeSep:40, rankSep:70, padding:40 }).run();
+    if (doFit) cy.fit(undefined, 50);
+    updateCrumb();
+  }
+
+  function applyViewStyles(){
+    cy.nodes().forEach(n => {
+      const d = n.data();
+      let bw = 1, bc = 'rgba(255,255,255,0.35)', op = 1;
+      if (d.kind === 'group') bw = 3;
+      if (bridgeMode){
+        if (d.kind === 'node' && !isBridge(d.id)) op = 0.08;
+        if (d.kind === 'group') op = 0.15;
+      }
+      n.style('border-width', bw);
+      n.style('border-color', bc);
+      n.style('opacity', op);
+    });
+  }
+
+  // ===== 视图切换 =====
+  function toggleBridge(){
+    bridgeMode = !bridgeMode;
+    currentGroup = null;
+    $('bridgebtn').classList.toggle('on', bridgeMode);
+    render();
+  }
+  $('bridgebtn').addEventListener('click', toggleBridge);
+
+  function goBack(){
+    if (currentGroup !== null){
+      currentGroup = null;
+      render();
+    }
+  }
+  $('backbtn').addEventListener('click', goBack);
+
+  // ===== cytoscape =====
+  const cy = cytoscape({
+    container: document.getElementById('graph'),
+    elements: [],
+    style: [
+      { selector:'node', style:{
+        label:'data(label)', 'text-valign':'center','text-halign':'center', color:'#fff',
+        'font-size':9, 'text-wrap':'wrap', 'text-max-width':90
+      }},
+      { selector:'node[kind="group"]', style:{
+        'background-color': function(ele){ return DATA.groupColor[ele.data('group')] || '#243040'; },
+        'border-width':3,'border-color':'rgba(255,255,255,0.5)','width':130,'height':46,'font-size':12,
+        'text-wrap':'wrap','text-max-width':116
+      }},
+      { selector:'node[kind="node"]', style:{
+        'background-color': function(ele){ return DATA.groupColor[ele.data('group')] || '#2b3550'; },
+        'border-width':1,'border-color':'rgba(255,255,255,0.35)','width':58,'height':30, shape:'round-rectangle'
+      }},
+      { selector:'node[kind="node"][mode="stub"]', style:{
+        'background-color':'#2a2e38','border-width':1,'border-color':'#555a66',
+        'width':52,'height':26, opacity:0.55, 'font-size':8
+      }},
+      { selector:'edge', style:{
+        'curve-style':'bezier','target-arrow-shape':'triangle','arrow-scale':0.7,
+        'line-color': function(ele){ return EDGE_COLOR[ele.data('type')] || '#4a5265'; },
+        'target-arrow-color': function(ele){ return EDGE_COLOR[ele.data('type')] || '#4a5265'; },
+        'width':1.3
+      }},
+      { selector:'edge[type="prerequisite"]', style:{ 'width':2.0 } },
+      { selector:'edge[type="variant"]', style:{ 'line-style':'dashed' } },
+      { selector:'edge[type="cooccurrence"]', style:{ 'line-style':'dotted' } }
+    ],
+    layout: { name:'dagre', rankDir:'LR', nodeSep:40, rankSep:70, padding:40 },
+    wheelSensitivity: 0.3,
+    minZoom: 0.05,
+    maxZoom: 5,
+  });
+  window.__cy = cy;
+
+  // ===== 交互 =====
+  cy.on('tap', 'node', (evt) => {
+    const d = evt.target.data();
+    if (currentGroup === null){
+      if (d.kind === 'group'){
+        currentGroup = d.group;
+        render();
+      }
+    } else {
+      if (d.kind === 'node'){
+        window.location.href = '../02-node-pages/' + d.id + '.html';
+      }
+    }
+  });
+
+  // ===== hash 路由 =====
+  function handleHash(){
+    const h = location.hash.replace(/^#/,'');
+    if (!h) return;
+    if (groupById[h]){
+      currentGroup = h;
+      bridgeMode = false;
+      $('bridgebtn').classList.remove('on');
+      render();
+    } else if (nodeById[h]){
+      const g = nodeToGroup[h];
+      if (g){
+        currentGroup = g;
+        bridgeMode = false;
+        $('bridgebtn').classList.remove('on');
+        render();
+        const el = cy.$('#'+CSS.escape(h));
+        if (el.length){
+          cy.animate({ fit:{ eles: el, padding: 120 }, duration: 500 });
+          el.style('border-width', 4); el.style('border-color', '#ffd700');
+        }
+      }
+    }
+  }
+  window.addEventListener('hashchange', handleHash);
+
+  // ===== crumb 更新 =====
+  function updateCrumb(){
+    if (currentGroup !== null && !bridgeMode){
+      const g = groupById[currentGroup];
+      crumb.style.display = 'inline-flex';
+      $('backbtn').style.display = 'inline-block';
+      crumb.innerHTML = '<b>'+currentGroup+'</b> '+escapeHtml(g ? g.name : '')+' <span style="color:var(--dim)">· '+ (g ? g.node_ids.length : 0) +' 节点</span>';
+    } else {
+      crumb.style.display = 'none';
+      $('backbtn').style.display = 'none';
+    }
+  }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ===== 图例 =====
+  function buildLegend(){
+    const lg = $('legend');
+    let html = '<b>组节点</b>（'+DATA.groups.length+' 组，彩色，点击下钻）<br>';
+    html += '<b>知识节点</b>（'+DATA.nodes.length+' 个，点击跳转节点页）<br>';
+    html += '<b>边类型</b>：<br>';
+    Object.keys(EDGE_COLOR).forEach(t => {
+      html += '<span class="sw" style="background:'+EDGE_COLOR[t]+'"></span>'+EDGE_LABEL[t]+'<br>';
+    });
+    html += '<b>阶段</b>：';
+    STAGE_ORDER.forEach(s => { html += '<span class="sw" style="background:'+STAGE_COLOR[s]+'"></span>'+STAGE_LABEL[s]+' '; });
+    html += '<br><b>桥接模式</b>：仅显示 10 个桥接主题及其连接边';
+    lg.innerHTML = html;
+  }
+
+  // ===== 组配色图例 =====
+  const gl = $('glegend');
+  DATA.groups.forEach(g => {
+    const d = document.createElement('div');
+    d.className = 'row';
+    d.dataset.gid = g.id;
+    const sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = DATA.groupColor[g.id];
+    const txt = document.createElement('span');
+    txt.textContent = g.name + ' (' + g.id + ')';
+    d.appendChild(sw);
+    d.appendChild(txt);
+    d.addEventListener('click', () => {
+      currentGroup = g.id;
+      bridgeMode = false;
+      $('bridgebtn').classList.remove('on');
+      render();
+    });
+    gl.appendChild(d);
+  });
+
+  // ===== 初始渲染 =====
+  buildLegend();
+  render();
+  handleHash();
+})();
+
+</script>
+</body>
+</html>

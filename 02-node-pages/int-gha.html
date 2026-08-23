@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub Actions 集成 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-E.html">集成生态</a> / <span>GitHub Actions 集成</span></div>
+  <h1>GitHub Actions 集成</h1>
+  <div class="badges"><span class="badge src" style="color:#ff8a97;background:#3a1520;border-color:#e05563">集成生态</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-E · 集成生态</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-E"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-E.html"><span class="dir">返回组</span><span class="v">集成生态</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">composite action（action.yml）：24 入参/6 出参，fork-safe PR 解析，评论发布脚本（sticky/增量 IoU 去重/路由）</div><div class="bullet">composite action（action.yml）封装完整审查流程，workflow 中一行引用即可接入</div><div class="bullet">必填入参：llm_url、llm_auth_token、llm_model、llm_use_anthropic</div><div class="bullet">可选入参：language（默认 English）、ocr_version（默认 latest）、review_concurrency、background、rule、upload_artifacts、sticky_summary、incremental（默认 false）、incremental_overlap_threshold（默认 0.6 IoU）、review_comment_batch_size（默认 50）、route_severity_below、route_categories、base_ref、head_sha</div><div class="bullet">输出：comments_total、comments_inline、comments_skipped、comments_routed、comments_failed、summary_comment_url</div><div class="bullet">流程：fork-safe PR 解析（checkout base + fetch pull/N/head）→ merge-base → ocr review --from MERGE_BASE --to HEAD_SHA --audience agent --format json → post-review-comments.js 发评论</div><div class="bullet">post-review-comments.js 实现：sticky 摘要、增量 IoU 去重、50 条批量、severity+category 路由，fail-open 设计不丢 finding；upload_artifacts/sticky_summary/incremental 必须用字面字符串 &#x27;true&#x27;/&#x27;false&#x27;</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>PR 场景自动审查：push/pull_request 触发即审，评论直达 diff</p><p>fork-safe：外部贡献者 PR 也能正确解析 base 与 head，不因 fork 结构失败</p><p>fail-open：后处理脚本出错也不丢 finding，审查结果可事后回看</p><p>去重+批量+路由控制评论噪音：IoU 0.6 增量去重、50 条批量、按严重级/类别分流</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">基础接入：workflow 中 uses: alibaba/open-code-review@&lt;版本&gt;，配齐 4 个必填入参</div><div class="bullet">增量审查：incremental: &#x27;true&#x27; 只审新增/变更区域，IoU 阈值用 incremental_overlap_threshold 调（默认 0.6）</div><div class="bullet">sticky 摘要：sticky_summary: &#x27;true&#x27; 固定摘要评论位置</div><div class="bullet">路由分流：route_severity_below / route_categories 按严重级/类别分发</div><div class="bullet">后台模式：background: true 异步执行不阻塞 CI</div><div class="bullet">结果消费：读取 outputs.comments_total/comments_inline 等统计驱动后续步骤</div><div class="bullet">版本与语言：ocr_version 指定 CLI 版本，language 指定评论语言</div><div class="bullet">并发控制：review_concurrency 限制同时审查的任务数</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>标准 PR 审查：pull_request 事件 + 4 个必填入参即可上线</td></tr><tr><td>大型 PR 控噪：incremental &#x27;true&#x27; + 调小 review_comment_batch_size + route 分流</td></tr><tr><td>只关注高危：route_severity_below 屏蔽低危 finding 的评论</td></tr><tr><td>外部贡献者 fork PR：内置 fork-safe 解析自动处理 base/head</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>把 incremental/sticky_summary/upload_artifacts 写成布尔 true/false 而非字符串 &#x27;true&#x27;/&#x27;false&#x27;，参数解析失效</li><li>fork PR 场景不用内置 fork-safe 解析而自行 checkout，导致 base 分支取错</li><li>误解 fail-open 语义：后处理失败=审查失败，实际 finding 不丢但评论可能未发</li><li>不配 route 参数导致所有 finding 全量刷评论，PR 噪音过大</li><li>background 模式忘记收集 outputs，后续步骤拿不到审查统计</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">标准 PR 审查完整配置</div><div class="evcode"><code>- uses: alibaba/open-code-review@latest</code><code>  with:</code><code>    llm_url: ${{ secrets.LLM_URL }}</code><code>    llm_auth_token: ${{ secrets.LLM_AUTH_TOKEN }}</code><code>    llm_model: deepseek-chat</code><code>    llm_use_anthropic: &#x27;false&#x27;</code><code>    language: Chinese</code><code>    incremental: &#x27;true&#x27;</code><code>    sticky_summary: &#x27;true&#x27;</code></div><div class="evdesc">4 个必填入参 + 增量审查（IoU 默认 0.6 去重）+ sticky 摘要；composite action 内部走 fork-safe PR 解析 → merge-base → ocr review --from MERGE_BASE --to HEAD_SHA --audience agent --format json → post-review-comments.js。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">布尔值陷阱：incremental 等必须用字符串</div><div class="evcode"><code>with:</code><code>  incremental: true</code><code>  sticky_summary: true</code><code>  upload_artifacts: true</code></div><div class="evdesc">upload_artifacts/sticky_summary/incremental 三个入参必须用字面字符串 &#x27;true&#x27;/&#x27;false&#x27;，写成 YAML 布尔值会解析失效，增量去重与摘要静默不生效。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">路由分流 + 批量控制评论噪音</div><div class="evcode"><code>with:</code><code>  route_severity_below: info</code><code>  route_categories: security,bug</code><code>  review_comment_batch_size: 50</code></div><div class="evdesc">按严重级/类别路由 finding，评论 50 条批量提交；后处理 fail-open 设计保证即使脚本出错也不丢 finding。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">fork PR 自行 checkout 取错 base</div><div class="evcode"><code>- uses: actions/checkout@v4</code><code>  with:</code><code>    ref: ${{ github.event.pull_request.head.ref }}</code></div><div class="evdesc">不依赖 action 内置的 fork-safe PR 解析（checkout base + fetch pull/N/head），fork 场景 head.ref 解析易错，merge-base 计算错误导致审查范围错误。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">消费 outputs 驱动后续步骤</div><div class="evcode"><code>- id: ocr</code><code>  uses: alibaba/open-code-review@latest</code><code>  with:</code><code>    llm_url: ${{ secrets.LLM_URL }}</code><code>    llm_auth_token: ${{ secrets.LLM_AUTH_TOKEN }}</code><code>    llm_model: deepseek-chat</code><code>    llm_use_anthropic: &#x27;false&#x27;</code><code>- run: |</code><code>    echo &quot;total=${{ steps.ocr.outputs.comments_total }}&quot;</code><code>    echo &quot;url=${{ steps.ocr.outputs.summary_comment_url }}&quot;</code></div><div class="evdesc">outputs 提供 comments_total/comments_inline/comments_skipped/comments_routed/comments_failed/summary_comment_url，可驱动门禁或通知步骤。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">background 模式立即读 outputs 为空</div><div class="evcode"><code>with:</code><code>  background: true</code><code># 后续步骤立即读 outputs</code></div><div class="evdesc">background 为异步执行不阻塞 CI，立即读取 outputs 得到空值；应等待审查完成后再收集统计。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">CI 集成</div><div class="assname"><a href="../assets/ci/github_actions-ocr-review.yml" target="_blank">github_actions-ocr-review.yml</a></div><div class="assdesc">GitHub Actions 自动审查 workflow 示例（PR 事件+评论触发，并发组防重）</div><div class="assmeta">examples/github_actions/ocr-review.yml · 5170 B</div></div><div class="assetcard"><div class="asstype">CI 集成</div><div class="assname"><a href="../assets/ci/action.yml" target="_blank">action.yml</a></div><div class="assdesc">GitHub Actions composite action 完整定义（24 入参 / 6 出参）</div><div class="assmeta">action.yml · 14207 B</div></div><div class="assetcard"><div class="asstype">脚本</div><div class="assname"><a href="../assets/scripts/post-review-comments.js" target="_blank">post-review-comments.js</a></div><div class="assdesc">GHA 评论发布脚本（sticky 摘要 / 增量 IoU 去重 / 50 条批量 / severity 路由）</div><div class="assmeta">scripts/github-actions/post-review-comments.js · 96540 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="use-ci.html">场景：接入 CI 流水线&#8594;CI 场景首选 GitHub Actions<span class="etype">前置依赖</span></a><a class="chip e-variant" href="int-cicd.html">其他 CI 集成&#8594;不同 CI 平台变体<span class="etype">变体</span></a><a class="chip e-combination" href="use-pr-review.html">场景：审查 PR/分支变更&#8594;Action+review 组合成 PR 自动审查<span class="etype">组合</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

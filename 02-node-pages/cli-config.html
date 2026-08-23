@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ocr config · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-C.html">命令行工具</a> / <span>ocr config</span></div>
+  <h1>ocr config</h1>
+  <div class="badges"><span class="badge src" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">命令行</span><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-C · 命令行工具</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-C"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-C.html"><span class="dir">返回组</span><span class="v">命令行工具</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">配置管理：set/unset 键值 + provider/model 交互式 TUI 向导（Bubble Tea），自动测试连通性</div><div class="bullet">ocr config 是配置管理命令，统一管理模型提供商、模型名、token 上限、自定义提供商、MCP 服务器、LLM 行为、语言与遥测等配置项</div><div class="bullet">config set &lt;key&gt; &lt;value&gt; 写入配置，支持的键域包括：provider、model、max_tokens、providers.&lt;name&gt;.&lt;field&gt;（官方提供商字段）、custom_providers、mcp_servers、llm.*、language、telemetry.*</div><div class="bullet">config unset &lt;key&gt; 删除指定配置项，恢复默认或清除错误写入</div><div class="bullet">config provider 与 config model 为 Bubble Tea 构建的 TUI 交互向导：引导选择官方 provider、输入 API key、测试连接，面向新手友好</div><div class="bullet">配置文件默认位于 ~/.opencodereview/config.json；环境变量 OCR_CONFIG_PATH 可覆盖配置的读路径，但写路径强制使用默认位置，防止配置写入被重定向造成泄漏</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>模型/提供商/LLM/遥测等配置项繁多且相互关联，集中式 key-value 管理与 TUI 向导比手改 JSON 更不易出错</p><p>providers.&lt;name&gt;.&lt;field&gt; 的点分键域设计让 27 个内置 provider 与自定义 provider 的字段都能通过同一机制配置，无需特殊命令</p><p>OCR_CONFIG_PATH 只覆盖读路径的强制设计，避免共享环境/CI 中配置被写入意外位置导致 API Key 等敏感信息泄漏到非预期文件</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">设置提供商：ocr config set provider &lt;name&gt;（如 openai、deepseek）</div><div class="bullet">设置模型：ocr config set model &lt;model-id&gt;</div><div class="bullet">设置官方提供商字段：ocr config set providers.openai.apiKey sk-xxx 或 ocr config set providers.openai.baseUrl &lt;url&gt;</div><div class="bullet">设置自定义提供商：ocr config set custom_providers.&lt;name&gt;.&lt;field&gt; &lt;value&gt;</div><div class="bullet">设置 LLM 与遥测：ocr config set llm.temperature 0.2、ocr config set telemetry.enabled false</div><div class="bullet">删除配置项：ocr config unset provider</div><div class="bullet">交互式向导：ocr config provider（选择 provider 并输入 API key、测试连接）、ocr config model（选择模型）</div><div class="bullet">指定配置读取：OCR_CONFIG_PATH=/path/to/config.json ocr config set provider openai，注意写路径仍为默认位置</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>首次安装配置：ocr config provider 进入 TUI 向导，选择官方 provider、粘贴 API key、测试连接成功后即可开始 review</td></tr><tr><td>切换模型供应商：ocr config set provider deepseek &amp;&amp; ocr config set model deepseek-chat，一次切换全部生效</td></tr><tr><td>多环境隔离：CI 中设置 OCR_CONFIG_PATH 指向项目私有配置读取，同时保证写操作不会污染共享配置文件</td></tr><tr><td>排查字段名：不确定某 provider 支持哪些字段时，用 ocr config set providers.&lt;name&gt;.&lt;field&gt; 结合 ocr llm providers/test 验证</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>手改 ~/.opencodereview/config.json 导致 JSON 语法错误或字段拼写错误，工具静默回退默认配置，行为与预期不符，应优先用 config set/unset 与 TUI 向导</li><li>误以为 OCR_CONFIG_PATH 也覆盖写路径：用它指定配置后执行 set，配置被写入默认位置而非预期路径，误以为未生效或造成敏感信息落到错误文件</li><li>混淆 providers.&lt;name&gt;.&lt;field&gt;（内置提供商字段）与 custom_providers（自定义提供商）两个键域，把自定义字段写进 providers 导致不生效，接入非官方模型时应明确使用 custom_providers</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">set 切换提供商与模型</div><div class="evcode"><code>ocr config set provider deepseek</code><code>ocr config set model deepseek-chat</code><code>ocr llm test</code></div><div class="evdesc">点分键配置一次切换全部生效，set 后用 ocr llm test 立即验证连通性，闭环确认配置正确。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">手改配置文件破坏 JSON 格式</div><div class="evcode"><code>vim ~/.opencodereview/config.json  # 误删逗号/引号</code><code>ocr review  # 静默回退默认配置，行为与预期不符</code></div><div class="evdesc">手改 JSON 产生语法或字段拼写错误时工具静默回退默认配置，难以察觉；应优先用 ocr config set/unset 与 TUI 向导。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">TUI 向导完成首次配置</div><div class="evcode"><code>ocr config provider  # 选择官方 provider、输入 API key、测试连接</code><code>ocr config model</code></div><div class="evdesc">Bubble Tea 交互向导引导完成 provider 选择、API key 输入与连接测试，新手无需记忆键名即可完成配置。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">混淆 providers 与 custom_providers 键域</div><div class="evcode"><code>ocr config set providers.myprovider.apiKey sk-xxx  # 自定义字段写进内置键域</code><code>ocr llm test  # 不生效</code></div><div class="evdesc">自定义提供商字段应写入 custom_providers.&lt;name&gt;.&lt;field&gt;，误写进 providers.&lt;name&gt;.&lt;field&gt;（内置提供商字段）导致配置不生效。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">多环境隔离读取配置</div><div class="evcode"><code>OCR_CONFIG_PATH=/path/to/ci-config.json ocr config set provider openai</code><code>OCR_CONFIG_PATH=/path/to/ci-config.json ocr llm test</code></div><div class="evdesc">CI 中用 OCR_CONFIG_PATH 指向项目私有配置读取，避免污染共享配置；需注意写路径强制为默认位置，敏感信息不会落到意外文件。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">误以为 OCR_CONFIG_PATH 也覆盖写路径</div><div class="evcode"><code>OCR_CONFIG_PATH=/path/to/ci-config.json ocr config set model gpt-4o</code><code># 实际写入 ~/.opencodereview/config.json，误以为未生效</code></div><div class="evdesc">OCR_CONFIG_PATH 只覆盖读路径，写路径强制默认位置（防泄漏设计）；据此排查会发现 set 已生效但写入了默认文件。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/llm-resolver.go.md" target="_blank">llm-resolver.go.md</a></div><div class="assdesc">5 级配置优先级解析节选：ResolveEndpointWithOptions</div><div class="assmeta">internal/llm/resolver.go · 4171 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="cfg-priority.html">配置优先级&#8592;配置命令写入优先级链<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cfg-protocol.html">LLM 协议层&#8592;TUI 向导配置协议端点<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cli-overview.html">ocr 命令总览与安装&#8592;用前必须配置模型<span class="etype">前置依赖</span></a><a class="chip e-combination" href="use-configure.html">场景：配置模型与规则&#8594;provider+config 命令组合成配置场景<span class="etype">组合</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

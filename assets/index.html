@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实践资产总览 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+.stat{display:inline-block;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:8px;padding:10px 16px;margin:4px;text-align:center;}
+.stat b{display:block;font-size:22px;color:#fff;}
+.stat span{font-size:12px;color:var(--dim);}
+.type-sec{margin:18px 0;}
+.type-sec h2{font-size:16px;border-bottom:1px solid var(--border);padding-bottom:6px;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.asset{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.asstype{font-size:10.5px;letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header><h1>实践资产总览</h1><p>三合一体系 · 知识 + 实践源码资产 + AI 可调用索引（阿里开源 AI 代码审查工具 — 架构理解 × 工具索引）</p></header>
+<main>
+<div class="brieflead">每个资产均从 open-code-review 源码精选（复制/节选/自建示例），节点页「实践资产」区块自动关联。
+AI 可调用索引见根目录 <b>ai-index.json</b>（node_index / asset_index / command_index 三段式）。</div>
+<h2>资产统计</h2><div><div class="stat"><b>42</b><span>实践资产</span></div><div class="stat"><b>16</b><span>源码节选</span></div><div class="stat"><b>7</b><span>CI 示例</span></div><div class="stat"><b>7</b><span>插件/Skill</span></div></div>
+<div class="type-sec"><h2 style="color:#b48ae0">构建发布 · 5</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#b48ae0">构建发布</div><div class="assname"><a href="../assets/build/Makefile" target="_blank">Makefile</a></div><div class="assdesc">构建链：build / test(race) / coverage(90% 门禁) / build-all 6 平台交叉编译</div><div class="assmeta">Makefile · 3469 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#b48ae0">构建发布</div><div class="assname"><a href="../assets/build/install.sh" target="_blank">install.sh</a></div><div class="assdesc">Linux/macOS 安装脚本（latest tag + sha256 校验 + OCR_GITHUB_MIRROR）</div><div class="assmeta">install.sh · 4260 B · 关联 2 节点</div></div><div class="asset"><div class="asstype" style="color:#b48ae0">构建发布</div><div class="assname"><a href="../assets/build/install.ps1" target="_blank">install.ps1</a></div><div class="assdesc">Windows 安装脚本（PowerShell 5.1+）</div><div class="assmeta">install.ps1 · 5628 B · 关联 2 节点</div></div><div class="asset"><div class="asstype" style="color:#b48ae0">构建发布</div><div class="assname"><a href="../assets/build/package.json" target="_blank">package.json</a></div><div class="assdesc">npm 包定义（bin: ocr → bin/ocr.js）</div><div class="assmeta">package.json · 1385 B · 关联 2 节点</div></div><div class="asset"><div class="asstype" style="color:#b48ae0">构建发布</div><div class="assname"><a href="../assets/build/go.mod" target="_blank">go.mod</a></div><div class="assdesc">Go 依赖清单（cobra / anthropic-sdk-go / openai-go / MCP go-sdk / otel 等）</div><div class="assmeta">go.mod · 4600 B · 关联 1 节点</div></div></div></div><div class="type-sec"><h2 style="color:#4f8cff">CI 集成 · 7</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#4f8cff">CI 集成</div><div class="assname"><a href="../assets/ci/github_actions-ocr-review.yml" target="_blank">github_actions-ocr-review.yml</a></div><div class="assdesc">GitHub Actions 自动审查 workflow 示例（PR 事件+评论触发，并发组防重）</div><div class="assmeta">examples/github_actions/ocr-review.yml · 5170 B · 关联 3 节点</div></div><div class="asset"><div class="asstype" style="color:#4f8cff">CI 集成</div><div class="assname"><a href="../assets/ci/gitlab-ci.yml" target="_blank">gitlab-ci.yml</a></div><div class="assdesc">GitLab CI 审查作业示例（含 OCR_* 环境变量族）</div><div class="assmeta">examples/gitlab_ci/.gitlab-ci.yml · 9775 B · 关联 2 节点</div></div><div class="asset"><div class="asstype" style="color:#4f8cff">CI 集成</div><div class="assname"><a href="../assets/ci/gerrit-Jenkinsfile" target="_blank">gerrit-Jenkinsfile</a></div><div class="assdesc">Gerrit 评审流 Jenkinsfile 示例</div><div class="assmeta">examples/gerrit_ci/Jenkinsfile · 5261 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#4f8cff">CI 集成</div><div class="assname"><a href="../assets/ci/codeup-flow.yml" target="_blank">codeup-flow.yml</a></div><div class="assdesc">阿里云 Codeup CI 示例</div><div class="assmeta">examples/codeup_ci/codeup-flow.yml · 1894 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#4f8cff">CI 集成</div><div class="assname"><a href="../assets/ci/gitflic-ci.yaml" target="_blank">gitflic-ci.yaml</a></div><div class="assdesc">GitFlic CI 示例</div><div class="assmeta">examples/gitflic_ci/gitflic-ci.yaml · 3407 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#4f8cff">CI 集成</div><div class="assname"><a href="../assets/ci/bitbucket-pipelines.yml" target="_blank">bitbucket-pipelines.yml</a></div><div class="assdesc">Bitbucket Pipelines 示例</div><div class="assmeta">examples/bitbucket_pipelines/bitbucket-pipelines.yml · 10666 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#4f8cff">CI 集成</div><div class="assname"><a href="../assets/ci/action.yml" target="_blank">action.yml</a></div><div class="assdesc">GitHub Actions composite action 完整定义（24 入参 / 6 出参）</div><div class="assmeta">action.yml · 14207 B · 关联 3 节点</div></div></div></div><div class="type-sec"><h2 style="color:#7fe0d8">源码节选 · 16</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/agent.go.md" target="_blank">agent.go.md</a></div><div class="assdesc">agent.go 核心节选：Run 流水线 / dispatchSubtasks / executeSubtask / REVIEW_FILTER</div><div class="assmeta">internal/agent/agent.go · 3451 B · 关联 8 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/llmloop-loop.go.md" target="_blank">llmloop-loop.go.md</a></div><div class="assdesc">ReAct 主循环节选：RunPerFile / 终止条件 / 工具分派 / 异步评论</div><div class="assmeta">internal/llmloop/loop.go · 1778 B · 关联 4 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/llmloop-compression.go.md" target="_blank">llmloop-compression.go.md</a></div><div class="assdesc">三区内存压缩节选：frozen/compress/active + 60%/80% 双阈值</div><div class="assmeta">internal/llmloop/compression.go · 2155 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/diff-resolver.go.md" target="_blank">diff-resolver.go.md</a></div><div class="assdesc">行号解析五级回退链节选：ResolveComment / matchConsecutive</div><div class="assmeta">internal/diff/resolver.go · 2009 B · 关联 3 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/diff-relocation.go.md" target="_blank">diff-relocation.go.md</a></div><div class="assdesc">跨文件与 LLM 重定位节选：RelocateAcrossFiles / ReLocateComment</div><div class="assmeta">internal/diff/relocation.go · 1729 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/diff-git.go.md" target="_blank">diff-git.go.md</a></div><div class="assdesc">三种 diff Provider 节选：range / commit / workspace</div><div class="assmeta">internal/diff/git.go · 2005 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/scan-agent.go.md" target="_blank">scan-agent.go.md</a></div><div class="assdesc">全文件扫描引擎节选：Run 时序 / DEDUP / PROJECT_SUMMARY</div><div class="assmeta">internal/scan/agent.go · 2732 B · 关联 2 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/session-manifest.go.md" target="_blank">session-manifest.go.md</a></div><div class="assdesc">Run Manifest 覆盖度契约节选：RegisterSelected / FailureClass</div><div class="assmeta">internal/session/manifest.go · 2464 B · 关联 4 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/session-resume.go.md" target="_blank">session-resume.go.md</a></div><div class="assdesc">断点续审节选：指纹复用 / SealedInput 冻结</div><div class="assmeta">internal/session/resume.go · 1716 B · 关联 2 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/llm-resolver.go.md" target="_blank">llm-resolver.go.md</a></div><div class="assdesc">5 级配置优先级解析节选：ResolveEndpointWithOptions</div><div class="assmeta">internal/llm/resolver.go · 4171 B · 关联 4 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/llm-providers.go.md" target="_blank">llm-providers.go.md</a></div><div class="assdesc">27 个内置 provider 注册表节选</div><div class="assmeta">internal/llm/providers.go · 1523 B · 关联 3 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/llm-protocol.go.md" target="_blank">llm-protocol.go.md</a></div><div class="assdesc">4 种 LLM 协议定义节选</div><div class="assmeta">internal/llm/protocol.go · 1609 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/mcp-client.go.md" target="_blank">mcp-client.go.md</a></div><div class="assdesc">MCP 双传输客户端节选：stdio / Streamable HTTP</div><div class="assmeta">internal/mcp/client.go · 1661 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/viewer-server.go.md" target="_blank">viewer-server.go.md</a></div><div class="assdesc">viewer 服务器节选：路由 / hostGuard 防 DNS-rebind</div><div class="assmeta">internal/viewer/server.go · 2089 B · 关联 4 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/telemetry-provider.go.md" target="_blank">telemetry-provider.go.md</a></div><div class="assdesc">OpenTelemetry 双管道初始化节选</div><div class="assmeta">internal/telemetry/provider.go · 1317 B · 关联 2 节点</div></div><div class="asset"><div class="asstype" style="color:#7fe0d8">源码节选</div><div class="assname"><a href="../assets/code/gitcmd-runner.go.md" target="_blank">gitcmd-runner.go.md</a></div><div class="assdesc">git 子进程并发限流（默认 16）</div><div class="assmeta">internal/gitcmd/runner.go · 1271 B · 关联 3 节点</div></div></div></div><div class="type-sec"><h2 style="color:#e0c35e">配置示例 · 2</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#e0c35e">配置示例</div><div class="assname"><a href="../assets/configs/rule.example.json" target="_blank">rule.example.json</a></div><div class="assdesc">项目级规则示例（rule.json：include/exclude + 四规则含 glob/docs 外置）</div><div class="assmeta">(自建示例) · 1308 B · 关联 3 节点</div></div><div class="asset"><div class="asstype" style="color:#e0c35e">配置示例</div><div class="assname"><a href="../assets/configs/config.example.json" target="_blank">config.example.json</a></div><div class="assdesc">全局配置示例（provider/自定义端点/LLM/MCP/遥测）</div><div class="assmeta">(自建示例) · 1353 B · 关联 4 节点</div></div></div></div><div class="type-sec"><h2 style="color:#9aa3b2">文档 · 1</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#9aa3b2">文档</div><div class="assname"><a href="../assets/doc/README.zh-CN.md" target="_blank">README.zh-CN.md</a></div><div class="assdesc">官方中文 README（定位/基准/设计理念/快速开始）</div><div class="assmeta">README.zh-CN.md · 12231 B · 关联 3 节点</div></div></div></div><div class="type-sec"><h2 style="color:#e05563">插件 · 5</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#e05563">插件</div><div class="assname"><a href="../assets/plugins/opencode-plugin.ts" target="_blank">opencode-plugin.ts</a></div><div class="assdesc">OpenCode 原生插件源码（@opencode-ai/plugin，参数互斥校验）</div><div class="assmeta">plugins/open-code-review/opencode/open-code-review.ts · 12666 B · 关联 2 节点</div></div><div class="asset"><div class="asstype" style="color:#e05563">插件</div><div class="assname"><a href="../assets/plugins/claude-slash-command.md" target="_blank">claude-slash-command.md</a></div><div class="assdesc">Claude Code 斜杠命令定义</div><div class="assmeta">.claude/commands/open-code-review.md · 1595 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#e05563">插件</div><div class="assname"><a href="../assets/plugins/codex-plugin.json" target="_blank">codex-plugin.json</a></div><div class="assdesc">Codex 插件清单（skills + Read capability + defaultPrompt）</div><div class="assmeta">plugins/open-code-review/.codex-plugin/plugin.json · 1121 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#e05563">插件</div><div class="assname"><a href="../assets/plugins/cursor-plugin.json" target="_blank">cursor-plugin.json</a></div><div class="assdesc">Cursor 插件清单（复用 ../skills/）</div><div class="assmeta">plugins/open-code-review/.cursor-plugin/plugin.json · 732 B · 关联 1 节点</div></div><div class="asset"><div class="asstype" style="color:#e05563">插件</div><div class="assname"><a href="../assets/plugins/qca-system-prompt.md" target="_blank">qca-system-prompt.md</a></div><div class="assdesc">QCA Forward 委托系统提示（只允许 delegate preview/rule）</div><div class="assmeta">plugins/open-code-review/qca/system-prompt.md · 1217 B · 关联 1 节点</div></div></div></div><div class="type-sec"><h2 style="color:#c9a8ef">提示词 · 1</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#c9a8ef">提示词</div><div class="assname"><a href="../assets/prompts/review_filter_task_user.md" target="_blank">review_filter_task_user.md</a></div><div class="assdesc">独立反思过滤 prompt 原文（五步法 / Ground A/B / 非对称信息边界）</div><div class="assmeta">internal/config/template/prompts/review_filter_task_user.md · 5303 B · 关联 1 节点</div></div></div></div><div class="type-sec"><h2 style="color:#e8933b">规则 · 1</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#e8933b">规则</div><div class="assname"><a href="../assets/rules/system_rules.json" target="_blank">system_rules.json</a></div><div class="assdesc">内置系统规则（四层规则链最底层，首匹配优先）</div><div class="assmeta">internal/config/rules/system_rules.json · 1488 B · 关联 4 节点</div></div></div></div><div class="type-sec"><h2 style="color:#5ad0d0">脚本 · 1</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#5ad0d0">脚本</div><div class="assname"><a href="../assets/scripts/post-review-comments.js" target="_blank">post-review-comments.js</a></div><div class="assdesc">GHA 评论发布脚本（sticky 摘要 / 增量 IoU 去重 / 50 条批量 / severity 路由）</div><div class="assmeta">scripts/github-actions/post-review-comments.js · 96540 B · 关联 1 节点</div></div></div></div><div class="type-sec"><h2 style="color:#2fb98a">Skill · 2</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#2fb98a">Skill</div><div class="assname"><a href="../assets/skills/SKILL-review.md" target="_blank">SKILL-review.md</a></div><div class="assdesc">通用 review skill：四步 review/filter/fix/report + severity×category 分级</div><div class="assmeta">skills/open-code-review/SKILL.md · 9294 B · 关联 3 节点</div></div><div class="asset"><div class="asstype" style="color:#2fb98a">Skill</div><div class="assname"><a href="../assets/skills/SKILL-delegate.md" target="_blank">SKILL-delegate.md</a></div><div class="assdesc">委托审查 skill：preview→rule→git diff→逐文件→格式化→覆盖率</div><div class="assmeta">skills/open-code-review-delegate/SKILL.md · 6162 B · 关联 3 节点</div></div></div></div><div class="type-sec"><h2 style="color:#e8c66a">工具 schema · 1</h2><div class="assetgrid"><div class="asset"><div class="asstype" style="color:#e8c66a">工具 schema</div><div class="assname"><a href="../assets/tools/tools.json" target="_blank">tools.json</a></div><div class="assdesc">6 个审查专用工具 schema 权威源（plan_task/main_task 相位旗标）</div><div class="assmeta">internal/config/toolsconfig/tools.json · 10082 B · 关联 5 节点</div></div></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 由 07-checkpoint/gen-assets.py 生成 · 数据源 assets-manifest.json</footer>
+</body>
+</html>

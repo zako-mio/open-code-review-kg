@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>规则引导分派 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-A.html">核心架构</a> / <span>规则引导分派</span></div>
+  <h1>规则引导分派</h1>
+  <div class="badges"><span class="badge src" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">核心架构</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-A · 核心架构</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-A"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-A.html"><span class="dir">返回组</span><span class="v">核心架构</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">确定性文件选择/过滤/分束机制：用规则而非语言模型决定审什么、怎么分组</div><div class="bullet">分派阶段完全由确定性代码驱动：文件选择、过滤、分束均由规则与代码完成，不依赖 LLM 决策</div><div class="bullet">文件选择确定要审哪些文件，过滤确定哪些排除并记录原因，分束将文件按规则组织成可并行处理的单元</div><div class="bullet">规则采用四层链：custom（用户自定义）&gt; project（项目级）&gt; global（全局）&gt; system（系统内置），上层规则优先级高于下层，形成可覆盖的规则体系</div><div class="bullet">规则匹配使用模板引擎实现，比纯语言驱动（让模型读规则文本再判断）更稳定——同一规则在不同输入下结果确定可复现</div><div class="bullet">injectDiffMap 机制将被过滤文件的 diff 保留注入，供 file_read_diff 工具在需要时读取，实现『过滤但不封死』</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>文件选择与过滤是强约束环节：哪些文件该审、哪些规则适用属于可枚举逻辑，用确定性代码实现可保证行为一致、可单测，而 LLM 在此类任务上表现不稳定</p><p>四层规则链让不同范围的规则可叠加覆盖：用户可对单个文件/目录写 custom 规则覆盖全局默认，工程上形成类似 CSS 层叠的规则语义</p><p>模板引擎匹配规避了语言驱动的两个问题：prompt 长度膨胀（规则文本全塞进上下文）与判断随机性（同一文件两次判断可能不同）</p><p>injectDiffMap 解决『过滤 vs 可读』的矛盾：被过滤文件不进主审查流程，但审查中若确实需要其 diff 上下文，file_read_diff 仍可读取，避免一刀切</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">分派顺序：先按确定性逻辑选择 diff 中的文件集合 → 逐文件执行 whyExcluded 过滤链 → 按规则链匹配结果决定归属与排除原因</div><div class="bullet">规则链匹配：从 custom 开始逐层查找适用规则，命中即生效，custom 层可显式覆盖 project/global/system 层的默认行为</div><div class="bullet">过滤链顺序：binary（二进制）→ 用户 exclude（显式排除）→ 用户 include（显式包含可覆盖 exclude）→ 扩展名白名单（unsupported_ext）→ 默认路径黑名单（default_path）</div><div class="bullet">每条被排除文件记录 ExcludeReason（user_exclude/unsupported_ext/default_path/deleted/binary），输出时可供用户审计为何没审某文件</div><div class="bullet">注入机制：被过滤文件若被后续规则或工具需要，通过 injectDiffMap 写入其 diff 片段，file_read_diff 按需读取，不占主上下文预算</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>项目配置了 global 规则『忽略 vendor/ 与生成代码目录』，但某次审查需要核对 vendor 中一个依赖文件的行为差异——custom 规则 include 该文件，过滤链中 include 覆盖 exclude，该文件进入审查且其余 vendor 文件仍被排除</td></tr><tr><td>多语言仓库（Go+JS+Python）：system 层扩展名白名单只放行支持语言，二进制与 .min.js 等压缩产物在 binary/unsupported_ext 层被排除，用户可在 project 层加白名单覆盖</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>让 LLM 在 Plan 阶段自行决定『跳过哪些文件』——文件过滤必须发生在分派前的确定性阶段，模型自行跳过会造成审查覆盖不完整且不可审计</li><li>把所有规则写成 system 层一条大规则——应利用四层链分层，custom 覆盖用户特例，否则项目级定制只能改代码或全局配置</li><li>过滤后直接丢弃被过滤文件的 diff——正确做法是 injectDiffMap 保留，审查中发现需要上下文时 file_read_diff 还能读到，否则反复重跑 git 命令浪费</li><li>规则匹配用自然语言 prompt 驱动（把规则文本塞给模型）——模板引擎匹配才稳定，语言驱动在大规则集下判断漂移，且无法单测</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">include 覆盖 exclude：把被误伤的文件拉回审查</div><div class="evcode"><code># 规则配置（custom 层优先级最高）</code><code>exclude: [&quot;vendor/**&quot;, &quot;generated/**&quot;]</code><code>include: [&quot;vendor/github.com/x/lib/parse.go&quot;]  # 覆盖 exclude，该文件进入审查</code><code># 其余 vendor 文件仍被排除（ExcludeReason=user_exclude）</code></div><div class="evdesc">四层规则链 custom&gt;project&gt;global&gt;system + include 覆盖 exclude 的明确语义：用户既能批量排除，又能精确放行特例，过滤结果可审计</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">include/exclude 优先级颠倒（exclude 覆盖 include）</div><div class="evcode"><code># 反例：若 exclude 优先级高于 include</code><code>exclude: [&quot;vendor/**&quot;]</code><code>include: [&quot;vendor/github.com/x/lib/parse.go&quot;]  # 无效，文件仍被排除</code><code>// 用户将无法把误伤文件拉回审查，只能改全局规则</code></div><div class="evdesc">优先级颠倒后用户层覆盖能力失效：默认规则误伤的文件无法放行，custom 层形同虚设，规则体系的可定制性被破坏</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">injectDiffMap 保留被过滤文件 diff，供 file_read_diff 按需读取</div><div class="evcode"><code>injectDiffMap[&quot;vendor/github.com/x/lib/parse.go&quot;] = diffText // 过滤但不封死</code><code>// 审查主流程中模型需要该文件上下文时</code><code>file_read_diff(path=&quot;vendor/github.com/x/lib/parse.go&quot;) // 从 injectDiffMap 读取，不重跑 git</code></div><div class="evdesc">被过滤文件不进主流程、不占主上下文预算，但需要时可精确读取其 diff，避免一刀切丢弃后反复重跑 git 命令</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">过滤后直接丢弃被过滤文件的 diff</div><div class="evcode"><code>// 反例：过滤即删除</code><code>delete(diffMap, entry.Path) // 后续任何工具都无法再读到该 diff</code><code>// 模型需要上下文时只能重新执行 git diff → 重复开销</code></div><div class="evdesc">丢弃后审查中一旦需要该文件上下文就必须重跑 git 命令，产生重复 IO 与延迟；且 Review 需要 diff 佐证时无据可依</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">规则</div><div class="assname"><a href="../assets/rules/system_rules.json" target="_blank">system_rules.json</a></div><div class="assdesc">内置系统规则（四层规则链最底层，首匹配优先）</div><div class="assmeta">internal/config/rules/system_rules.json · 1488 B</div></div><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/agent.go.md" target="_blank">agent.go.md</a></div><div class="assdesc">agent.go 核心节选：Run 流水线 / dispatchSubtasks / executeSubtask / REVIEW_FILTER</div><div class="assmeta">internal/agent/agent.go · 3451 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="eng-filter.html">文件选择与过滤&#8594;分派先做文件选择过滤<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="eng-bundling.html">文件分束&#8594;分派再做文件分束<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cfg-rules-chain.html">四层规则链&#8594;规则链是分派的数据源<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="arch-hybrid.html">确定性工程 × Agent 混合架构&#8592;确定性部分由分派承担<span class="etype">前置依赖</span></a><a class="chip e-combination" href="arch-pipeline.html">审查流水线&#8594;分派+工具+反思组合成流水线<span class="etype">组合</span></a><a class="chip e-combination" href="eng-bundling.html">文件分束&#8592;选择+分束组合成分派<span class="etype">组合</span></a><a class="chip e-combination" href="eng-filter.html">文件选择与过滤&#8592;选择+分束组合成分派<span class="etype">组合</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

@@ -1,0 +1,20 @@
+# ===== Open Code Review 项目解析知识图谱 .gitignore =====
+
+# --- 源码完整 clone（保留在本地留档目录，图谱 assets/ 已含 42 个精选实践资产）---
+/open-code-review/
+
+# --- Python 缓存 ---
+__pycache__/
+*.pyc
+
+# --- 临时/系统文件 ---
+.DS_Store
+Thumbs.db
+*.log
+
+# --- 编辑器 ---
+.vscode/
+.idea/
+
+# --- 本地临时产物 ---
+/tmp/

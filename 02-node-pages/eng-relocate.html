@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>跨文件与 LLM 重定位 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-B.html">审查引擎</a> / <span>跨文件与 LLM 重定位</span></div>
+  <h1>跨文件与 LLM 重定位</h1>
+  <div class="badges"><span class="badge src" style="color:#7fe0d8;background:#12302c;border-color:#5ad0d0">审查引擎</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-B · 审查引擎</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-B"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-B.html"><span class="dir">返回组</span><span class="v">审查引擎</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">评论目标代码在别处时：纯字符串匹配迁移（唯一命中才动）+ LLM 从 diff 重生成代码块再定位</div><div class="bullet">重定位机制负责把在原文件无法定位的评论迁移到正确的目标文件与行号，分确定性层（RelocateAcrossFiles）与推理层（ReLocateComment）</div><div class="bullet">RelocateAcrossFiles：将评论的 ExistingCode 逐字摘录，在其他文件的 diff 中做纯字符串匹配</div><div class="bullet">0 命中或 &gt;1 命中均拒绝（防歧义），恰好 1 命中则 Path+StartLine+EndLine 整体迁移</div><div class="bullet">ReLocateComment：通过 BuildReLocationMessages 构造 {diff}/{existing_code}/{suggestion_content} 提示消息交给 LLM</div><div class="bullet">LLM 输出代码块后经 extractCodeBlock 提取，再重试 ResolveComment；失败时回退到原 snippet</div><div class="bullet">是 eng-locator 回退链的第四、五级实现</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>代码审查中评论位置与目标位置常因重构、移动、复制而不一致，机械匹配无法覆盖全部场景</p><p>纯字符串匹配零成本且确定性强，但只能处理文本完全一致的搬迁；语义等价但文本变化的场景必须借助 LLM</p><p>0/多命中双拒绝策略规避歧义风险——宁可放弃迁移也不把评论错误安放到无关代码上</p><p>失败保留原 snippet 保证『评论内容永远不丢』，位置错误可人工修正，内容丢失不可恢复</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">RelocateAcrossFiles 从评论摘录 ExistingCode 原文（逐字），遍历其他文件 diff 内容执行字符串匹配</div><div class="bullet">命中数检查：恰好 1 命中才接受；0 命中（目标不在其他文件）与 &gt;1 命中（目标代码存在多份拷贝）都拒绝迁移</div><div class="bullet">接受后将评论的 Path、StartLine、EndLine 整体迁移到命中位置</div><div class="bullet">ReLocateComment 通过 BuildReLocationMessages 组装 {diff}/{existing_code}/{suggestion_content} 三要素提示词</div><div class="bullet">请求 LLM 生成包含目标位置的代码块，经 extractCodeBlock 提取后重试 ResolveComment 完成定位</div><div class="bullet">重试仍失败则回填原 snippet（原文件+原行号），交由用户或后续人工处置</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>工具函数从 a.go 复制到 b.go，评论原定位在 a.go，RelocateAcrossFiles 在 b.go diff 中恰好 1 命中，整体迁移成功</td></tr><tr><td>同一代码块在多个文件重复出现（&gt;1 命中），迁移被拒绝避免歧义，降级走 LLM 或保留原位</td></tr><tr><td>函数被重命名+重构，字符串匹配无命中，LLM 根据 diff/现有代码/建议内容推理出真实目标位置</td></tr><tr><td>分布式 mock 代码被整体移动后文本一致，字符串匹配直接迁移成功，零 LLM 成本</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>采用『首次命中即接受』而非『恰好 1 命中』，把评论错误安放到同名代码的无关拷贝上</li><li>直接把 LLM 输出当最终答案而不经 extractCodeBlock 清洗，混入解释性文本导致定位失败</li><li>失败路径直接丢弃评论，破坏『评论不丢失』契约</li><li>用归一化（去空白/大小写）后的文本做字符串匹配，破坏逐字匹配的确定性语义</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">RelocateAcrossFiles 恰好 1 命中才迁移</div><div class="evcode"><code>hits := findStringInOtherDiffs(existingCode)  // 逐字摘录匹配</code><code>if len(hits) == 1 {</code><code>    migrate(comment, hits[0].Path, hits[0].StartLine, hits[0].EndLine)</code><code>}</code><code># 0 命中或 &gt;1 命中都拒绝，防歧义</code></div><div class="evdesc">ExistingCode 逐字摘录后在其他文件 diff 中纯字符串匹配，恰好 1 命中才将 Path+StartLine+EndLine 整体迁移；0/多命中拒绝避免把评论错误安放到无关代码上。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">首次命中即接受，多拷贝场景评论错位</div><div class="evcode"><code># 错误：找到第一个匹配就迁移</code><code>if hit := findFirst(hits); hit != nil {</code><code>    migrate(comment, hit)   # 同名代码在 3 个文件都有</code><code>}</code></div><div class="evdesc">同一代码块在多个文件重复出现时，首次命中可能不是真实目标，评论被错误安放到无关拷贝上，且无任何告警。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">ReLocateComment 失败回退原 snippet</div><div class="evcode"><code>msg := BuildReLocationMessages({diff, existing_code, suggestion_content})</code><code>block := extractCodeBlock(llm(msg))</code><code>if !resolveComment(block) {</code><code>    fallbackToOriginal(comment)   # 保留原文件+原行号</code><code>}</code></div><div class="evdesc">LLM 按 {diff}/{existing_code}/{suggestion_content} 三要素推理定位，extractCodeBlock 清洗后重试 ResolveComment；失败回填原 snippet，保证评论内容永不丢失。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">LLM 输出不经 extractCodeBlock 直接当答案</div><div class="evcode"><code># 错误：整段输出当定位结果</code><code>answer := llm(msg)            # 混有解释文字</code><code>resolveComment(answer)        # 解析失败</code><code>dropComment(comment)          # 甚至直接丢弃评论</code></div><div class="evdesc">不提取代码块会把解释性文本混入定位结果导致失败；失败路径丢弃评论违反『评论不丢失』契约，内容不可恢复。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/diff-relocation.go.md" target="_blank">diff-relocation.go.md</a></div><div class="assdesc">跨文件与 LLM 重定位节选：RelocateAcrossFiles / ReLocateComment</div><div class="assmeta">internal/diff/relocation.go · 1729 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="eng-locator.html">行号定位回退链&#8592;定位失败才触发重定位<span class="etype">前置依赖</span></a><a class="chip e-variant" href="eng-locator.html">行号定位回退链&#8592;重定位是定位的升级路径<span class="etype">变体</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

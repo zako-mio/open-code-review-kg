@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>场景：免 Key 委托审查 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-S.html">使用场景索引</a> / <span>场景：免 Key 委托审查</span></div>
+  <h1>场景：免 Key 委托审查</h1>
+  <div class="badges"><span class="badge src" style="color:#ffb86b;background:#3a2f12;border-color:#e8933b">使用场景</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#ff8a97;background:#3a1520;border-color:#e05563">场景索引</span><span class="badge grp">G-S · 使用场景索引</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-S"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-S.html"><span class="dir">返回组</span><span class="v">使用场景索引</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">没有 LLM API Key 或想用宿主 Agent 模型：ocr delegate preview/rule 输出 spec，编码 Agent 自己审</div><div class="bullet">面向没有 LLM API Key 或希望复用宿主 Agent（如 QCA、Claude Code）模型能力的场景</div><div class="bullet">ocr delegate preview --format json 输出当前可审查的文件清单，供委托前确认范围</div><div class="bullet">ocr delegate rule src/main.go src/handler.go 输出针对指定文件的审查规则，作为委托审查的标准</div><div class="bullet">委托流程：编码 Agent 用 git diff 取到 diff → 按 delegate 给出的规则审查 → 输出结构化评论，OCR 只做规则与编排</div><div class="bullet">QCA / Claude Code 等宿主 Agent 插件内嵌委托命令，让审查能力融入已有工作流</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>很多开发者没有直接可用的 LLM API Key，或已有宿主 Agent 的模型额度，重复付费不划算</p><p>把『规则生成』与『审查执行』分离：OCR 负责高质量规则，宿主 Agent 负责执行，各用所长</p><p>委托模式让 OCR 审查能力可嵌入任何 Agent 工作流，而不局限于 OCR 自身的模型连接</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">查看可审查清单：运行 ocr delegate preview --format json，确认当前仓库哪些文件可进入委托范围</div><div class="bullet">获取审查规则：运行 ocr delegate rule src/main.go src/handler.go，得到针对这两个文件的规则文本</div><div class="bullet">执行委托审查：在编码 Agent 内用 git diff 取 diff，将 delegate rule 输出的规则与 diff 一起交给宿主 Agent，令其按规则输出结构化评论</div><div class="bullet">嵌入插件：在 QCA / Claude Code 插件中内嵌 ocr delegate 命令，实现『宿主模型 + OCR 规则』的混合审查流</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>无 Key 环境：只有宿主 Agent（如 Claude Code）模型可用，通过 delegate 获取规则后由宿主执行审查</td></tr><tr><td>规则标准化：团队把 delegate rule 输出固化为审查 checklist，所有成员与 Agent 共用同一套标准</td></tr><tr><td>插件集成：Claude Code 插件内调用 delegate 命令，审查能力一键获得</td></tr><tr><td>批量预审：preview 先圈定文件范围，避免委托审查覆盖无关文件</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>把 delegate preview 当审查结果：preview 只是文件清单，真正的审查结论仍需 Agent 按规则执行</li><li>用宿主 Agent 直接审查而不取 delegate rule，等于放弃 OCR 沉淀的审查规则，质量回到裸模型水平</li><li>在委托链中丢失 git diff 上下文，宿主 Agent 只拿到文件全文而非变更，审查失去 diff 焦点</li><li>忽视输出结构化约束，宿主 Agent 返回自由文本评论，无法被下游解析与回贴</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">preview 圈定委托范围</div><div class="evcode"><code>ocr delegate preview --format json</code><code># 返回可审查文件清单，确认范围后再委托</code></div><div class="evdesc">委托前先看文件清单，避免覆盖无关文件，也让宿主 Agent 的审查范围可控。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">把 preview 输出当审查结果</div><div class="evcode"><code>ocr delegate preview --format json &gt; result.json</code><code># 直接把文件清单当结论归档</code></div><div class="evdesc">preview 只是文件清单而非审查结论，真正的审查仍需宿主 Agent 按规则执行，误用导致结果空洞。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">delegate rule + git diff 喂给宿主 Agent</div><div class="evcode"><code>ocr delegate rule src/main.go src/handler.go &gt; rules.md</code><code>git diff &gt; diff.patch</code><code># 宿主 Agent: 按 rules.md 审查 diff.patch，输出结构化评论</code></div><div class="evdesc">OCR 负责高质量规则、宿主 Agent 负责执行，各用所长，无 LLM Key 也能获得规则化审查。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">宿主 Agent 裸审不取规则</div><div class="evcode"><code>git diff | claude -p &quot;review this diff&quot;</code></div><div class="evdesc">放弃 delegate rule 等于放弃 OCR 沉淀的审查规则，审查质量回到裸模型水平，且评论格式不可控。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">插件内嵌委托命令融入既有工作流</div><div class="evcode"><code># QCA/Claude Code 插件中内嵌</code><code>ocr delegate rule src/ &gt; /tmp/ocr-rules.md</code><code># 宿主按规则审查并回贴</code></div><div class="evdesc">审查能力嵌入已有宿主 Agent 工作流，团队成员共享同一套规则标准，无需各自申请 Key。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">委托链丢失 diff 上下文</div><div class="evcode"><code># 只把文件全文交给宿主 Agent，无 git diff</code><code>cat src/main.go | claude -p &quot;review&quot;</code></div><div class="evdesc">宿主 Agent 拿到全文而非变更，审查失去 diff 焦点，评论大量命中历史代码而非本次改动。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">Skill</div><div class="assname"><a href="../assets/skills/SKILL-review.md" target="_blank">SKILL-review.md</a></div><div class="assdesc">通用 review skill：四步 review/filter/fix/report + severity×category 分级</div><div class="assmeta">skills/open-code-review/SKILL.md · 9294 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-cooccurrence" href="cli-delegate.html">ocr delegate&#8592;委托模式即免 Key 场景<span class="etype">共现</span></a><a class="chip e-prerequisite" href="cli-delegate.html">ocr delegate&#8592;免 Key 场景指向 delegate<span class="etype">前置依赖</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

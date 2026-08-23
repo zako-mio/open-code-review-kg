@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>使用场景索引 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+.back a{color:var(--accent);text-decoration:none;font-size:14px;}
+
+.scen-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin:14px 0;}
+.scen-head h3{font-size:17px;color:var(--accent);display:inline-block;margin-right:10px;}
+.brief{font-size:13.5px;color:#cfe8dd;background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:6px;padding:8px 12px;margin:8px 0;}
+.cmdbox{background:#0d1424;border:1px solid #24406e;border-radius:8px;padding:10px 14px;margin:8px 0;}
+.cmdlabel{font-size:11px;color:var(--dim);margin-bottom:6px;letter-spacing:1px;}
+.cmdbox code{display:block;font-family:Consolas,monospace;font-size:12.5px;color:#9cc2ff;background:#16273f;border-radius:5px;padding:6px 10px;margin:4px 0;white-space:pre-wrap;word-break:break-all;}
+.scen-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:720px){.scen-grid{grid-template-columns:1fr;}}
+.scen-col h4{font-size:13px;color:var(--dim);margin:8px 0 6px;}
+.bullet{background:#10151f;border:1px solid var(--border);border-radius:6px;padding:7px 12px;margin:5px 0;font-size:13px;color:#d3d9e4;}
+.antih{font-size:13px;color:var(--warn);margin:10px 0 4px;}
+.pit li{margin:4px 0;font-size:13px;}
+.pit li::marker{color:var(--warn);}
+.rel{margin-top:10px;border-top:1px dashed var(--border);padding-top:8px;}
+.rellabel{font-size:11px;color:var(--dim);margin-right:8px;}
+.tblwrap table th{background:var(--panel);}
+td.scen{white-space:nowrap;}
+td.scen a{color:#ff8a97;font-weight:600;}
+td.cmd{font-family:Consolas,monospace;font-size:12px;color:#9cc2ff;}
+
+</style>
+</head>
+<body>
+<header><h1>使用场景索引 · 工具库索引</h1><p>阿里开源 AI 代码审查工具 — 架构理解 × 工具索引</p></header><main><div class="back"><a href="index.html">&larr; 返回视图入口</a></div>
+<h2>场景速查总表</h2><div class="tblwrap"><table><thead><tr><th>场景</th><th>核心命令</th></tr></thead><tbody><tr><td class="scen"><a href="#use-ci">场景：接入 CI 流水线</a></td><td class="cmd">—</td></tr><tr><td class="scen"><a href="#use-configure">场景：配置模型与规则</a></td><td class="cmd">配置模型：ocr config provider 选择内置 provider（如 DashScope/DeepSeek）或按自定义端点配置 → 随后 ocr config model 指定模型并自动测连通</td></tr><tr><td class="scen"><a href="#use-extend">场景：扩展审查能力</a></td><td class="cmd">—</td></tr><tr><td class="scen"><a href="#use-no-key">场景：免 Key 委托审查</a></td><td class="cmd">查看可审查清单：运行 ocr delegate preview --format json，确认当前仓库哪些文件可进入委托范围</td></tr><tr><td class="scen"><a href="#use-pr-review">场景：审查 PR/分支变更</a></td><td class="cmd">本地审查工作区改动：在仓库目录运行 ocr review，工具自动收集当前改动并产出评论</td></tr><tr><td class="scen"><a href="#use-scan-codebase">场景：审计陌生代码库</a></td><td class="cmd">整库扫描：在仓库根目录运行 ocr scan，等待扫描完成并查看逐文件评论</td></tr></tbody></table></div><h2>场景详解</h2>
+<div class="scen-card" id="use-ci">
+  <div class="scen-head">
+    <h3>场景：接入 CI 流水线</h3>
+    <span class="badge src" style="color:#ffb86b;background:#3a2f12;border-color:#e8933b">使用场景</span><span class="badge tp" style="color:#ff8a97;background:#3a1520;border-color:#e05563">场景索引</span>
+    <div class="brief">让审查自动跑在每个 MR/PR：GitHub Actions 一步复用、GitLab/Gerrit 等加 post_review.py 回贴评论</div>
+  </div>
+  
+  <div class="scen-grid">
+    <div class="scen-col"><h4>适用情况</h4><div class="bullet">让 AI 审查自动跑在每次 MR/PR 上，无需人工触发，是规模化落地的标准形态</div><div class="bullet">GitHub Actions：uses: alibaba/open-code-review@main，三个必填输入 llm_url / llm_auth_token / llm_model，Anthropic 协议模型需加 llm_use_anthropic</div><div class="bullet">GitLab：在 .gitlab-ci.yml 中配置审查作业，结合 post_review.py 把审查结果回贴为 discussion 评论</div></div>
+    <div class="scen-col"><h4>为什么用</h4><div class="bullet">人工 review 无法保证每个 MR 都覆盖，CI 自动化把审查变成合并的必经环节而非可选项</div><div class="bullet">回贴讨论（GitLab discussion / GitHub comment）让审查结论与代码行绑定，开发者在原处即可处理</div></div>
+  </div>
+  <h4 class="antih">常见坑</h4><ul class="pit"><li>把 llm_auth_token 明文写进工作流文件而非 secrets 注入，凭据随仓库泄漏</li><li>布尔输入不写字符串字面量：llm_use_anthropic: true 被 YAML 解析为布尔，action 收到类型错误而静默失败</li></ul>
+  <div class="rel"><span class="rellabel">关联节点</span><a class="chip e-prerequisite" href="../02-node-pages/int-gha.html">GitHub Actions 集成&#8592;CI 场景首选 GitHub Actions<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="../02-node-pages/int-cicd.html">其他 CI 集成&#8592;其他 CI 平台也支持<span class="etype">前置依赖</span></a></div>
+</div>
+<div class="scen-card" id="use-configure">
+  <div class="scen-head">
+    <h3>场景：配置模型与规则</h3>
+    <span class="badge src" style="color:#ffb86b;background:#3a2f12;border-color:#e8933b">使用场景</span><span class="badge tp" style="color:#ff8a97;background:#3a1520;border-color:#e05563">场景索引</span>
+    <div class="brief">首次上手必做：选 provider/模型/API Key，按项目定制规则（rule.json）、过滤路径、调并发与预算</div>
+  </div>
+  <div class="cmdbox"><div class="cmdlabel">命令速查</div><code>配置模型：ocr config provider 选择内置 provider（如 DashScope/DeepSeek）或按自定义端点配置 → 随后 ocr config model 指定模型并自动测连通</code><code>设置语言：ocr config set language zh-CN，让审查评论以中文输出</code><code>临时规则：单次命令加 --rule，如 ocr review --rule &#x27;禁止硬编码密钥&#x27;，不污染仓库配置</code><code>验证规则：运行 ocr rules check，确认规则命中目标文件，输出与实际匹配一致后再正式审查</code></div>
+  <div class="scen-grid">
+    <div class="scen-col"><h4>适用情况</h4><div class="bullet">首次上手必做步骤：配置模型提供方与审查规则，决定审查的语言、范围与标准</div><div class="bullet">ocr config provider 选择模型提供方：内置 DashScope、DeepSeek 等选项，也支持自定义端点接入任意兼容服务</div><div class="bullet">ocr config model 配置具体模型，工具会自动测试连通性，失败即反馈，避免配错模型名</div></div>
+    <div class="scen-col"><h4>为什么用</h4><div class="bullet">审查质量的上限由模型与规则决定：不配置模型则无法运行，不配置规则则审查无差异化</div><div class="bullet">项目级与全局级分层让『团队标准』与『个人偏好』共存：全局规则兜底，项目规则精确</div></div>
+  </div>
+  <h4 class="antih">常见坑</h4><ul class="pit"><li>跳过 ocr config model 的连通性测试直接使用，配错模型名/端点后审查静默失败，排查成本高</li><li>doublestar glob 写错（如用单 * 期望匹配多级目录），include/exclude 不生效，规则范围失控</li></ul>
+  <div class="rel"><span class="rellabel">关联节点</span><a class="chip e-combination" href="../02-node-pages/cfg-providers.html">Provider 体系&#8592;provider+config 命令组合成配置场景<span class="etype">组合</span></a><a class="chip e-combination" href="../02-node-pages/cli-config.html">ocr config&#8592;provider+config 命令组合成配置场景<span class="etype">组合</span></a></div>
+</div>
+<div class="scen-card" id="use-extend">
+  <div class="scen-head">
+    <h3>场景：扩展审查能力</h3>
+    <span class="badge src" style="color:#ffb86b;background:#3a2f12;border-color:#e8933b">使用场景</span><span class="badge tp" style="color:#ff8a97;background:#3a1520;border-color:#e05563">场景索引</span>
+    <div class="brief">规则不够用？MCP 接入外部工具、自定义规则文件、--rule 临时规则、委托模式喂给任意 Agent</div>
+  </div>
+  
+  <div class="scen-grid">
+    <div class="scen-col"><h4>适用情况</h4><div class="bullet">内置规则不够用时提供四条扩展路径：MCP 接入、自定义规则文件、--rule ad-hoc 规则、委托模式</div><div class="bullet">MCP 接入：config.json 的 mcp_servers.&lt;name&gt; 配置外部工具，支持 stdio（本地进程）与 remote（远程服务）两种模式，让审查过程调用外部工具能力</div><div class="bullet">自定义规则文件：内置覆盖 10+ 语言，专项场景（特定框架/合规要求）可补写专属规则文件</div></div>
+    <div class="scen-col"><h4>为什么用</h4><div class="bullet">单一内置规则无法覆盖所有团队规范与框架特性，扩展性是工具长期可用的前提</div><div class="bullet">MCP 生态让审查能联动外部工具（如安全扫描器、数据库 schema 检查），审查从『读代码』升级为『查事实』</div></div>
+  </div>
+  <h4 class="antih">常见坑</h4><ul class="pit"><li>把长指令直接内联进 rule.json 的字符串值，JSON 转义与换行处理困难，且评审修改频繁改配置</li><li>MCP 工具地址配置为不可信远程端点，审查数据可能外泄，remote 模式需确认信任边界</li></ul>
+  <div class="rel"><span class="rellabel">关联节点</span><a class="chip e-prerequisite" href="../02-node-pages/cfg-mcp.html">MCP 扩展&#8592;扩展场景可接 MCP<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="../02-node-pages/cfg-rules-chain.html">四层规则链&#8592;扩展场景可加规则<span class="etype">前置依赖</span></a></div>
+</div>
+<div class="scen-card" id="use-no-key">
+  <div class="scen-head">
+    <h3>场景：免 Key 委托审查</h3>
+    <span class="badge src" style="color:#ffb86b;background:#3a2f12;border-color:#e8933b">使用场景</span><span class="badge tp" style="color:#ff8a97;background:#3a1520;border-color:#e05563">场景索引</span>
+    <div class="brief">没有 LLM API Key 或想用宿主 Agent 模型：ocr delegate preview/rule 输出 spec，编码 Agent 自己审</div>
+  </div>
+  <div class="cmdbox"><div class="cmdlabel">命令速查</div><code>查看可审查清单：运行 ocr delegate preview --format json，确认当前仓库哪些文件可进入委托范围</code><code>获取审查规则：运行 ocr delegate rule src/main.go src/handler.go，得到针对这两个文件的规则文本</code><code>嵌入插件：在 QCA / Claude Code 插件中内嵌 ocr delegate 命令，实现『宿主模型 + OCR 规则』的混合审查流</code></div>
+  <div class="scen-grid">
+    <div class="scen-col"><h4>适用情况</h4><div class="bullet">面向没有 LLM API Key 或希望复用宿主 Agent（如 QCA、Claude Code）模型能力的场景</div><div class="bullet">ocr delegate preview --format json 输出当前可审查的文件清单，供委托前确认范围</div><div class="bullet">ocr delegate rule src/main.go src/handler.go 输出针对指定文件的审查规则，作为委托审查的标准</div></div>
+    <div class="scen-col"><h4>为什么用</h4><div class="bullet">很多开发者没有直接可用的 LLM API Key，或已有宿主 Agent 的模型额度，重复付费不划算</div><div class="bullet">把『规则生成』与『审查执行』分离：OCR 负责高质量规则，宿主 Agent 负责执行，各用所长</div></div>
+  </div>
+  <h4 class="antih">常见坑</h4><ul class="pit"><li>把 delegate preview 当审查结果：preview 只是文件清单，真正的审查结论仍需 Agent 按规则执行</li><li>用宿主 Agent 直接审查而不取 delegate rule，等于放弃 OCR 沉淀的审查规则，质量回到裸模型水平</li></ul>
+  <div class="rel"><span class="rellabel">关联节点</span><a class="chip e-prerequisite" href="../02-node-pages/cli-delegate.html">ocr delegate&#8592;免 Key 场景指向 delegate<span class="etype">前置依赖</span></a><a class="chip e-cooccurrence" href="../02-node-pages/cli-delegate.html">ocr delegate&#8592;委托模式即免 Key 场景<span class="etype">共现</span></a></div>
+</div>
+<div class="scen-card" id="use-pr-review">
+  <div class="scen-head">
+    <h3>场景：审查 PR/分支变更</h3>
+    <span class="badge src" style="color:#ffb86b;background:#3a2f12;border-color:#e8933b">使用场景</span><span class="badge tp" style="color:#ff8a97;background:#3a1520;border-color:#e05563">场景索引</span>
+    <div class="brief">日常审查入口：合并基准模式审 feature 分支、单 commit 审查、GitHub PR 上自动触发</div>
+  </div>
+  <div class="cmdbox"><div class="cmdlabel">命令速查</div><code>本地审查工作区改动：在仓库目录运行 ocr review，工具自动收集当前改动并产出评论</code><code>审查分支 diff：ocr review --from main --to feature-branch，无需 checkout 即可审查任意分支间的变更</code><code>审查单个 commit：ocr review --commit abc123，适合对历史提交定点复核</code></div>
+  <div class="scen-grid">
+    <div class="scen-col"><h4>适用情况</h4><div class="bullet">日常审查入口：对当前工作区、分支 diff 或指定 commit 进行 AI 代码审查，是使用频率最高的场景</div><div class="bullet">支持三种触发方式：ocr review（审查当前工作区改动）、ocr review --from main --to feature-branch（审查分支间 diff）、ocr review --commit abc123（审查单个 commit）</div><div class="bullet">GitHub PR 自动触发：examples/github_actions/ocr-review.yml 监听 pull_request_target 的 opened/synchronize/reopened 事件，以及 issue_comment 中出现 &#x27;/open-code-review&#x27; 命令时触发</div></div>
+    <div class="scen-col"><h4>为什么用</h4><div class="bullet">PR 审查是代码质量的咽喉，手动逐行 review 耗时且易漏，AI 预审把高频问题挡在合并前</div><div class="bullet">分支/commit 级触发让审查可以发生在合并前的任意时点，而不仅限于 CI 阶段</div></div>
+  </div>
+  <h4 class="antih">常见坑</h4><ul class="pit"><li>在 GitHub Actions 中把触发权限放开给所有人（不加 MEMBER/OWNER/COLLABORATOR 限制），外部贡献者可用评论触发你的工作流消耗 token</li><li>忽略并发组配置导致同一 PR 多次触发并发审查，评论重复且账单翻倍</li></ul>
+  <div class="rel"><span class="rellabel">关联节点</span><a class="chip e-prerequisite" href="../02-node-pages/cli-review.html">ocr review&#8592;PR 审查场景指向 review 命令<span class="etype">前置依赖</span></a><a class="chip e-combination" href="../02-node-pages/int-gha.html">GitHub Actions 集成&#8592;Action+review 组合成 PR 自动审查<span class="etype">组合</span></a><a class="chip e-combination" href="../02-node-pages/cli-review.html">ocr review&#8592;Action+review 组合成 PR 自动审查<span class="etype">组合</span></a></div>
+</div>
+<div class="scen-card" id="use-scan-codebase">
+  <div class="scen-head">
+    <h3>场景：审计陌生代码库</h3>
+    <span class="badge src" style="color:#ffb86b;background:#3a2f12;border-color:#e8933b">使用场景</span><span class="badge tp" style="color:#ff8a97;background:#3a1520;border-color:#e05563">场景索引</span>
+    <div class="brief">无 git 历史/无有意义 diff 时：全文件扫描，按语言/目录分束，DEDUP 去重，项目级总结</div>
+  </div>
+  <div class="cmdbox"><div class="cmdlabel">命令速查</div><code>整库扫描：在仓库根目录运行 ocr scan，等待扫描完成并查看逐文件评论</code><code>限定范围：ocr scan --path internal/agent，只扫指定目录，快速聚焦目标模块</code><code>分束控制规模：ocr scan --batch by-language 按语言分批，或 --batch by-directory 按目录分批，避免单批过大</code></div>
+  <div class="scen-grid">
+    <div class="scen-col"><h4>适用情况</h4><div class="bullet">面向无 git 历史或无有意义 diff 的仓库：接手遗留代码、安全审计、整体摸底时用扫描模式而非 diff 模式</div><div class="bullet">ocr scan 扫描整个仓库，ocr scan --path internal/agent 可限定子目录，聚焦特定模块</div><div class="bullet">--batch 支持 by-language 或 by-directory 分束：按语言或目录分批处理，控制单次扫描的规模与成本</div></div>
+    <div class="scen-col"><h4>为什么用</h4><div class="bullet">陌生代码库没有『变更』概念，diff 模式无从谈起，必须整库扫描建立基线</div><div class="bullet">全库一次性送入模型不可行，by-language/by-directory 分束把扫描切成可管理的批次</div></div>
+  </div>
+  <h4 class="antih">常见坑</h4><ul class="pit"><li>对超大仓库不做 --batch 直接全量扫描，单批输入超限导致任务失败或成本爆炸</li><li>忽略 DEDUP 去重，跨文件重复问题刷屏，掩盖真正的高价值发现</li></ul>
+  <div class="rel"><span class="rellabel">关联节点</span><a class="chip e-prerequisite" href="../02-node-pages/cli-scan.html">ocr scan&#8592;代码库审计指向 scan 命令<span class="etype">前置依赖</span></a></div>
+</div>
+</body>
+</html>

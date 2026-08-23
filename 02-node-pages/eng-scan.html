@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全文件扫描引擎 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-B.html">审查引擎</a> / <span>全文件扫描引擎</span></div>
+  <h1>全文件扫描引擎</h1>
+  <div class="badges"><span class="badge src" style="color:#7fe0d8;background:#12302c;border-color:#5ad0d0">审查引擎</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-B · 审查引擎</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-B"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-B.html"><span class="dir">返回组</span><span class="v">审查引擎</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">无 diff 审查：枚举→过滤→分束→批处理→DEDUP 去重→项目总结，ScanItem 携带全文件内容</div><div class="bullet">全文件扫描引擎实现无 diff 审查：不依赖 git diff，对仓库全量文件内容做审查</div><div class="bullet">Run 时序：Enumerate→filterScanItems→filterLargeScans→dispatchSubtasks（按 batch）→maybeRunProjectSummary→WaitBackground→Finalize</div><div class="bullet">ScanItem 携带全文件 Content，供模型基于全文审查</div><div class="bullet">DiffLookup 返回合成 Diff：NewFileContent=全文、Diff 为空，使 resolveFromFileContent 路径生效</div><div class="bullet">额外存在 DEDUP_TASK（CommentCollector.Snapshot/Since/ReplaceSince 批次级去重）与 PROJECT_SUMMARY_TASK</div><div class="bullet">Provider.Enumerate 用 git ls-files + 未跟踪文件列举，2MiB 大小上限，8000 字节内容嗅探</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>新仓库/未提交场景没有 diff 可审，全文件扫描是唯一可行的审查入口</p><p>全文件内容让模型看到完整上下文，能发现跨函数/跨文件的逻辑问题（diff 模式看不到未改动区域）</p><p>合成 Diff 复用同一套解析管线，无需为 scan 单独实现定位逻辑</p><p>DEDUP_TASK 解决批次重复生成相同评论的问题；PROJECT_SUMMARY_TASK 提供项目级整体结论</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">Enumerate 枚举仓库文件：git ls-files 列出跟踪文件 + 未跟踪文件，共同构成扫描候选集</div><div class="bullet">filterScanItems 过滤无需扫描的项，filterLargeScans 剔除超大文件（2MiB 上限）</div><div class="bullet">内容嗅探：8000 字节取样判断文件类型/可审性，跳过二进制等不可审内容</div><div class="bullet">每个 ScanItem 携带全文件 Content 进入子任务，按 batch 经 dispatchSubtasks 分发</div><div class="bullet">DiffLookup 为扫描项返回合成 Diff（NewFileContent=全文、Diff 为空），使 resolveFromFileContent 生效，行号定位直接基于全文</div><div class="bullet">批次级 DEDUP_TASK 通过 CommentCollector.Snapshot/Since/ReplaceSince 对重复评论去重</div><div class="bullet">maybeRunProjectSummary 视条件触发 PROJECT_SUMMARY_TASK 生成项目级总结，最后 WaitBackground 等待后台任务后 Finalize</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>全新仓库首次审查无 git 历史，scan 模式全量枚举并逐文件审查</td></tr><tr><td>仓库含 3 个 5MB 大文件被 filterLargeScans 剔除，其余文件正常扫描</td></tr><tr><td>多个子任务对同一代码模式给出重复评论，DEDUP_TASK 批次级去重只保留一条</td></tr><tr><td>未跟踪的新文件被 Enumerate 纳入扫描范围，提交前就能被审查</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>把 scan 模式当 diff 模式用，期待行号定位基于 diff 行号而非全文（合成 Diff 语义不同）</li><li>忘记 2MiB 上限，超大文件直接进子任务拖垮上下文</li><li>忽略 8000 字节嗅探，二进制文件被当文本扫描产出垃圾评论</li><li>不做 DEDUP_TASK 去重，批次重复评论成倍污染最终结果</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">2MiB 上限+8000 字节嗅探，过滤不可审内容</div><div class="evcode"><code>items := Provider.Enumerate()   // git ls-files + 未跟踪</code><code>items = filterScanItems(items)</code><code>items = filterLargeScans(items, 2*1024*1024)  // 2MiB 上限</code><code>for it := range items {</code><code>    if sniff(it, 8000) == Binary { skip(it) }  // 字节嗅探</code><code>}</code></div><div class="evdesc">超大文件在进入子任务前被 2MiB 上限剔除，8000 字节取样嗅探跳过二进制，避免大文件拖垮上下文、二进制产出垃圾评论。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">不设上限不嗅探，超大/二进制文件直接进子任务</div><div class="evcode"><code># 错误：全量扫描不过滤</code><code>for _, f := range enumerateAll() {</code><code>    dispatch(ScanItem{Content: readAll(f)})   # 5MB 文件+二进制</code><code>}</code></div><div class="evdesc">超大文件直接进子任务撑爆上下文导致该任务失败，二进制文件被当文本扫描产出无意义评论，白白消耗预算。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">DEDUP_TASK 批次级去重 + PROJECT_SUMMARY_TASK 项目级结论</div><div class="evcode"><code>snap := collector.Snapshot()</code><code>since := collector.Since(snap)</code><code>collector.ReplaceSince(dedup(since))   // 批次级去重</code><code>maybeRunProjectSummary(items)          // 项目级总结</code><code>WaitBackground()</code><code>Finalize()</code></div><div class="evdesc">CommentCollector.Snapshot/Since/ReplaceSince 实现批次级去重，同一模式被多个子任务重复评论时只保留一条；PROJECT_SUMMARY_TASK 补充项目级整体结论。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">不做去重，批次重复评论成倍污染结果</div><div class="evcode"><code># 错误：各子任务评论直接汇入</code><code>collector.AddAll(subtaskResults)   # 相同问题重复 N 条</code><code># 无 Snapshot/Since/ReplaceSince 去重</code></div><div class="evdesc">多个子任务对同一代码模式给出相同评论时不做批次级去重，重复评论成倍污染最终审查结果，开发者被迫处理大量冗余噪音。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/llmloop-loop.go.md" target="_blank">llmloop-loop.go.md</a></div><div class="assdesc">ReAct 主循环节选：RunPerFile / 终止条件 / 工具分派 / 异步评论</div><div class="assmeta">internal/llmloop/loop.go · 1778 B</div></div><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/scan-agent.go.md" target="_blank">scan-agent.go.md</a></div><div class="assdesc">全文件扫描引擎节选：Run 时序 / DEDUP / PROJECT_SUMMARY</div><div class="assmeta">internal/scan/agent.go · 2732 B</div></div><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/gitcmd-runner.go.md" target="_blank">gitcmd-runner.go.md</a></div><div class="assdesc">git 子进程并发限流（默认 16）</div><div class="assmeta">internal/gitcmd/runner.go · 1271 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="cli-scan.html">ocr scan&#8594;scan 命令由扫描引擎驱动<span class="etype">前置依赖</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>其他 CI 集成 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-E.html">集成生态</a> / <span>其他 CI 集成</span></div>
+  <h1>其他 CI 集成</h1>
+  <div class="badges"><span class="badge src" style="color:#ff8a97;background:#3a1520;border-color:#e05563">集成生态</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-E · 集成生态</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-E"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-E.html"><span class="dir">返回组</span><span class="v">集成生态</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">GitLab CI / Gerrit Jenkinsfile / GitFlic CI / Bitbucket Pipelines / 阿里云 Codeup CI + post_review.py 评论回贴</div><div class="bullet">examples/ 目录提供 6 套非 GitHub CI 集成模板：gitlab_ci、gerrit_ci、gitflic_ci、bitbucket_pipelines、codeup_ci</div><div class="bullet">gitlab_ci：.gitlab-ci.yml + post_review.py，环境变量 OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL + 重试系列 OCR_RETRY_BASE_DELAY/OCR_MAX_RETRIES + OCR_STICKY_SUMMARY/OCR_INCREMENTAL/OCR_ROUTE_*/OCR_FAIL_ON_SEVERITY</div><div class="bullet">gitlab_ci 产物：.ocr/ocr-stats.env + result.json + stderr.log，支持 fork MR</div><div class="bullet">gerrit_ci：Jenkinsfile + post_review.py</div><div class="bullet">gitflic_ci：gitflic-ci.yaml + post_review.py</div><div class="bullet">bitbucket_pipelines：bitbucket-pipelines.yml；codeup_ci：阿里云 Codeup codeup-flow.yml + post_review.py</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>覆盖国内常用平台：阿里云 Codeup、GitLab、Bitbucket 等，多平台审查体验一致</p><p>环境变量式配置天然适配各 CI 平台的 secrets/变量注入机制</p><p>gitlab_ci 支持 fork MR，保证开源协作场景可用</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">GitLab：参考 examples/gitlab_ci/.gitlab-ci.yml 配置 job，变量经 GitLab CI/CD Variables 注入</div><div class="bullet">重试控制：OCR_RETRY_BASE_DELAY 与 OCR_MAX_RETRIES 配合调 API 重试策略</div><div class="bullet">增量/粘性对齐：OCR_INCREMENTAL / OCR_STICKY_SUMMARY 行为与 GHA 版一致</div><div class="bullet">路由：OCR_ROUTE_* 系列按严重级/类别分流 finding</div><div class="bullet">失败策略：OCR_FAIL_ON_SEVERITY 设定达到某严重度即令 CI 失败</div><div class="bullet">阿里云用户：直接套用 examples/codeup_ci/codeup-flow.yml</div><div class="bullet">结果消费：解析 .ocr/ocr-stats.env 与 result.json 供下游步骤使用</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>GitLab 私有仓库 MR 审查：gitlab_ci 模板 + CI/CD Variables 注入三件套</td></tr><tr><td>阿里云 Codeup 用户：codeup-flow.yml 开箱即用</td></tr><tr><td>Gerrit 评审流：Jenkinsfile + post_review.py 集成</td></tr><tr><td>fork MR 场景：gitlab_ci 支持 fork MR 解析</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>忘记设置 OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL 三件套，任务启动即鉴权失败</li><li>不配重试参数：网络抖动时一次性失败；OCR_MAX_RETRIES 应配合 OCR_RETRY_BASE_DELAY 使用</li><li>乱设 OCR_FAIL_ON_SEVERITY：低危问题也会让 CI 失败，阻塞流水线</li><li>CI 清理策略删掉 .ocr/ 产物目录，result.json/stderr.log 丢失无法事后排查</li><li>照抄 GHA 的输入参数名（如 llm_url）到其他 CI：非 GitHub 集成用 OCR_* 环境变量体系，混用不生效</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">GitLab CI 变量注入 + 重试配置</div><div class="evcode"><code>variables:</code><code>  OCR_LLM_URL: &quot;$LLM_URL&quot;</code><code>  OCR_LLM_TOKEN: &quot;$LLM_TOKEN&quot;</code><code>  OCR_LLM_MODEL: &quot;deepseek-chat&quot;</code><code>  OCR_RETRY_BASE_DELAY: &quot;1&quot;</code><code>  OCR_MAX_RETRIES: &quot;3&quot;</code></div><div class="evdesc">gitlab_ci 模板用 OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL 三件套注入连接，OCR_RETRY_BASE_DELAY 与 OCR_MAX_RETRIES 配合应对网络抖动。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">忘记三件套任务启动即失败</div><div class="evcode"><code>variables:</code><code>  OCR_LLM_MODEL: &quot;deepseek-chat&quot;</code></div><div class="evdesc">缺 OCR_LLM_URL 与 OCR_LLM_TOKEN 时任务启动即鉴权失败，且错误只出现在运行时而非配置期。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">失败策略 + 产物留档</div><div class="evcode"><code>variables:</code><code>  OCR_FAIL_ON_SEVERITY: &quot;high&quot;</code><code>  OCR_STICKY_SUMMARY: &quot;true&quot;</code><code>  OCR_INCREMENTAL: &quot;true&quot;</code><code>after_script:</code><code>  - cat .ocr/ocr-stats.env</code></div><div class="evdesc">OCR_FAIL_ON_SEVERITY 达 high 才阻断 CI；产物 .ocr/ocr-stats.env + result.json + stderr.log 供事后排查，增量/粘性行为与 GHA 版对齐。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">乱设 OCR_FAIL_ON_SEVERITY 阻塞流水线</div><div class="evcode"><code>variables:</code><code>  OCR_FAIL_ON_SEVERITY: &quot;info&quot;</code></div><div class="evdesc">严重度门槛设得过低，低危 finding 也会令 CI 失败，频繁阻塞流水线与发布。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">fork MR 与多平台覆盖</div><div class="evcode"><code># examples/gitlab_ci：.gitlab-ci.yml + post_review.py，支持 fork MR</code><code># examples/gerrit_ci：Jenkinsfile + post_review.py</code><code># examples/codeup_ci：阿里云 Codeup codeup-flow.yml + post_review.py</code></div><div class="evdesc">examples/ 提供 6 套模板（gitlab_ci/gerrit_ci/gitflic_ci/bitbucket_pipelines/codeup_ci），gitlab_ci 支持 fork MR，行为与 GHA 版对齐（OCR_INCREMENTAL/OCR_STICKY_SUMMARY/OCR_ROUTE_*）。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">照抄 GHA 输入名到其他 CI</div><div class="evcode"><code>variables:</code><code>  llm_url: &quot;https://...&quot;</code><code>  llm_model: &quot;deepseek-chat&quot;</code></div><div class="evdesc">非 GitHub 集成使用 OCR_* 环境变量体系（OCR_LLM_URL/TOKEN/MODEL 等），照抄 GHA 的 llm_url/llm_model 输入名不会被识别，配置静默不生效。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">CI 集成</div><div class="assname"><a href="../assets/ci/gitlab-ci.yml" target="_blank">gitlab-ci.yml</a></div><div class="assdesc">GitLab CI 审查作业示例（含 OCR_* 环境变量族）</div><div class="assmeta">examples/gitlab_ci/.gitlab-ci.yml · 9775 B</div></div><div class="assetcard"><div class="asstype">CI 集成</div><div class="assname"><a href="../assets/ci/gerrit-Jenkinsfile" target="_blank">gerrit-Jenkinsfile</a></div><div class="assdesc">Gerrit 评审流 Jenkinsfile 示例</div><div class="assmeta">examples/gerrit_ci/Jenkinsfile · 5261 B</div></div><div class="assetcard"><div class="asstype">CI 集成</div><div class="assname"><a href="../assets/ci/codeup-flow.yml" target="_blank">codeup-flow.yml</a></div><div class="assdesc">阿里云 Codeup CI 示例</div><div class="assmeta">examples/codeup_ci/codeup-flow.yml · 1894 B</div></div><div class="assetcard"><div class="asstype">CI 集成</div><div class="assname"><a href="../assets/ci/gitflic-ci.yaml" target="_blank">gitflic-ci.yaml</a></div><div class="assdesc">GitFlic CI 示例</div><div class="assmeta">examples/gitflic_ci/gitflic-ci.yaml · 3407 B</div></div><div class="assetcard"><div class="asstype">CI 集成</div><div class="assname"><a href="../assets/ci/bitbucket-pipelines.yml" target="_blank">bitbucket-pipelines.yml</a></div><div class="assdesc">Bitbucket Pipelines 示例</div><div class="assmeta">examples/bitbucket_pipelines/bitbucket-pipelines.yml · 10666 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="use-ci.html">场景：接入 CI 流水线&#8594;其他 CI 平台也支持<span class="etype">前置依赖</span></a><a class="chip e-variant" href="int-gha.html">GitHub Actions 集成&#8592;不同 CI 平台变体<span class="etype">变体</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

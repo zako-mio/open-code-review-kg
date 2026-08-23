@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>断点续审与指纹复用 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-B.html">审查引擎</a> / <span>断点续审与指纹复用</span></div>
+  <h1>断点续审与指纹复用</h1>
+  <div class="badges"><span class="badge src" style="color:#7fe0d8;background:#12302c;border-color:#5ad0d0">审查引擎</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-B · 审查引擎</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-B"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-B.html"><span class="dir">返回组</span><span class="v">审查引擎</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">sha256(mode+old+new+diffText) 指纹复用已完成文件评论；SealedInput 冻结 commit 端点防 ref 漂移</div><div class="bullet">断点续审通过任务指纹复用跳过已完成审查，从断点继续执行未决项</div><div class="bullet">reviewItemFingerprint = sha256(mode + oldPath + newPath + diffText)，是评审项的确定性身份指纹</div><div class="bullet">父 manifest 中标记 completed/reused 的评论直接回填 Collector（复用），未决项重跑</div><div class="bullet">scanItemFingerprint = sha256(full_scan + path + content)，是全文件扫描项的指纹</div><div class="bullet">SealedInput 冻结 commit 端点，防止 ref 移动导致身份漂移</div><div class="bullet">用法入口：ocr review --resume &lt;session-id&gt;</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>大仓库/长会话中断后从头重审成本极高，指纹复用把已完成工作降为 O(1) 回填</p><p>指纹基于内容与路径而非时间，同一 diff 多次审查指纹一致，天然幂等</p><p>SealedInput 冻结端点解决审查进行中远端 ref 更新导致的前后身份不一致</p><p>复用/重跑决策由父 manifest 状态驱动，覆盖度契约是单一事实源</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">生成评审项指纹 reviewItemFingerprint=sha256(mode+oldPath+newPath+diffText)，作为任务身份标识</div><div class="bullet">续审时查询父 manifest：条目状态为 completed 或 reused 的评论直接回填 Collector，不重新调用 LLM</div><div class="bullet">未决（pending/failed）条目重新执行审查子任务</div><div class="bullet">scan 模式生成 scanItemFingerprint=sha256(full_scan+path+content) 标识扫描项用于复用</div><div class="bullet">SealedInput 在会话启动时冻结 commit 端点（commit hash 级别），后续引用不变</div><div class="bullet">执行入口 ocr review --resume &lt;session-id&gt; 指定要恢复的会话</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>30 文件审查跑到第 25 个断网，--resume 后 25 个 completed 指纹直接回填，仅重跑 5 个</td></tr><tr><td>同一 diff 被评审两次（如重复提交），指纹一致直接复用评论，无重复 LLM 开销</td></tr><tr><td>审查中远端仓库被 push 新 commit，SealedInput 保证本会话仍引用冻结端点，评论身份不漂移</td></tr><tr><td>scan 模式下文件内容未变的扫描项按 scanItemFingerprint 复用，仅重扫变化文件</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>指纹遗漏 diffText 或 mode 分量，同一 diff 不同模式产出相同指纹，错误复用评论</li><li>不检查父 manifest 状态直接复用，failed 条目被当 completed 回填污染评论集</li><li>依赖可变 ref（如分支名）而非冻结 commit 端点，审查期间 ref 移动导致身份漂移、评论错位</li><li>续审时重建全部会话而非按指纹差量续跑，退化为全量重审</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">指纹含 mode+oldPath+newPath+diffText，父 manifest 状态驱动复用</div><div class="evcode"><code>fp := sha256(mode + oldPath + newPath + diffText)</code><code>if m.Status(fp) == Completed || m.Status(fp) == Reused {</code><code>    collector.Backfill(comment(fp))   // 直接回填，不再调 LLM</code><code>} else {</code><code>    rerun(fp)                          // 未决项重跑</code><code>}</code></div><div class="evdesc">reviewItemFingerprint 覆盖模式/路径/diff 全身份要素，父 manifest 中 completed/reused 的评论直接回填 Collector，未决项才重跑，断点续审 O(1) 恢复。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">指纹漏分量或依赖可变 ref，身份漂移</div><div class="evcode"><code># 错误：指纹缺 diffText</code><code>fp := sha256(mode + oldPath + newPath)</code><code># 错误：用分支名而非冻结 commit</code><code>input.Ref = &quot;main&quot;   // ref 移动导致前后身份不一致</code></div><div class="evdesc">指纹遗漏分量会让同一 diff 不同模式产出相同指纹，错误复用评论；依赖可变 ref 而非 SealedInput 冻结的 commit 端点，审查期间 ref 移动即身份漂移、评论错位。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">SealedInput 冻结 commit 端点</div><div class="evcode"><code>input := SealedInput{</code><code>    Commit: repo.Resolve(&quot;HEAD&quot;).Hash,  // 启动时冻结 commit hash</code><code>}</code><code># 审查全程引用冻结端点，远端 push 不影响本会话</code></div><div class="evdesc">会话启动时把输入冻结在 commit hash 级别，审查期间远端仓库即使被 push 新 commit，本会话仍引用冻结端点，评论身份不漂移。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">续审时全量重建而非按指纹差量续跑</div><div class="evcode"><code># 错误：--resume 后仍全量重审</code><code>reviewAll()</code><code># 正确：ocr review --resume &lt;session-id&gt; 按指纹差量续跑</code></div><div class="evdesc">不按指纹差量续跑退化为全量重审，已完成工作的 LLM 开销全部浪费，断点续审失去意义。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/agent.go.md" target="_blank">agent.go.md</a></div><div class="assdesc">agent.go 核心节选：Run 流水线 / dispatchSubtasks / executeSubtask / REVIEW_FILTER</div><div class="assmeta">internal/agent/agent.go · 3451 B</div></div><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/session-resume.go.md" target="_blank">session-resume.go.md</a></div><div class="assdesc">断点续审节选：指纹复用 / SealedInput 冻结</div><div class="assmeta">internal/session/resume.go · 1716 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="eng-manifest.html">Run Manifest 覆盖度契约&#8592;复用必须过父 manifest<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cli-review.html">ocr review&#8594;review 支持 --resume 续审<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="eng-session.html">会话 JSONL 持久化&#8592;续审依赖会话持久化<span class="etype">前置依赖</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

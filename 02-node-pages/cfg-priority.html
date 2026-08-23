@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配置优先级 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-D.html">配置与模型</a> / <span>配置优先级</span></div>
+  <h1>配置优先级</h1>
+  <div class="badges"><span class="badge src" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">配置模型</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-D · 配置与模型</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-D"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-D.html"><span class="dir">返回组</span><span class="v">配置与模型</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">5 级解析：显式 --provider/--model &gt; config.json &gt; OCR_LLM_* 环境变量 &gt; ANTHROPIC_* 环境变量 &gt; shell RC</div><div class="bullet">5 级优先级链，实现于 internal/llm/resolver.go 的 ResolveEndpointWithOptions</div><div class="bullet">① 最高：命令行显式 --provider/--model 参数</div><div class="bullet">② OCR 配置文件：config.json 的 providers/custom_providers 段</div><div class="bullet">③ OCR 环境变量：OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL/OCR_LLM_AUTH_HEADER/OCR_LLM_EXTRA_HEADERS/OCR_LLM_PROTOCOL/OCR_LLM_USE_ANTHROPIC/OCR_LLM_TIMEOUT</div><div class="bullet">④ Claude Code 环境：ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/ANTHROPIC_MODEL</div><div class="bullet">⑤ 最低：shell RC（.zshrc/.bashrc 中 export 的 ANTHROPIC_* 系列）</div><div class="bullet">高优先级覆盖低优先级：命令行 &gt; config.json &gt; OCR_* env &gt; ANTHROPIC_* env &gt; shell RC</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>配置来源多层并存（项目配置/CI 环境/用户 shell），确定性覆盖规则避免“改了不生效”的困惑</p><p>与 Claude Code 生态兼容：用户已有 ANTHROPIC_* 环境变量时可零配置复用</p><p>CI 场景用环境变量注入比改配置文件更灵活，且不污染仓库</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">临时指定（一级）：ocr review --provider openai --model gpt-4o</div><div class="bullet">持久配置（二级）：写 config.json 的 providers 段</div><div class="bullet">CI/脚本（三级）：export OCR_LLM_URL=... OCR_LLM_MODEL=... OCR_LLM_TOKEN=...</div><div class="bullet">复用 Claude Code（四级）：export ANTHROPIC_BASE_URL=... ANTHROPIC_AUTH_TOKEN=... ANTHROPIC_MODEL=...</div><div class="bullet">shell 常驻（五级）：在 .zshrc/.bashrc 中 export ANTHROPIC_* 系列</div><div class="bullet">调超时：export OCR_LLM_TIMEOUT 覆盖默认超时</div><div class="bullet">排查生效来源：对照 resolver.go 的 ResolveEndpointWithOptions 逐级确认当前取值</div><div class="bullet">验证：查看实际请求的 base URL/模型名，确认被哪一级覆盖</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>CI 中覆盖用户 shell 默认模型：CI 步骤 export OCR_LLM_MODEL（三级）压过用户 shell RC（五级）</td></tr><tr><td>团队统一端点：config.json 固定 provider，个人临时用命令行参数覆盖</td></tr><tr><td>Claude Code 用户零配置迁移：已有 ANTHROPIC_* 环境变量直接生效</td></tr><tr><td>生产排障：请求超时/连错端点时按五级逐层排查取值来源</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>误以为环境变量优先于配置文件：实际 config.json（二级）优先于 OCR_* 环境变量（三级），改 env 不生效先查 config.json</li><li>shell RC 改动后忘记新开终端/重启 shell，误判“配置不生效”</li><li>混用 ANTHROPIC_* 与 OCR_* 两组变量导致来源不明，排查前先确认当前生效级别</li><li>同时改 --provider 与 config.json provider 段但不一致：命令行参数生效，看起来“配置没改”</li><li>依赖 shell RC 的 ANTHROPIC_* 而未意识到它优先级最低，任何上层配置都能覆盖它</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">命令行参数一级覆盖全部配置</div><div class="evcode"><code>ocr review --provider openai --model gpt-4o</code></div><div class="evdesc">显式 --provider/--model 参数是五级优先级链的最高级，覆盖 config.json、OCR_* 环境变量、ANTHROPIC_* 与 shell RC，适合临时指定。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">误以为环境变量优先于配置文件</div><div class="evcode"><code>{</code><code>  &quot;providers&quot;: {</code><code>    &quot;deepseek&quot;: { &quot;models&quot;: [&quot;deepseek-chat&quot;] }</code><code>  }</code><code>}</code><code># export OCR_LLM_MODEL=deepseek-reasoner  &lt;- 以为能覆盖</code></div><div class="evdesc">实际 config.json 的 providers 段（二级）优先于 OCR_* 环境变量（三级），env 改动不生效时先查 config.json，而非反复 export。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">CI 用三级 OCR_* 变量压过用户 shell 五级配置</div><div class="evcode"><code># CI 步骤中注入（三级）</code><code>export OCR_LLM_URL=https://api.example.com/v1</code><code>export OCR_LLM_MODEL=deepseek-chat</code><code># 用户 shell RC（五级）export ANTHROPIC_MODEL=claude-3-5-sonnet</code></div><div class="evdesc">三级 &gt; 五级，CI 注入的 OCR_* 变量确定性覆盖用户本机 shell 里的 ANTHROPIC_* 默认值，审查端点/模型可控。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">shell RC 改动后未重开终端</div><div class="evcode"><code># .zshrc 中新增</code><code>export ANTHROPIC_BASE_URL=https://new.example.com</code></div><div class="evdesc">当前 shell 未 source .zshrc 时运行时仍是旧值，误判&quot;配置不生效&quot;；修改 shell RC 后需新开终端或 source 生效。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">零配置复用 Claude Code 环境（四级）</div><div class="evcode"><code>export ANTHROPIC_BASE_URL=...</code><code>export ANTHROPIC_AUTH_TOKEN=...</code><code>export ANTHROPIC_MODEL=...</code></div><div class="evdesc">已有 Claude Code 环境变量的用户无需任何配置即可运行；没有其他来源时四级环境直接生效。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">OCR_* 与 ANTHROPIC_* 两组变量并存难排查</div><div class="evcode"><code>export OCR_LLM_URL=https://a.example.com</code><code>export ANTHROPIC_BASE_URL=https://b.example.com</code></div><div class="evdesc">两组变量并存时按优先级链裁决（OCR_* 三级 &gt; ANTHROPIC_* 四级），实际生效端点可能与预期不符；排查时应对照 internal/llm/resolver.go 的 ResolveEndpointWithOptions 逐级确认取值来源。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/llm-resolver.go.md" target="_blank">llm-resolver.go.md</a></div><div class="assdesc">5 级配置优先级解析节选：ResolveEndpointWithOptions</div><div class="assmeta">internal/llm/resolver.go · 4171 B</div></div><div class="assetcard"><div class="asstype">配置示例</div><div class="assname"><a href="../assets/configs/config.example.json" target="_blank">config.example.json</a></div><div class="assdesc">全局配置示例（provider/自定义端点/LLM/MCP/遥测）</div><div class="assmeta">(自建示例) · 1353 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="cli-config.html">ocr config&#8594;配置命令写入优先级链<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cfg-providers.html">Provider 体系&#8592;provider 按优先级解析<span class="etype">前置依赖</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

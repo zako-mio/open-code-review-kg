@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>上下文三区压缩 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-B.html">审查引擎</a> / <span>上下文三区压缩</span></div>
+  <h1>上下文三区压缩</h1>
+  <div class="badges"><span class="badge src" style="color:#7fe0d8;background:#12302c;border-color:#5ad0d0">审查引擎</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-B · 审查引擎</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-B"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-B.html"><span class="dir">返回组</span><span class="v">审查引擎</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">frozen（前 2 条）+ compress（LLM 摘要进 previous_review_summary）+ active（最近 K 轮），60%/80% 双阈值触发</div><div class="bullet">上下文压缩把会话消息划分为三个区：frozen（messages[0:2] 系统/前置固定区）+ compress 区（可压缩区）+ active 区（最近活动区）</div><div class="bullet">compress 区由 LLM 摘要为 previous_review_summary，追加进 user 消息以保留审查连续性</div><div class="bullet">active 区按剩余预算保留最近 K 轮对话，保证当前任务的完整上下文</div><div class="bullet">60% 软阈值：后台异步触发压缩，不阻塞审查；80% 警告阈值：同步立即压缩，防止溢出</div><div class="bullet">压缩失败时保留原消息，不丢内容；每会话独立 compressionState，防止跨文件互踩</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>长会话中历史轮次占满上下文窗口，导致当前轮次被截断或模型质量下降</p><p>分区设计让『必须保留的协议头』（frozen）与『可压缩的历史审查』（compress）分离，结构清晰可预测</p><p>软/硬双阈值平衡成本与质量：60% 后台异步压缩无感，80% 同步兜底防溢出</p><p>每会话独立状态避免多文件并行会话共享压缩状态，导致 A 会话压缩污染 B 会话</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">会话消息按三区划分：frozen=前 2 条（系统提示等），compress=中间历史区，active=最近对话区</div><div class="bullet">触发时机由已用上下文占比决定：达到 60% 软阈值时后台异步执行压缩，不阻塞当前审查</div><div class="bullet">达到 80% 警告阈值时同步立即压缩，强制腾出空间防止溢出</div><div class="bullet">压缩时 LLM 将 compress 区内容摘要成 previous_review_summary，追加进 user 消息</div><div class="bullet">active 区按剩余预算保留最近 K 轮消息，其余并入 compress 区</div><div class="bullet">压缩失败时保留原始消息列表，不执行破坏性替换，保证审查连续性不中断</div><div class="bullet">每个文件会话持有独立 compressionState 实例，互不共享</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>单文件 30 轮审查后上下文达 60%，后台异步触发摘要，用户无感继续审查</td></tr><tr><td>超大 diff 审查中上下文冲到 80%，同步压缩立即执行，防止当前请求溢出失败</td></tr><tr><td>摘要后的 previous_review_summary 让后续轮次仍能引用早期审查结论，保持连续性</td></tr><tr><td>并行审查 5 个文件会话，各会话独立压缩互不干扰</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>全量压缩包括 frozen 系统消息，破坏协议前缀导致后续工具调用失效</li><li>压缩失败后仍执行截断丢弃，违反『失败保留原消息』契约</li><li>全局共享单一压缩状态，多文件会话互相踩踏（A 的压缩清掉 B 的 active 区）</li><li>只压缩不保留摘要，审查结论断档，后续轮次无法引用早期决策</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">60% 软阈值后台异步压缩+摘要追加 user 消息</div><div class="evcode"><code>if usage &gt;= 60% &amp;&amp; !compressing {</code><code>    go compressAsync(state)   // 后台异步，不阻塞审查</code><code>    summary := llmSummarize(compressZone)</code><code>    appendToUserMsg(&quot;previous_review_summary&quot;, summary)</code><code>}</code></div><div class="evdesc">达到 60% 软阈值后台异步把 compress 区摘要为 previous_review_summary 追加进 user 消息，审查无感继续，后续轮次仍能引用早期结论。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">压缩失败后仍截断丢弃历史消息</div><div class="evcode"><code># 错误：压缩失败也执行截断</code><code>if compressFailed {</code><code>    truncate(compressZone)   # 历史被硬砍掉</code><code>}</code><code># 正确：失败保留原消息</code></div><div class="evdesc">违反『失败保留原消息』契约：审查连续性断裂，后续轮次无法引用早期审查结论，甚至导致定位链上下文缺失。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">80% 警告阈值同步立即压缩</div><div class="evcode"><code>if usage &gt;= 80% {</code><code>    compressSync(compressZone)   // 同步兜底，防溢出</code><code>    keepActive(activeZone, K)    // 保留最近 K 轮</code><code>}</code></div><div class="evdesc">接近溢出时同步立即压缩强制腾出空间，active 区按剩余预算保留最近 K 轮，防止当前请求因上下文溢出而失败。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">全局共享单一 compressionState，多会话互踩</div><div class="evcode"><code># 错误：包级单例压缩状态</code><code>var state = &amp;compressionState{}   // 所有文件会话共用</code><code>compress(state, sessionA)        // A 的压缩</code><code># B 会话的 active 区被误清</code></div><div class="evdesc">多文件会话共享压缩状态会导致 A 会话的压缩清掉 B 会话的 active 区；每会话独立 compressionState 才能防跨文件互踩。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/llmloop-loop.go.md" target="_blank">llmloop-loop.go.md</a></div><div class="assdesc">ReAct 主循环节选：RunPerFile / 终止条件 / 工具分派 / 异步评论</div><div class="assmeta">internal/llmloop/loop.go · 1778 B</div></div><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/llmloop-compression.go.md" target="_blank">llmloop-compression.go.md</a></div><div class="assdesc">三区内存压缩节选：frozen/compress/active + 60%/80% 双阈值</div><div class="assmeta">internal/llmloop/compression.go · 2155 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-cooccurrence" href="q-token.html">Token 计费与成本控制&#8594;压缩显著降低 token 消耗<span class="etype">共现</span></a><a class="chip e-prerequisite" href="arch-grounded-tools.html">受限工具集审查&#8592;工具循环需上下文压缩<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="q-token.html">Token 计费与成本控制&#8592;计费压力驱动压缩设计<span class="etype">前置依赖</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

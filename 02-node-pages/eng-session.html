@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会话 JSONL 持久化 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-B.html">审查引擎</a> / <span>会话 JSONL 持久化</span></div>
+  <h1>会话 JSONL 持久化</h1>
+  <div class="badges"><span class="badge src" style="color:#7fe0d8;background:#12302c;border-color:#5ad0d0">审查引擎</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-B · 审查引擎</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-B"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-B.html"><span class="dir">返回组</span><span class="v">审查引擎</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">~/.opencodereview/sessions/ 下 JSONL 记录全部任务记录（Plan/Main/压缩/重定位/反思），可回放可审计</div><div class="bullet">会话持久化把每次代码审查的完整执行轨迹以 JSONL 落盘，默认目录 ~/.opencodereview/sessions/</div><div class="bullet">GetOrCreateFileSession(newPath) 按文件路径建立独立会话文件，一文件一会话</div><div class="bullet">AppendTaskRecord 记录 Plan/Main/MemoryCompression/ReLocation/ReviewFilter 等任务类型的事件</div><div class="bullet">session_end 事件落盘标记会话正常结束</div><div class="bullet">会话可回放、可审计：任何一次审查都能重建执行过程</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>审查过程可审计：企业级代码审查需要知道每条评论怎么来的、走了哪条定位链、用了多少轮</p><p>支持断点续审：JSONL 会话记录是 --resume 恢复执行的基础数据源</p><p>故障排查：LLM 超时、定位失败、压缩事故都能从会话记录还原现场</p><p>一文件一会话保证并行审查互不串扰，且单文件会话文件增长可控</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">会话文件位于 ~/.opencodereview/sessions/，按文件路径派生（GetOrCreateFileSession(newPath)）</div><div class="bullet">会话生命周期内所有关键任务通过 AppendTaskRecord 追加 JSONL 行，任务类型包括 Plan（规划）、Main（主审查）、MemoryCompression（记忆压缩）、ReLocation（重定位）、ReviewFilter（评论过滤）</div><div class="bullet">会话结束时写入 session_end 记录并落盘，标识完整生命周期</div><div class="bullet">回放时逐行读取 JSONL 重建任务时序与决策过程</div><div class="bullet">审计时可按任务类型过滤查询，如只查所有 ReLocation 事件</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>审查结束后 3 天复盘，回放 JSONL 确认某条评论经历了三级定位回退才落位</td></tr><tr><td>线上会话崩溃后读取 JSONL 恢复现场，通过 session_end 缺失定位崩溃点</td></tr><tr><td>用 --resume 读取旧会话，跳过已完成指纹任务直接续审未决项</td></tr><tr><td>审计团队过滤 ReviewFilter 事件统计被过滤掉的低质量评论数量</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>多文件共用单一会话文件，并行审查事件交错，无法还原单文件时序</li><li>会话结束不写 session_end，回放时无法区分『正常结束』与『中断』</li><li>只记结果不记过程（跳过 Plan/ReLocation 等中间任务），审计失去意义</li><li>内存缓冲未落盘即结束，崩溃后会话数据全丢</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">一文件一会话，AppendTaskRecord 全量记录</div><div class="evcode"><code>sess := GetOrCreateFileSession(newPath)   // ~/.opencodereview/sessions/</code><code>sess.AppendTaskRecord(Plan)</code><code>sess.AppendTaskRecord(Main)</code><code>sess.AppendTaskRecord(ReLocation)</code><code>sess.AppendTaskRecord(session_end)        // 结束标记落盘</code></div><div class="evdesc">每个文件独立 JSONL 会话，Plan/Main/MemoryCompression/ReLocation/ReviewFilter 全任务类型落盘，session_end 标记正常结束，可回放可审计。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">多文件共用单一会话文件且不写 session_end</div><div class="evcode"><code># 错误：全局单会话文件</code><code>sess := GetOrCreateFileSession(&quot;all-files&quot;)</code><code>sess.AppendTaskRecord(taskA)   // 并行事件交错</code><code># 崩溃后无法区分正常结束与中断</code></div><div class="evdesc">并行审查事件交错无法还原单文件时序，session_end 缺失使回放无法区分『正常结束』与『中断』，审计与断点续审双双失效。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">会话文件可回放定位崩溃点与审计决策</div><div class="evcode"><code># 审计：只查 ReLocation 事件</code><code>grep &#x27;&quot;task&quot;:&quot;ReLocation&quot;&#x27; ~/.opencodereview/sessions/&lt;session&gt;.jsonl</code><code># 回放：逐行重建任务时序</code><code>cat ~/.opencodereview/sessions/&lt;session&gt;.jsonl</code></div><div class="evdesc">JSONL 逐行记录全部关键任务，审计时可按任务类型过滤，回放时逐行重建执行过程，崩溃现场可通过缺失的 session_end 精确定位。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">只记结果不记过程，审计失去意义</div><div class="evcode"><code># 错误：只记最终评论</code><code>sess.AppendTaskRecord(ReviewResult)</code><code># 缺少 Plan/Main/ReLocation 中间过程</code></div><div class="evdesc">跳过中间任务类型后，无法回答『每条评论怎么来的、走了哪条定位链』，审计与故障排查价值归零。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/agent.go.md" target="_blank">agent.go.md</a></div><div class="assdesc">agent.go 核心节选：Run 流水线 / dispatchSubtasks / executeSubtask / REVIEW_FILTER</div><div class="assmeta">internal/agent/agent.go · 3451 B</div></div><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/session-manifest.go.md" target="_blank">session-manifest.go.md</a></div><div class="assdesc">Run Manifest 覆盖度契约节选：RegisterSelected / FailureClass</div><div class="assmeta">internal/session/manifest.go · 2464 B</div></div><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/viewer-server.go.md" target="_blank">viewer-server.go.md</a></div><div class="assdesc">viewer 服务器节选：路由 / hostGuard 防 DNS-rebind</div><div class="assmeta">internal/viewer/server.go · 2089 B</div></div><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/telemetry-provider.go.md" target="_blank">telemetry-provider.go.md</a></div><div class="assdesc">OpenTelemetry 双管道初始化节选</div><div class="assmeta">internal/telemetry/provider.go · 1317 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-dependency" href="cli-review.html">ocr review&#8592;review 产生会话记录<span class="etype">依赖关联</span></a><a class="chip e-dependency" href="cli-scan.html">ocr scan&#8592;scan 也写会话（无 manifest）<span class="etype">依赖关联</span></a><a class="chip e-cooccurrence" href="q-telemetry.html">OpenTelemetry 遥测&#8592;会话 JSONL 是遥测素材<span class="etype">共现</span></a><a class="chip e-prerequisite" href="eng-resume.html">断点续审与指纹复用&#8594;续审依赖会话持久化<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="eng-manifest.html">Run Manifest 覆盖度契约&#8594;manifest 随会话落盘<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cli-session.html">ocr session&#8594;CLI 管理 JSONL 会话<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cli-viewer.html">ocr viewer&#8594;查看器回放 JSONL<span class="etype">前置依赖</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

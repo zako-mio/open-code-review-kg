@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>审查流水线 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-A.html">核心架构</a> / <span>审查流水线</span></div>
+  <h1>审查流水线</h1>
+  <div class="badges"><span class="badge src" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">核心架构</span><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-A · 核心架构</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-A"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-A.html"><span class="dir">返回组</span><span class="v">核心架构</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">从 CLI 入口到评论输出的 8 步确定性+Agent 混合时序：diff→过滤→分派→并行子 Agent→反思→输出</div><div class="bullet">整个审查过程被组织为 8 步时序流水线，从 CLI 入口到结果输出一气呵成，每步职责单一、可独立测试</div><div class="bullet">第 1 步 CLI 入口：初始化 rules resolver（规则解析器）、LLM client 与工具注册表，搭建执行环境</div><div class="bullet">第 2 步 diff 获取：按 workspace/range/commit 三种模式从 git 获取 diff，为后续过滤与审查提供原材料</div><div class="bullet">第 3 步文件过滤：对 diff 中的文件执行 whyExcluded 过滤链，标记排除原因，确定真正进入审查的文件集合</div><div class="bullet">第 4 步分派：以信号量（semaphore）限流，默认最多 8 个并发 goroutine 并行分派文件子任务</div><div class="bullet">第 5 步每文件子任务：Plan（单轮 LLM 生成计划）→ MainTask（ReAct 循环执行工具调用）→ code_comment 异步定位评论 → REVIEW_FILTER 反思过滤，构成文件级审查主循环</div><div class="bullet">第 6 步 WaitBackground：等待所有异步后台任务（如 code_comment 定位）完成</div><div class="bullet">第 7 步 finalizeManifest：收尾汇总 manifest，合并各文件结果与元数据</div><div class="bullet">第 8 步 emitRunResult：按 text/json/sarif 三种格式输出最终审查结果</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>8 步串行流水线把『获取 diff→筛选→审查→反思→输出』的职责彻底分离，任何一步可单独替换或升级，例如更换 diff Provider 不影响过滤与审查逻辑</p><p>文件级子任务（Plan→MainTask→反思）使每个文件的审查拥有独立生命周期，超时、失败、panic 可被隔离处理，不影响其他文件</p><p>信号量限流 + 每文件超时使并发度可控，避免大规模 diff 下资源雪崩，是阿里内部规模化运行的前提</p><p>WaitBackground 与 finalizeManifest 分离保证了异步定位（code_comment）与结果收尾的顺序正确性，杜绝结果未齐就输出</p><p>text/json/sarif 三种输出格式统一由 emitRunResult 承担，下游工具链（CI、IDE、SARIF 平台）只需对接稳定出口</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">CLI 入口阶段：创建 rules resolver（四层规则链加载）、LLM client（模型会话）与工具注册表（6 工具注册），三者作为后续步骤的共享依赖</div><div class="bullet">diff 获取阶段：按用户指定模式选择 Provider——range 用 git diff -U3 --find-renames merge-base..to、commit 用 git show --diff-merges=first-parent、workspace 用 tracked+untracked 组合，再经 ParseDiffText/ParseHunks 解析</div><div class="bullet">文件过滤阶段：对每个 diff 条目执行 binary→exclude→include→扩展名白名单→默认路径黑名单的 whyExcluded 链，附 ExcludeReason</div><div class="bullet">分派阶段：semaphore 初始化并发上限（默认 8），每个文件启动独立 goroutine，超过上限的等待</div><div class="bullet">子任务阶段：先 Plan 单轮 LLM 产出审查计划 → 进入 MainTask ReAct 循环（模型调用受限 6 工具）→ 产出 code_comment 后异步定位（强制注入 path）→ 触发 REVIEW_FILTER_TASK 反思</div><div class="bullet">并发控制：ConcurrentTaskTimeout 为每个文件设置独立超时；budget 前瞻 used+estimateDiffFileTokens&gt;MaxTokensBudget 即提前停止；panic recover 隔离崩溃 goroutine；filterLargeDiffs 丢弃超过 80% MaxTokens 的大文件</div><div class="bullet">收尾阶段：WaitBackground 等待异步任务 → finalizeManifest 汇总 → emitRunResult 按 text/json/sarif 输出</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>CI 中通过 commit 模式审查一次 PR（多文件改动）：8 步流水线中过滤掉二进制/生成文件，8 并发分派，每文件独立 Plan+ReAct，最后输出 SARIF 供平台展示，全程无单文件故障拖累整体</td></tr><tr><td>对超大仓库全量 workspace 审查：filterLargeDiffs 丢弃超大文件 + budget 前瞻提前停止，使流水线在受限上下文预算内完成而非 OOM 崩溃</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>跳过 Plan 直接进入 MainTask——单轮 Plan 为 ReAct 循环提供方向锚点，缺失会导致工具调用路径发散、token 浪费</li><li>异步定位未等待（跳过 WaitBackground）就 finalizeManifest——code_comment 定位结果未落盘，输出评论缺 path 或位置</li><li>无限提高并发（信号量调大）换取速度——并发超过 8 时 token 预算与超时管理失配，出现资源雪崩，应先调 filterLargeDiffs 而非并发</li><li>在子任务阶段做全局过滤或全局反思——每文件上下文是隔离的，全局判断必须在分派前（过滤）或 finalizeManifest 阶段完成</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">子任务严格按 Plan → MainTask → 异步定位 → 反思 的时序执行</div><div class="evcode"><code>plan := llm.PlanOnce(diff)          // 第5步：单轮 LLM 产出审查计划</code><code>comments := mainTask.ReActLoop(plan) // MainTask ReAct 循环，受限 6 工具</code><code>locate := code_comment 异步定位(强制注入 path)</code><code>WaitBackground() // 第6步：等待异步定位落盘</code><code>finalizeManifest() // 第7步：汇总</code><code>emitRunResult(text|json|sarif) // 第8步：输出</code></div><div class="evdesc">Plan 为 ReAct 循环提供方向锚点，WaitBackground 保证异步定位结果落盘后才 finalize，emitRunResult 统一输出，8 步时序职责单一、可独立替换</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">跳过 Plan 直接进入 MainTask，且不等异步定位就汇总输出</div><div class="evcode"><code>// 反例：无 Plan 直接开跑 ReAct</code><code>comments := mainTask.ReActLoop(nil)</code><code>// 反例：跳过 WaitBackground</code><code>finalizeManifest() // code_comment 定位结果可能未落盘</code><code>emitRunResult()   // 输出缺 path 或缺精确行号</code></div><div class="evdesc">无 Plan 时工具调用路径发散、token 浪费；不等异步任务就汇总会造成评论缺位置信息甚至 path 为空，输出结果不可用</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">并发限流：信号量默认 8 + 每文件超时 + 大文件预丢弃</div><div class="evcode"><code>sem := make(chan struct{}, 8) // 默认 8 并发 goroutine</code><code>filterLargeDiffs(diffs, 0.8*MaxTokens) // 超过 80% MaxTokens 的文件分派前丢弃</code><code>go func(){ sem &lt;- struct{}{}; defer func(){ &lt;-sem; recover() }(); runFileTask(entry, ConcurrentTaskTimeout) }()</code></div><div class="evdesc">并发、超时、预算三约束齐备：单文件卡死/崩溃被隔离，大文件在源头被拦截，流水线在大规模 diff 下可控</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">为提速无限提高并发，却不做预算前瞻</div><div class="evcode"><code>sem := make(chan struct{}, 64) // 并发调大后总 token 预算同时放大</code><code>// 未设置 ConcurrentTaskTimeout / 未做 used+estimateDiffFileTokens 前瞻</code></div><div class="evdesc">并行度与 token 预算耦合：并发超过 8 时多个文件的上下文预算被同时挤压，整体质量下降甚至资源雪崩；应先控制 diff 体量而非堆并发</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/agent.go.md" target="_blank">agent.go.md</a></div><div class="assdesc">agent.go 核心节选：Run 流水线 / dispatchSubtasks / executeSubtask / REVIEW_FILTER</div><div class="assmeta">internal/agent/agent.go · 3451 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="arch-hybrid.html">确定性工程 × Agent 混合架构&#8592;混合理念决定流水线形态<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="eng-diff.html">Git Diff 获取与解析&#8594;流水线第一环是 diff 获取<span class="etype">前置依赖</span></a><a class="chip e-combination" href="arch-dispatch.html">规则引导分派&#8592;分派+工具+反思组合成流水线<span class="etype">组合</span></a><a class="chip e-combination" href="arch-grounded-tools.html">受限工具集审查&#8592;分派+工具+反思组合成流水线<span class="etype">组合</span></a><a class="chip e-combination" href="arch-reflection.html">独立反思&#8592;分派+工具+反思组合成流水线<span class="etype">组合</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

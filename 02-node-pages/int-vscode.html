@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VSCode 扩展 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-E.html">集成生态</a> / <span>VSCode 扩展</span></div>
+  <h1>VSCode 扩展</h1>
+  <div class="badges"><span class="badge src" style="color:#ff8a97;background:#3a1520;border-color:#e05563">集成生态</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-E · 集成生态</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-E"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-E.html"><span class="dir">返回组</span><span class="v">集成生态</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">React webview（侧边栏/配置面板/评论面板）+ CliService 封装，i18n en/zh，webpack+jest</div><div class="bullet">Open Code Review 提供 VSCode 官方扩展，代码位于仓库 extensions/vscode/ 目录，面向编辑器内审查场景</div><div class="bullet">UI 层基于 React webview 实现，包含三个 Provider：SidebarProvider（侧边栏）、ConfigPanelProvider（配置面板）、CommentProvider（评论视图），构成扩展的主要交互界面</div><div class="bullet">服务层包含多个模块：CliService（封装 ocr CLI 调用并支持取消操作）、ConfigService（配置管理与读取）、ReviewSession（审查会话状态管理）、GitService（git 相关能力，如获取 diff/提交信息）</div><div class="bullet">支持国际化（i18n），内置 en（英文）与 zh（中文）两种语言资源</div><div class="bullet">工程体系采用 webpack 打包 + jest 测试，代码组织为典型的前端工程结构</div><div class="bullet">作为编辑器集成入口，与 CLI、Skill、各 Agent 插件并列，覆盖「不想离开 IDE」的用户群体</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>大量开发者习惯在编辑器内完成从编码到审查的全流程，VSCode 扩展降低工具切换成本，审查结果直接呈现在 IDE 上下文中</p><p>React webview + Provider 分层（Cli/Config/ReviewSession/Git 服务拆分）支撑起配置、会话、取消等交互细节，比纯终端体验更完整</p><p>CliService 支持取消操作，说明设计上考虑了大范围审查的可中止性，避免阻塞用户</p><p>i18n en/zh 双语言满足中英文用户群体，降低出海/国内团队的使用门槛</p><p>webpack+jest 工程化保证扩展可构建、可测试、可持续维护，适合长期演进</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">前置条件：安装 ocr CLI 并配置 API Key（与 CLI 用法一致），安装 VSCode</div><div class="bullet">从仓库获取扩展产物：构建 extensions/vscode/（npm install 后执行构建脚本，webpack 打包生成 .vsix）或获取官方发布的 vsix 包</div><div class="bullet">安装扩展：在 VSCode 扩展面板中选择「从 VSIX 安装…」并选择打包产物，或按官方说明安装</div><div class="bullet">打开配置面板（ConfigPanelProvider）：通过侧边栏/命令入口进入，配置 ocr 命令路径、模型/API Key 等参数（ConfigService 持久化）</div><div class="bullet">在侧边栏（SidebarProvider）中选择审查目标（文件/目录/提交），点击触发审查</div><div class="bullet">审查执行由 CliService 封装调用，支持取消；审查过程中 ReviewSession 维护会话状态，如中途取消可保留进度</div><div class="bullet">审查结果通过 CommentProvider 以评论/注解形式展示在代码中，用户可就地查看问题定位</div><div class="bullet">涉及 git 上下文（如审查某次提交的 diff）时由 GitService 提供支持；验证：对单个文件发起一次审查，确认 webview 正常展示结果</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>开发者在 VSCode 中改完代码后，从侧边栏一键触发当前文件审查，结果以代码评论形式呈现，直接定位问题行</td></tr><tr><td>提交前审查：通过 GitService 获取待提交 diff，在提交动作前跑一轮审查并把结果留在评论视图，作为合并闸门</td></tr><tr><td>大范围审查中途发现范围不对：利用 CliService 的取消能力中止审查，调整范围后重新发起，避免浪费计算资源</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>跳过配置直接审查：不通过 ConfigPanel 配置 CLI 路径/Key，CliService 找不到可执行文件或凭证导致审查失败；首次使用必须先完成配置</li><li>忽略 ReviewSession 状态：取消或中断审查后不检查会话状态，再次触发可能基于过期上下文；应确认会话已结束或重置后再发起</li><li>在构建产物缺失时手动改源码目录：扩展需 webpack 构建产物（或 vsix）才能加载，直接加载源码目录会失败；应先执行构建</li><li>忘记 CLI 依赖：扩展的 CliService 是薄封装，本机没有 ocr 或 Key 未配置时扩展表现为「点击无反应」或报错，排障时应先回到终端验证 CLI 本身可用</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">先配置后审查，webview 全链路可用</div><div class="evcode"><code># 打开配置面板（ConfigPanelProvider）</code><code>配置 ocr 命令路径 + 模型/API Key</code><code># 侧边栏选择目标 → 触发审查 → CommentProvider 展示</code></div><div class="evdesc">首次使用先在配置面板完成 ocr 路径与 Key 配置（ConfigService 持久化），再从侧边栏发起审查；CliService 封装调用、ReviewSession 管理会话、结果以评论形式就地展示。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">跳过配置直接审查，点击无反应</div><div class="evcode"><code># 未配置 CLI 路径/Key</code><code>侧边栏点击审查 → CliService 找不到可执行文件，失败</code></div><div class="evdesc">不通过 ConfigPanel 配置 ocr 命令路径与 Key，CliService 找不到可执行文件或凭证，审查表现为点击无反应或报错；首次使用必须先完成配置。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">大范围审查用取消能力兜底</div><div class="evcode"><code># 审查中发现范围不对</code><code>触发取消 → CliService 中止子进程 → ReviewSession 保留进度</code></div><div class="evdesc">CliService 支持取消操作：大范围审查发现范围不对时可随时中止，ReviewSession 保留会话状态，调整范围后重新发起，避免浪费计算资源。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">不构建直接加载源码目录</div><div class="evcode"><code># 直接打开 extensions/vscode/ 源码目录</code><code>webpack 产物缺失 → 扩展加载失败</code></div><div class="evdesc">扩展需要 webpack 构建产物（或 vsix 包）才能加载，直接加载源码目录会失败；应先 npm install 并执行构建（jest 测试通过后打包）。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">文档</div><div class="assname"><a href="../assets/doc/README.zh-CN.md" target="_blank">README.zh-CN.md</a></div><div class="assdesc">官方中文 README（定位/基准/设计理念/快速开始）</div><div class="assmeta">README.zh-CN.md · 12231 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-dependency" href="cli-review.html">ocr review&#8594;VSCode 扩展封装 CLI<span class="etype">依赖关联</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

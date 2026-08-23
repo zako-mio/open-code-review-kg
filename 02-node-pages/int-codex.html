@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codex 插件 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-E.html">集成生态</a> / <span>Codex 插件</span></div>
+  <h1>Codex 插件</h1>
+  <div class="badges"><span class="badge src" style="color:#ff8a97;background:#3a1520;border-color:#e05563">集成生态</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-E · 集成生态</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-E"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-E.html"><span class="dir">返回组</span><span class="v">集成生态</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">.codex-plugin/plugin.json + skills：以 @Open Code Review review ... 调用，interface Read capability</div><div class="bullet">Alibaba Open Code Review 为 OpenAI Codex（CLI/Agent 形态）提供的官方集成，插件清单 .codex-plugin/plugin.json 声明 skills: ./skills/ 目录，即通过 Skill 机制暴露审查能力</div><div class="bullet">插件 interface 声明了 capabilities Read，即仅请求读取类能力，不申请文件写入等更高级权限，符合审查工具只读分析定位</div><div class="bullet">defaultPrompt 内置 3 条默认提示词，为插件预置了开箱即用的调用模板，用户可在此基础上扩展</div><div class="bullet">安装并启用后，用户在 Codex 会话中以 @Open Code Review review ... 的形式调用，将审查作为 Agent 的一个可调用技能</div><div class="bullet">属于多 Agent 生态中的 Codex 官方入口，与 Claude Code 插件、Cursor 插件等并列，保证同一套 OCR 能力在不同 Agent 宿主间复用</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>Codex 与 Claude Code 一样占据主流 AI 编码工具生态位，但两者的插件协议不同（Claude 用 .claude-plugin 斜杠命令，Codex 用 .codex-plugin Skill），需要独立的适配层</p><p>通过 Skill + defaultPrompt 的方式，将 ocr 的复杂命令序列封装为 @Open Code Review 一次调用，用户无需了解底层参数细节</p><p>interface 仅声明 Read capability 体现了最小权限原则：审查只需读代码与输出结果，降低插件在宿主中的安全风险面</p><p>面向已有 Codex 使用习惯的团队，可让审查能力直接并入现有 Agent 工作流，避免工具切换成本</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">前置条件：安装并登录 Codex CLI，同时在环境中准备好可运行的 ocr CLI 与对应 API Key</div><div class="bullet">添加插件市场：执行 codex plugin marketplace add alibaba/open-code-review，将官方仓库注册为 Codex 插件市场源</div><div class="bullet">安装插件：执行 codex plugin install open-code-review（或按 Codex 版本对应的 /plugins 交互流程操作），随后在 /plugins 面板中启用该插件</div><div class="bullet">插件启用后，在任意 Codex 会话中输入 @Open Code Review review &lt;目标&gt;，其中 &lt;目标&gt; 可为文件路径、目录、提交范围或 git diff 范围</div><div class="bullet">Codex 会加载插件 defaultPrompt 并执行审查流程，审查输出以 Agent 回复形式返回，可在会话内追问细节</div><div class="bullet">如需调整审查深度或范围，可结合 defaultPrompt 的既有模板，在调用指令中附加说明，让 Codex 自动映射到 ocr 对应参数</div><div class="bullet">审查完成后将结果与人工确认结合，再决定修复动作；插件本身不申请写入权限，修改需在宿主中显式执行</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>Codex 用户完成编码任务后，在会话中直接输入 @Open Code Review review src/ 对改动目录发起一轮审查，先于 CI 发现隐患</td></tr><tr><td>团队把审查能力纳入 Codex 的日常开发循环：每次功能完成、提交之前固定调用 @Open Code Review，审查结果作为合并前的质量闸门之一</td></tr><tr><td>依赖 Codex 进行大规模重构时，用 @Open Code Review review &lt;diff 范围&gt; 精准限定审查对象，避免无关文件噪音</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>忽略插件的 Read-only 能力边界：想当然地让插件「顺便修复问题」，实际插件不申请写入权限，修复必须在宿主中另行执行</li><li>跳过 /plugins 启用步骤：只 add marketplace 却不在 /plugins 面板启用，导致 @Open Code Review 不可用；两个步骤缺一不可</li><li>把 @Open Code Review 当万能命令：它按 defaultPrompt 模板工作，随意附加与模板冲突的语义可能让 Codex 映射出错误的 ocr 参数，应先跑一次默认调用再定制</li><li>在无 Key/无 CLI 环境直接调用：插件调用依赖本机 ocr 与模型 Key，环境未就绪时表现为静默失败或超时，应先做最小可用性验证</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">标准三步：市场源 → 安装 → 面板启用</div><div class="evcode"><code>codex plugin marketplace add alibaba/open-code-review</code><code>codex plugin install open-code-review</code><code>/plugins  # 面板中启用该插件</code></div><div class="evdesc">Codex 插件经 add → install → /plugins 启用三步后，@Open Code Review 才可调用；插件的 Read-only interface 只申请读取能力，符合审查工具最小权限定位。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">跳过 /plugins 启用，调用静默失败</div><div class="evcode"><code>codex plugin marketplace add alibaba/open-code-review</code><code>@Open Code Review review src/  # 无响应/报错</code></div><div class="evdesc">只 add marketplace 或只 install 而未在 /plugins 面板启用，插件处于未激活状态，@Open Code Review 调用失败。启用步骤最易被忽略。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">在默认模板基础上限定审查范围</div><div class="evcode"><code>@Open Code Review review src/</code><code>@Open Code Review review &lt;diff 范围&gt;</code></div><div class="evdesc">defaultPrompt 已内置 3 条默认提示词，调用时附加文件/目录/diff 范围即可精准审查；大范围重构场景用 diff 范围限定，避免无关文件噪音。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">把插件当「能自动修复」的全能工具</div><div class="evcode"><code>@Open Code Review review .  # 期待插件直接改代码</code><code># 插件 interface 仅声明 Read capability</code></div><div class="evdesc">插件只申请 Read 能力，不会也不应直接写入代码；期待它「顺手修复」会落空，修复必须在宿主 Codex 中显式执行。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">插件</div><div class="assname"><a href="../assets/plugins/codex-plugin.json" target="_blank">codex-plugin.json</a></div><div class="assdesc">Codex 插件清单（skills + Read capability + defaultPrompt）</div><div class="assmeta">plugins/open-code-review/.codex-plugin/plugin.json · 1121 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-variant" href="int-claude.html">Claude Code 插件&#8592;同为插件生态<span class="etype">变体</span></a><a class="chip e-variant" href="int-opencode.html">OpenCode 原生插件&#8594;同为插件生态<span class="etype">变体</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

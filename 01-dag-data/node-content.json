@@ -1,0 +1,1926 @@
+{
+ "meta": {
+  "title": "Open Code Review 项目解析知识图谱",
+  "subtitle": "阿里开源 AI 代码审查工具 — 架构理解 × 工具索引",
+  "version": "1.0.0",
+  "generated": "2026-08-23",
+  "total_nodes": 51,
+  "content_fields": [
+   "what",
+   "why",
+   "how",
+   "cases",
+   "anti_patterns"
+  ]
+ },
+ "nodes": [
+  {
+   "id": "arch-hybrid",
+   "name": "确定性工程 × Agent 混合架构",
+   "what": [
+    "Open Code Review 的核心设计理念：将代码审查任务拆解为『确定性工程』与『Agent』两个互补部分，而非让 LLM 全权接管所有环节",
+    "确定性工程负责强约束环节：文件筛选、打包、规则匹配、定位（code_comment 异步定位）与反思（REVIEW_FILTER）组件，这些环节用传统代码实现，行为可预期、可测试、无随机性",
+    "Agent 只负责动态决策环节：场景化提示词（针对不同审查场景定制 prompt）与场景化工具集（按场景注册不同工具组合），把需要语义理解的自由度交给模型，把需要精确保证的逻辑留给代码",
+    "该架构源自阿里内部两年的大规模生产验证，说明不是实验室构想而是经过了真实工程流量的打磨",
+    "在相同模型下，该混合架构的 SEM-F1（审查有效性指标）比 Claude Code 高出 1.3-2.2 倍，同时 token 消耗节省 5-15 倍，验证了『约束越多、模型越省心、产出越稳』的设计假设"
+   ],
+   "why": [
+    "纯 Agent 驱动的审查工具会把文件筛选、diff 解析、规则匹配等强逻辑环节交给 LLM，而这些环节恰恰是 LLM 容易出错且不可复现的地方，用确定性工程替代可消除这一不确定性源",
+    "LLM 每次调用都有 token 成本与延迟，把可代码化的环节用代码实现（如文件过滤、规则匹配），把 LLM 调用集中在真正需要语义理解的地方，是 token 省 5-15x 的根本来源",
+    "确定性组件提供『硬边界』（哪些文件审、哪些规则适用、评论是否成立），Agent 在边界内自由发挥，避免了模型自由发挥导致的范围漂移和幻觉路径",
+    "阿里内部两年规模化验证提供了实证基础：混合架构在同等模型下 SEM-F1 比 Claude Code 高 1.3-2.2x、token 省 5-15x，说明该分工方式在真实代码库规模下依然成立"
+   ],
+   "how": [
+    "文件层面：确定性代码负责选择（eng-filter 的 whyExcluded 过滤链）、过滤、分束（arch-dispatch 四层规则链），Agent 不接触文件筛选逻辑",
+    "打包层面：diff 获取由确定性 Provider（range/commit/workspace 三模式）完成，ParseDiffText/ParseHunks 状态机解析 diff 文本，Agent 只读取已打包好的 diff",
+    "规则层面：custom>project>global>system 四层规则链由模板引擎匹配，比纯语言驱动（直接让 LLM 理解规则文本）更稳定，规则适用性判定不依赖模型",
+    "定位与反思层面：code_comment 由确定性组件异步注入（强制带 path），REVIEW_FILTER_TASK 以证伪优先的确定性五步法把关评论有效性，而非让模型自审",
+    "决策层面：场景化提示词（Plan 单轮 LLM、MainTask ReAct 循环）与场景化工具集（6 工具受限注册）由 Agent 承担，保留语义灵活性",
+    "比例分配上遵循『能确定的绝不交给模型』：文件过滤、diff 解析、规则匹配、评论定位、反思否决全部确定性化，模型只做『看 diff 出评论』和『按反馈改评论』两类任务"
+   ],
+   "cases": [
+    "同一代码库、同一模型下，混合架构与 Claude Code 对照评测：SEM-F1 高 1.3-2.2x、token 省 5-15x，典型案例是工具调用型审查任务中模型不再需要自行拼装 diff 与文件路径，token 消耗大幅下降",
+    "阿里内部两年规模化运行期间，确定性组件承担了全部文件级决策（过滤、分派、超时），使大量并发审查在资源受限下依然可控，验证了架构可扩展性"
+   ],
+   "anti_patterns": [
+    "让 LLM 直接读取 git diff 原始输出并自行筛选相关文件——把确定性环节交给模型，既费 token 又不可复现，违背混合架构分工原则",
+    "把规则匹配做成『把规则文本塞进 prompt 让模型理解』的语言驱动方式——模板引擎匹配更稳定，语言驱动在规则增多时表现劣化",
+    "把 REVIEW_FILTER 反思也交给模型自审（让同一模型检查自己的评论）——反思必须是独立确定性组件，否则证伪优先原则失效",
+    "模型越权访问被过滤文件的 diff——应通过 injectDiffMap 供 file_read_diff 按需读取，而非放开文件访问权限"
+   ]
+  },
+  {
+   "id": "arch-pipeline",
+   "name": "审查流水线",
+   "what": [
+    "整个审查过程被组织为 8 步时序流水线，从 CLI 入口到结果输出一气呵成，每步职责单一、可独立测试",
+    "第 1 步 CLI 入口：初始化 rules resolver（规则解析器）、LLM client 与工具注册表，搭建执行环境",
+    "第 2 步 diff 获取：按 workspace/range/commit 三种模式从 git 获取 diff，为后续过滤与审查提供原材料",
+    "第 3 步文件过滤：对 diff 中的文件执行 whyExcluded 过滤链，标记排除原因，确定真正进入审查的文件集合",
+    "第 4 步分派：以信号量（semaphore）限流，默认最多 8 个并发 goroutine 并行分派文件子任务",
+    "第 5 步每文件子任务：Plan（单轮 LLM 生成计划）→ MainTask（ReAct 循环执行工具调用）→ code_comment 异步定位评论 → REVIEW_FILTER 反思过滤，构成文件级审查主循环",
+    "第 6 步 WaitBackground：等待所有异步后台任务（如 code_comment 定位）完成",
+    "第 7 步 finalizeManifest：收尾汇总 manifest，合并各文件结果与元数据",
+    "第 8 步 emitRunResult：按 text/json/sarif 三种格式输出最终审查结果"
+   ],
+   "why": [
+    "8 步串行流水线把『获取 diff→筛选→审查→反思→输出』的职责彻底分离，任何一步可单独替换或升级，例如更换 diff Provider 不影响过滤与审查逻辑",
+    "文件级子任务（Plan→MainTask→反思）使每个文件的审查拥有独立生命周期，超时、失败、panic 可被隔离处理，不影响其他文件",
+    "信号量限流 + 每文件超时使并发度可控，避免大规模 diff 下资源雪崩，是阿里内部规模化运行的前提",
+    "WaitBackground 与 finalizeManifest 分离保证了异步定位（code_comment）与结果收尾的顺序正确性，杜绝结果未齐就输出",
+    "text/json/sarif 三种输出格式统一由 emitRunResult 承担，下游工具链（CI、IDE、SARIF 平台）只需对接稳定出口"
+   ],
+   "how": [
+    "CLI 入口阶段：创建 rules resolver（四层规则链加载）、LLM client（模型会话）与工具注册表（6 工具注册），三者作为后续步骤的共享依赖",
+    "diff 获取阶段：按用户指定模式选择 Provider——range 用 git diff -U3 --find-renames merge-base..to、commit 用 git show --diff-merges=first-parent、workspace 用 tracked+untracked 组合，再经 ParseDiffText/ParseHunks 解析",
+    "文件过滤阶段：对每个 diff 条目执行 binary→exclude→include→扩展名白名单→默认路径黑名单的 whyExcluded 链，附 ExcludeReason",
+    "分派阶段：semaphore 初始化并发上限（默认 8），每个文件启动独立 goroutine，超过上限的等待",
+    "子任务阶段：先 Plan 单轮 LLM 产出审查计划 → 进入 MainTask ReAct 循环（模型调用受限 6 工具）→ 产出 code_comment 后异步定位（强制注入 path）→ 触发 REVIEW_FILTER_TASK 反思",
+    "并发控制：ConcurrentTaskTimeout 为每个文件设置独立超时；budget 前瞻 used+estimateDiffFileTokens>MaxTokensBudget 即提前停止；panic recover 隔离崩溃 goroutine；filterLargeDiffs 丢弃超过 80% MaxTokens 的大文件",
+    "收尾阶段：WaitBackground 等待异步任务 → finalizeManifest 汇总 → emitRunResult 按 text/json/sarif 输出"
+   ],
+   "cases": [
+    "CI 中通过 commit 模式审查一次 PR（多文件改动）：8 步流水线中过滤掉二进制/生成文件，8 并发分派，每文件独立 Plan+ReAct，最后输出 SARIF 供平台展示，全程无单文件故障拖累整体",
+    "对超大仓库全量 workspace 审查：filterLargeDiffs 丢弃超大文件 + budget 前瞻提前停止，使流水线在受限上下文预算内完成而非 OOM 崩溃"
+   ],
+   "anti_patterns": [
+    "跳过 Plan 直接进入 MainTask——单轮 Plan 为 ReAct 循环提供方向锚点，缺失会导致工具调用路径发散、token 浪费",
+    "异步定位未等待（跳过 WaitBackground）就 finalizeManifest——code_comment 定位结果未落盘，输出评论缺 path 或位置",
+    "无限提高并发（信号量调大）换取速度——并发超过 8 时 token 预算与超时管理失配，出现资源雪崩，应先调 filterLargeDiffs 而非并发",
+    "在子任务阶段做全局过滤或全局反思——每文件上下文是隔离的，全局判断必须在分派前（过滤）或 finalizeManifest 阶段完成"
+   ]
+  },
+  {
+   "id": "arch-dispatch",
+   "name": "规则引导分派",
+   "what": [
+    "分派阶段完全由确定性代码驱动：文件选择、过滤、分束均由规则与代码完成，不依赖 LLM 决策",
+    "文件选择确定要审哪些文件，过滤确定哪些排除并记录原因，分束将文件按规则组织成可并行处理的单元",
+    "规则采用四层链：custom（用户自定义）> project（项目级）> global（全局）> system（系统内置），上层规则优先级高于下层，形成可覆盖的规则体系",
+    "规则匹配使用模板引擎实现，比纯语言驱动（让模型读规则文本再判断）更稳定——同一规则在不同输入下结果确定可复现",
+    "injectDiffMap 机制将被过滤文件的 diff 保留注入，供 file_read_diff 工具在需要时读取，实现『过滤但不封死』"
+   ],
+   "why": [
+    "文件选择与过滤是强约束环节：哪些文件该审、哪些规则适用属于可枚举逻辑，用确定性代码实现可保证行为一致、可单测，而 LLM 在此类任务上表现不稳定",
+    "四层规则链让不同范围的规则可叠加覆盖：用户可对单个文件/目录写 custom 规则覆盖全局默认，工程上形成类似 CSS 层叠的规则语义",
+    "模板引擎匹配规避了语言驱动的两个问题：prompt 长度膨胀（规则文本全塞进上下文）与判断随机性（同一文件两次判断可能不同）",
+    "injectDiffMap 解决『过滤 vs 可读』的矛盾：被过滤文件不进主审查流程，但审查中若确实需要其 diff 上下文，file_read_diff 仍可读取，避免一刀切"
+   ],
+   "how": [
+    "分派顺序：先按确定性逻辑选择 diff 中的文件集合 → 逐文件执行 whyExcluded 过滤链 → 按规则链匹配结果决定归属与排除原因",
+    "规则链匹配：从 custom 开始逐层查找适用规则，命中即生效，custom 层可显式覆盖 project/global/system 层的默认行为",
+    "过滤链顺序：binary（二进制）→ 用户 exclude（显式排除）→ 用户 include（显式包含可覆盖 exclude）→ 扩展名白名单（unsupported_ext）→ 默认路径黑名单（default_path）",
+    "每条被排除文件记录 ExcludeReason（user_exclude/unsupported_ext/default_path/deleted/binary），输出时可供用户审计为何没审某文件",
+    "注入机制：被过滤文件若被后续规则或工具需要，通过 injectDiffMap 写入其 diff 片段，file_read_diff 按需读取，不占主上下文预算"
+   ],
+   "cases": [
+    "项目配置了 global 规则『忽略 vendor/ 与生成代码目录』，但某次审查需要核对 vendor 中一个依赖文件的行为差异——custom 规则 include 该文件，过滤链中 include 覆盖 exclude，该文件进入审查且其余 vendor 文件仍被排除",
+    "多语言仓库（Go+JS+Python）：system 层扩展名白名单只放行支持语言，二进制与 .min.js 等压缩产物在 binary/unsupported_ext 层被排除，用户可在 project 层加白名单覆盖"
+   ],
+   "anti_patterns": [
+    "让 LLM 在 Plan 阶段自行决定『跳过哪些文件』——文件过滤必须发生在分派前的确定性阶段，模型自行跳过会造成审查覆盖不完整且不可审计",
+    "把所有规则写成 system 层一条大规则——应利用四层链分层，custom 覆盖用户特例，否则项目级定制只能改代码或全局配置",
+    "过滤后直接丢弃被过滤文件的 diff——正确做法是 injectDiffMap 保留，审查中发现需要上下文时 file_read_diff 还能读到，否则反复重跑 git 命令浪费",
+    "规则匹配用自然语言 prompt 驱动（把规则文本塞给模型）——模板引擎匹配才稳定，语言驱动在大规则集下判断漂移，且无法单测"
+   ]
+  },
+  {
+   "id": "arch-grounded-tools",
+   "name": "受限工具集审查",
+   "what": [
+    "审查 Agent 只被授予 6 个受限工具：file_read（读文件）、file_find（找文件）、code_search（代码搜索）、file_read_diff（读被过滤文件的 diff）、code_comment（发表评论）、task_done（结束任务）",
+    "工具集经 ReAct 循环调用：模型在思考（Reason）与行动（Act）间交替，每个行动对应一次工具调用，形成受限但有表达力的审查交互循环",
+    "工具清单是从线上工具调用轨迹分析中取舍沉淀而来：统计真实审查中哪些工具被高频使用、哪些带来收益、哪些导致失败，据此收敛出最小够用集",
+    "设计目标之一是防 token 雪球：工具越少、每次调用返回越可控，上下文不会因无界探索而指数膨胀",
+    "code_comment 强制注入 path 参数：模型必须给出评论目标文件的真实路径，防止幻觉路径（模型编造不存在的文件路径）"
+   ],
+   "why": [
+    "给 Agent 全量工具（任意 shell、任意文件写、任意网络）在审查场景既危险又浪费：审查只需读代码与发评论，写操作与执行操作完全不需要",
+    "线上轨迹分析表明大部分无效 token 消耗来自模型在无关工具间来回试探，收敛工具集等于收敛行为空间，直接贡献 token 省 5-15x",
+    "受限工具集配合场景化注册：不同审查场景（文件审查/全局搜索）可注册不同工具子集，进一步缩小模型决策面",
+    "防 token 雪球是规模化运行刚需：6 工具 + 预算前瞻（used+estimateDiffFileTokens 超限即停）双保险，避免单个文件耗尽整个会话预算",
+    "code_comment 强制 path 是幻觉防护的关键机制：评论定位由确定性组件异步完成，path 由工具层注入而非模型自由填写"
+   ],
+   "how": [
+    "工具注册：CLI 入口阶段将 6 工具注册进工具表，MainTask 的 ReAct 循环只暴露这 6 个签名，模型无法调用表外能力",
+    "file_read：读取指定文件内容供模型审查；file_find：按名称模式定位文件；code_search：在代码库中搜索符号/模式，三者构成读侧能力",
+    "file_read_diff：读取被过滤文件（injectDiffMap 注入）的 diff，实现『主流程过滤但上下文可按需补齐』",
+    "code_comment：模型产出审查意见的唯一出口，调用时强制注入 path（目标文件）与位置，由异步定位组件计算精确行号",
+    "task_done：模型判定审查完成时调用，终止本文件 ReAct 循环，进入 REVIEW_FILTER 反思阶段",
+    "循环控制：ReAct 每轮先思考再调工具，配合 ConcurrentTaskTimeout 每文件超时与 budget 前瞻，防止单文件死循环或超预算"
+   ],
+   "cases": [
+    "线上轨迹分析案例：早期版本暴露了写文件/执行命令类工具，轨迹显示模型频繁误用且产出无效评论，收敛到只读 6 工具后 SEM-F1 提升且 token 显著下降",
+    "幻觉路径案例：模型曾对不存在的文件路径发表评论，code_comment 强制 path 注入后，定位组件校验路径真实性，该类评论在源头被拦截"
+   ],
+   "anti_patterns": [
+    "给审查 Agent 暴露写/执行类工具（如 bash、write_file）——审查是只读场景，写操作只会引入风险，且被线上轨迹证明是 token 浪费源",
+    "允许模型自由填写评论文件路径——必须由 code_comment 强制注入 path，否则幻觉路径评论直接流入结果",
+    "无限制的 code_search 返回全量匹配——搜索应限量返回并控制上下文注入，否则一次搜索即可撑爆预算",
+    "把工具集做成所有场景共用一个超集——应场景化注册（场景化工具集），不同任务注册不同子集，控制决策面"
+   ]
+  },
+  {
+   "id": "arch-reflection",
+   "name": "独立反思",
+   "what": [
+    "REVIEW_FILTER_TASK 是独立于审查主循环的反思组件：主审查产出评论后，由该组件对每条评论做有效性把关，而非模型自审",
+    "反思遵循证伪优先原则：先尝试推翻评论，推翻不了才批准，与『先找证据支持』的默认倾向相反",
+    "两条硬性证伪地面：Ground A——评论目标不在 diff 中（模型评论了未改动的代码）；Ground B——diff 某行字面直接反驳（diff 内容本身推翻了评论说法）",
+    "五步过滤法：第一步保护主题否决（内存安全、并发、链接一致性、行为兼容性、未用参数等主题即使无硬证据也不轻易否决）→ 低价值否决（无实际价值的评论被滤除）→ Ground A/B 检查 → 批准",
+    "反思组件存在非对称信息边界：它只能看到 diff 与评论 JSON，看不到完整文件上下文，设计上以『保守否决 + 保护主题放行』应对信息不对称",
+    "schema 字段顺序承重设计：analysis 字段在前、comment_ids 在后，序列化顺序本身参与协议设计，保证反思输入输出解析的稳定性"
+   ],
+   "why": [
+    "同一模型自审自己的评论天然偏向『我的评论是对的』，独立反思组件用确定性五步法打破该偏差，是评论质量闸门",
+    "证伪优先比证实优先更省算力也更有效：多数评论会被 Ground A/B 快速否决，无需深入语义分析即可过滤",
+    "非对称信息边界是刻意的：反思组件不读完整文件，迫使它依赖 diff 字面证据，避免『脑补上下文』为错误评论辩护",
+    "保护主题否决弥补信息不对称：内存安全/并发/链接一致性/行为兼容性/未用参数是高价值主题，评论指向它们时即使 Ground 证据不充分也放行，防止误杀真问题",
+    "五步法把『否决』设计成有顺序的确定性流程，可单测、可审计：每条被否决评论都能指出命中了哪一步"
+   ],
+   "how": [
+    "触发时机：文件子任务 MainTask 调用 task_done 后，REVIEW_FILTER_TASK 作为独立阶段对该文件全部评论执行反思",
+    "输入边界：仅注入 diff 文本与评论 JSON（含 comment_ids、analysis 等字段），不注入完整文件内容，维持非对称信息边界",
+    "五步执行顺序：①保护主题检查——评论涉及内存安全/并发/链接一致性/行为兼容性/未用参数则倾向保留 ②低价值否决——无实质价值的空泛评论剔除 ③Ground A 检查——评论目标行是否在 diff 内，不在则否决 ④Ground B 检查——diff 某行是否字面直接反驳评论结论，是则否决 ⑤批准——通过前四步的评论进入最终结果",
+    "schema 解析：按 analysis→comment_ids 字段顺序解析反思输入，顺序即协议，保证跨版本解析稳定",
+    "结果联动：被否决评论的 comment_ids 从最终 manifest 剔除，不被 emitRunResult 输出"
+   ],
+   "cases": [
+    "模型对某未改动函数发表『该函数缺少错误处理』评论，但该函数不在 diff 中——Ground A 命中，评论被否决，避免了对既有代码的噪音审查",
+    "模型对一行 diff 评论『可能引入空指针』，但该行字面已包含 nil 检查——Ground B 命中，评论被否决；而另一条涉及并发安全（保护主题）的证据不足评论仍被放行"
+   ],
+   "anti_patterns": [
+    "用主模型再次自审（把评论原样丢回给同一模型要求复核）——反思必须独立组件+确定性五步法，自审产生确认偏差",
+    "反思阶段读取完整文件上下文再判断——破坏非对称信息边界，模型会为错误评论脑补辩护理由，Ground 检查失效",
+    "把保护主题豁免理解为『保护主题永不否决』——保护主题只是证据不足时不否决，若 Ground A/B 硬性命中仍应否决",
+    "随意调整 schema 字段顺序（如 comment_ids 前置）——analysis→comment_ids 顺序是承重设计，改动破坏既有解析兼容性"
+   ]
+  },
+  {
+   "id": "arch-parallel",
+   "name": "文件级并行与上下文隔离",
+   "what": [
+    "每个文件拥有独立的子任务上下文：各自独立的 Plan、ReAct 循环、评论集合与 token 预算，互不共享也互不污染",
+    "并行度由信号量（semaphore）控制，默认 8 个并发 goroutine：超过上限的文件子任务排队等待",
+    "ConcurrentTaskTimeout 为每个文件子任务设置独立超时：单文件卡死不会拖垮整批审查",
+    "token 预算前瞻：每轮前检查 used+estimateDiffFileTokens 是否超过 MaxTokensBudget，超限即停止该文件，防止单文件耗尽总预算",
+    "panic recover 隔离：单文件子任务的运行时崩溃被 recover 捕获，不影响其他并发子任务",
+    "filterLargeDiffs 预过滤：超过 80% MaxTokens 的大文件在分派前即被丢弃，从源头规避超大上下文"
+   ],
+   "why": [
+    "文件级隔离使并行成为可能：每个文件独立上下文意味着无共享可变状态，goroutine 之间零锁竞争，天然可并行",
+    "默认 8 并发是在吞吐与 token 预算之间的平衡：并行过多会同时挤压多个文件的上下文预算，导致整体质量下降",
+    "超时与预算前瞻是规模化运行的刚性约束：真实仓库常有异常文件（超大、复杂、工具死循环），无约束会拖垮整批审查",
+    "panic recover 把『偶发崩溃』从全局事故降级为单文件失败：单个文件的 bug 不应中断整个审查流水线",
+    "上下文隔离同时是质量保证：文件间不串上下文，评论不会把 A 文件的代码误引到 B 文件"
+   ],
+   "how": [
+    "分派：过滤后的文件列表逐个申请 semaphore 许可（默认容量 8），获得许可后启动独立 goroutine 执行子任务",
+    "每文件子任务内部：Plan（单轮 LLM）→ MainTask（ReAct 循环，受限 6 工具）→ code_comment 异步定位 → REVIEW_FILTER 反思，全部在该文件私有上下文中进行",
+    "超时控制：ConcurrentTaskTimeout 从子任务启动开始计时，超时则该文件结果标记为超时失败，其余文件继续",
+    "预算前瞻：每轮 ReAct 迭代前计算 used（已用 token）+ estimateDiffFileTokens（预估 diff token）与 MaxTokensBudget 比较，超限立即终止该文件而非等待触发",
+    "崩溃隔离：goroutine 内 defer recover 捕获 panic，将错误记录到该文件结果而非向上抛",
+    "大文件预过滤：filterLargeDiffs 在分派前检测文件 diff 大小，超过 MaxTokens 的 80% 直接丢弃并记录原因，不进入并发队列"
+   ],
+   "cases": [
+    "一次审查含 50 个文件：8 并发分批执行，其中一个文件 ReAct 循环异常膨胀被预算前瞻终止，一个文件发生 panic 被 recover 隔离，其余 48 个文件正常产出评论并汇总",
+    "超大单体文件（数万行 diff）在 filterLargeDiffs 阶段被丢弃，审查耗时与 token 消耗因此保持稳定，避免了单文件把整批预算吃光"
+   ],
+   "anti_patterns": [
+    "为提速把 semaphore 调到几十——并行度与预算耦合，文件多了总 token 并发放大，整体质量下降，应先靠 filterLargeDiffs 控制体量",
+    "让所有文件共享一个全局上下文（先审完所有文件再总结）——文件间串上下文造成评论张冠李戴，且预算失控",
+    "无超时跑子任务——异常文件（工具死循环、diff 超大）会无限占用预算，ConcurrentTaskTimeout 是必须而非可选",
+    "panic 不 recover 直接向上抛——单文件崩溃会终止整批审查，必须 goroutine 内 recover 并记录到该文件结果"
+   ]
+  },
+  {
+   "id": "eng-diff",
+   "name": "Git Diff 获取与解析",
+   "what": [
+    "diff 获取支持三种 Provider，按用户场景选择：range（区间对比）、commit（单提交审查）、workspace（工作区未提交改动）",
+    "range 模式执行 git diff -U3 --find-renames merge-base..to：对比 merge base 到目标提交的完整差异，-U3 表示 3 行上下文，--find-renames 识别重命名文件",
+    "commit 模式执行 git show --diff-merges=first-parent：审查单提交时用 first-parent 避免 merge 提交的组合 diff（combined diff）",
+    "workspace 模式覆盖 tracked（已跟踪）与 untracked（未跟踪）文件：合并两者得到工作区全部改动",
+    "ParseDiffText 状态机按 diff --git 头切分多个文件条目，ParseHunks 解析 @@ 行（hunk 头）拆分变更块",
+    "finalizeDiff 读取新文件全文以补充上下文；DiffContextLines=3 为默认上下文行数，与 -U3 呼应"
+   ],
+   "why": [
+    "三种 Provider 覆盖三种真实审查入口：审查历史区间（range）、审查单个提交（commit）、审查未提交改动（workspace），单一模式无法适配全部场景",
+    "--find-renames 保证重命名文件被识别为『移动+修改』而非『删除+新增』，避免审查对重命名文件产生误报",
+    "--diff-merges=first-parent 规避 merge 组合 diff 的爆炸性体积与语义混乱：合并提交的 combined diff 会把多个父分支的变更混在一起，first-parent 只与主父分支对比",
+    "-U3 与 DiffContextLines=3 统一上下文行数，既给模型足够上下文判断变更影响面，又不让 diff 体积失控",
+    "ParseDiffText 状态机与 ParseHunks 是确定性解析：diff 文本结构稳定（--git 头、@@ 行），用代码解析比交给模型理解更可靠、更省 token"
+   ],
+   "how": [
+    "range 模式：执行 git diff -U3 --find-renames merge-base..to，其中 merge-base 取两端的合并基点，to 为目标提交，输出为统一 diff 格式文本",
+    "commit 模式：执行 git show --diff-merges=first-parent <commit>，带 --diff-merges=first-parent 参数避免 merge 组合 diff",
+    "workspace 模式：分别获取 tracked（git diff 无参数默认覆盖工作区已跟踪文件）与 untracked（新增未跟踪文件）两路改动后合并",
+    "解析流程：ParseDiffText 以 diff --git 为分隔标记按文件切分 diff 文本 → 每个文件条目内 ParseHunks 按 @@ -l,s +l,s @@ 头解析变更块 → 块内含 -U3 提供的上下文行与 +/- 变更行",
+    "finalizeDiff 在 hunk 解析后读取新文件全文，用于后续 file_read/评论定位需要完整文件内容的场景",
+    "输出供下游：解析后的 diff 结构（文件、hunk、行号、变更类型）注入文件子任务上下文，供 Plan/MainTask 使用"
+   ],
+   "cases": [
+    "审查一个 merge 提交：若用默认 git show 会得到 combined diff（多个父分支变更交织），改用 --diff-merges=first-parent 后 diff 体积与语义回归可控",
+    "PR 中包含重命名+微改的文件：--find-renames 使其以 rename 形式呈现，过滤与评论定位按新路径处理，避免误判为删旧增新"
+   ],
+   "anti_patterns": [
+    "审 merge 提交时不加 --diff-merges=first-parent——combined diff 体积爆炸且语义混乱，模型上下文被无关父分支变更污染",
+    "重命名文件被当成删除+新增——未加 --find-renames 时 rename 被拆成两条记录，过滤链与评论定位（path）都会产生误报",
+    "手工解析 diff 文本（正则硬抠）——diff 格式有边界情况（无新行文件、二进制标记、文件头差异），必须用 ParseDiffText/ParseHunks 状态机",
+    "上下文行数随意改大（如 -U10）——上下文增多使 diff 膨胀数倍，预算压力上升而收益有限，DiffContextLines=3 是验证过的平衡点"
+   ]
+  },
+  {
+   "id": "eng-filter",
+   "name": "文件选择与过滤",
+   "what": [
+    "文件过滤由 whyExcluded 过滤链完成，按固定顺序执行：binary（二进制）→ 用户 exclude（显式排除）→ 用户 include（显式包含覆盖）→ 扩展名白名单（unsupported_ext）→ 默认路径黑名单（default_path）",
+    "每条被排除的文件都带 ExcludeReason 记录原因：user_exclude/unsupported_ext/default_path/deleted/binary 五类",
+    "大小上限 2MiB：超过该体积的文件不进审查流程，防止超大文件撑爆上下文",
+    "8000 字节二进制嗅探：读取文件前 8000 字节判断是否为二进制，规避误判与二进制内容注入上下文",
+    "过滤链完全确定性：同一输入必然产生同一过滤结果，可单测、可审计",
+    "过滤与分派衔接：通过过滤的文件进入分派队列（信号量并发），被过滤文件可经 injectDiffMap 供 file_read_diff 按需读取"
+   ],
+   "why": [
+    "二进制文件（图片、编译产物、资源文件）对代码审查无意义且会污染上下文，二进制嗅探（8000 字节采样）比扩展名判断更可靠（改名二进制仍可识别）",
+    "用户 exclude 处理『我不想审的』，用户 include 处理『默认规则误伤的』，两者构成用户层覆盖能力，且 include 优先级高于 exclude 是明确语义",
+    "扩展名白名单限定支持语言集合：白名单外的扩展名（unsupported_ext）不进审查，保证审查聚焦于代码文件",
+    "默认路径黑名单内置常见噪声路径（vendor、依赖目录、生成目录等），开箱即用无需用户配置",
+    "2MiB 上限是上下文预算的工程保障：大文件即使只进 diff 也消耗巨量 token，上限从源头规避；8000 字节嗅探是性能与准确率的平衡采样"
+   ],
+   "how": [
+    "binary 检测：读取文件前 8000 字节做二进制嗅探（NUL 字节/不可打印字符比例），命中即排除并记 ExcludeReason=binary",
+    "用户 exclude：用户配置的排除路径/模式逐条匹配，命中即排除（ExcludeReason=user_exclude），如明确排除测试目录",
+    "用户 include：用户 include 配置可覆盖前面排除的条目（ExcludeReason 相应记录），用于把默认/排除规则误伤的文件拉回审查",
+    "扩展名白名单：文件扩展名不在支持列表内则排除（ExcludeReason=unsupported_ext），如 .min.js、.map、各类生成物",
+    "默认路径黑名单：路径匹配内置黑名单（依赖/生成/构建目录等）则排除（ExcludeReason=default_path）；deleted 标记用于 diff 中已删除文件",
+    "大小检查：文件 diff 或内容超过 2MiB 上限直接排除（配合 filterLargeDiffs 的 80% MaxTokens 规则形成双层大文件防线）",
+    "结果输出：每个文件条目携带是否排除与 ExcludeReason，manifest 中可审计『为什么没审这个文件』"
+   ],
+   "cases": [
+    "图片被改名成 .go 后缀混进 PR：扩展名白名单无法拦截，但 8000 字节二进制嗅探检测到不可打印内容，按 binary 排除，避免二进制内容进入模型上下文",
+    "用户仓库依赖 vendor 目录，默认路径黑名单排除之；但某次需要核对 vendor 内特定文件的改动，用户 include 覆盖后该文件进入审查，其余 vendor 文件仍被排除"
+   ],
+   "anti_patterns": [
+    "只用扩展名判断二进制（如 .png/.jpg 列表）——改名二进制绕过白名单，必须用 8000 字节内容嗅探兜底",
+    "include 与 exclude 优先级设计反了——若 exclude 覆盖 include，用户将无法把误伤文件拉回审查，include 覆盖 exclude 是必须语义",
+    "大文件过滤阈值只依赖 filterLargeDiffs 的 80% MaxTokens——单一大文件即使小于 80% 也可能吃掉大半预算，2MiB 硬上限是必要补充",
+    "过滤后不记录原因（无 ExcludeReason）——用户无法审计『为什么这个文件没被审』，过滤链的可解释性丢失，排障困难"
+   ]
+  },
+  {
+   "id": "eng-bundling",
+   "name": "文件分束",
+   "what": [
+    "文件分束是 open-code-review 将一次评审拆解为多个可并行子任务的核心调度机制，决定 diff/文件集合如何被组织成独立任务单元",
+    "review 模式（基于 diff 审查）默认采用『每文件一个子任务』策略，即每个改动文件独立成为一个审查任务单元",
+    "分束决策发生在 scan 阶段：通过 BatchStrategy 策略枚举，将文件按规则分桶（bucket），再切块生成子任务",
+    "支持三种分桶策略：none（不分桶，整体作为单一任务）、by-language（按小写扩展名分桶，如 .go/.py/.ts）、by-directory（按首层目录分桶）",
+    "分桶后按 key 排序保证确定性输出，同一输入集合任何时候产生相同任务序列，为指纹复用与断点续审奠定基础",
+    "按 BatchSize 对桶内文件切块形成最终批次；delegate 模式则改用 (source|pattern|text) 三元组聚簇规则组织任务"
+   ],
+   "why": [
+    "单文件一任务保证每个子任务的上下文最小且聚焦，避免超大 diff 超出模型上下文窗口",
+    "分桶+排序提供确定性：任务划分可复现，是 reviewItemFingerprint 指纹复用、断点续审、审计回放的前提",
+    "按语言/目录分桶让同类型代码集中审查，便于共享审查规则与领域提示词，提高审查质量与并行度",
+    "delegate 模式按三元组聚簇，是因为该模式面向『指定源码/模式/文本』的定向审查，任务粒度由调用方语义决定而非文件边界"
+   ],
+   "how": [
+    "在 scan 流程中通过 BatchStrategy 决定分桶方式，例如 by-language 策略读取文件扩展名并转小写作为桶 key（.GO 与 .go 归入同一桶）",
+    "by-directory 策略取文件路径的首层目录作为桶 key，跨目录文件分别成桶",
+    "桶内按 key 字典序排序，保证任务序列确定性，不依赖文件系统遍历顺序",
+    "排序后的桶内文件按 BatchSize 切块，生成 dispatchSubtasks 可消费的批次列表",
+    "review 模式默认每文件一个子任务，配合并行 worker 分发执行",
+    "delegate 模式不走文件分桶，按 (source|pattern|text) 三元组聚簇同类委托请求合并成批次",
+    "分束结果直接喂给后续的 dispatchSubtasks 与 WaitBackground 时序，构成完整执行链"
+   ],
+   "cases": [
+    "一次 PR 改动 30 个 Go 文件，by-language 策略下全部归入 .go 桶，按 BatchSize=10 切成 3 个批次子任务并行审查",
+    "前后端同仓改动，by-directory 策略将 frontend/ 与 backend/ 下文件分别成桶，各自独立审查避免上下文混杂",
+    "delegate 模式下对同一源码文件的不同 pattern 请求聚簇为同一任务组，减少重复读取与审查开销",
+    "扩展名大小写混用（.GO/.go）时，小写归一化保证同语言文件不分家"
+   ],
+   "anti_patterns": [
+    "选择 none 策略直接审查超大仓库，导致单任务上下文溢出或审查质量急剧下降",
+    "依赖 map 迭代等非确定顺序生成任务而非显式 key 排序，破坏确定性，使指纹复用与断点续审失效",
+    "把 delegate 的三元组聚簇与 review 的文件分桶混为一谈，错误设计任务组织逻辑",
+    "忽略 BatchSize 上限，单批次塞入过多文件，导致单任务超时或超出上下文窗口"
+   ]
+  },
+  {
+   "id": "eng-locator",
+   "name": "行号定位回退链",
+   "what": [
+    "行号定位回退链解决『审查评论最终必须落在哪个文件的哪几行』的定位问题，是评论回填 Collector 前的最后一步精确对齐",
+    "采用五级回退策略，优先级从同文件精确匹配逐步降级到跨文件匹配，最终由 LLM 兜底",
+    "第一级：同文件 hunk 新侧（context+added 行→新行号）精确连续匹配",
+    "第二级：hunk 旧侧（context+deleted 行→旧行号）匹配",
+    "第三级：NewFileContent 全文件滑动窗口匹配，窗口可跳空行容忍格式噪音",
+    "第四级：跨文件 RelocateAcrossFiles 纯字符串匹配；第五级：LLM ReLocateComment 生成目标代码块定位",
+    "配套 normalizeLine 清洗（去 +/- 前缀与首尾空白）与 matchConsecutive 精确连续匹配保证匹配严格性"
+   ],
+   "why": [
+    "单一匹配策略在真实 diff 中常失效（行号漂移、文件改名、上下文被截断），需要多级回退链逐级降级兜底",
+    "新侧优先因为评论目标是『改动后的新代码』，新行号对用户可点击跳转最有效",
+    "全文件滑动窗口解决 diff 上下文不足以唯一匹配的模糊场景，跳空行容忍格式噪音",
+    "LLM 兜底保证极端场景（跨文件、语义等价但文本不同）下仍能给出定位结果，避免评论无处安放"
+   ],
+   "how": [
+    "一级：在目标文件各 hunk 的新侧（context+added 行集合）按行顺序做精确连续匹配（matchConsecutive），命中返回新行号区间",
+    "二级：一级失败后转向 hunk 旧侧（context+deleted 行→旧行号）执行同样的连续匹配",
+    "三级：两级 hunk 匹配失败后，以 NewFileContent 全文件为文本，用滑动窗口匹配目标行片段（可跳过空行）",
+    "四级：仍失败则调用 RelocateAcrossFiles 在其他文件 diff 中做纯字符串匹配迁移",
+    "五级：最终由 LLM ReLocateComment 推理定位，返回代码块后 resolve 评论行号",
+    "全程先 normalizeLine 清洗行内容（去 +/- 前缀、首尾空白），再交给 matchConsecutive 严格精确匹配，杜绝模糊子串误命中"
+   ],
+   "cases": [
+    "开发者把被注释的代码块上下移动了 20 行，一级新侧匹配失败，二级旧侧按旧行号定位成功",
+    "diff 仅含少量上下文行导致片段被截断，三级全文件滑动窗口找到唯一匹配位置",
+    "评论针对的函数被抽到另一个文件，四级跨文件 RelocateAcrossFiles 纯字符串匹配命中新文件",
+    "重构后文本面目全非，四级 0/多命中被拒绝，最终五级 LLM 推理出目标位置"
+   ],
+   "anti_patterns": [
+    "跳过 normalizeLine 直接匹配带 +/- 前缀的行，导致全链路匹配失败",
+    "用子串/模糊匹配代替 matchConsecutive 精确连续匹配，误命中行号污染评论落点",
+    "五级链路不逐级降级、直接跳级，导致本可用旧侧定位的评论被 LLM 高成本兜底",
+    "忽略滑动窗口的跳空行能力，把格式噪音当失败原因，过早进入跨文件/LLM 兜底"
+   ]
+  },
+  {
+   "id": "eng-relocate",
+   "name": "跨文件与 LLM 重定位",
+   "what": [
+    "重定位机制负责把在原文件无法定位的评论迁移到正确的目标文件与行号，分确定性层（RelocateAcrossFiles）与推理层（ReLocateComment）",
+    "RelocateAcrossFiles：将评论的 ExistingCode 逐字摘录，在其他文件的 diff 中做纯字符串匹配",
+    "0 命中或 >1 命中均拒绝（防歧义），恰好 1 命中则 Path+StartLine+EndLine 整体迁移",
+    "ReLocateComment：通过 BuildReLocationMessages 构造 {diff}/{existing_code}/{suggestion_content} 提示消息交给 LLM",
+    "LLM 输出代码块后经 extractCodeBlock 提取，再重试 ResolveComment；失败时回退到原 snippet",
+    "是 eng-locator 回退链的第四、五级实现"
+   ],
+   "why": [
+    "代码审查中评论位置与目标位置常因重构、移动、复制而不一致，机械匹配无法覆盖全部场景",
+    "纯字符串匹配零成本且确定性强，但只能处理文本完全一致的搬迁；语义等价但文本变化的场景必须借助 LLM",
+    "0/多命中双拒绝策略规避歧义风险——宁可放弃迁移也不把评论错误安放到无关代码上",
+    "失败保留原 snippet 保证『评论内容永远不丢』，位置错误可人工修正，内容丢失不可恢复"
+   ],
+   "how": [
+    "RelocateAcrossFiles 从评论摘录 ExistingCode 原文（逐字），遍历其他文件 diff 内容执行字符串匹配",
+    "命中数检查：恰好 1 命中才接受；0 命中（目标不在其他文件）与 >1 命中（目标代码存在多份拷贝）都拒绝迁移",
+    "接受后将评论的 Path、StartLine、EndLine 整体迁移到命中位置",
+    "ReLocateComment 通过 BuildReLocationMessages 组装 {diff}/{existing_code}/{suggestion_content} 三要素提示词",
+    "请求 LLM 生成包含目标位置的代码块，经 extractCodeBlock 提取后重试 ResolveComment 完成定位",
+    "重试仍失败则回填原 snippet（原文件+原行号），交由用户或后续人工处置"
+   ],
+   "cases": [
+    "工具函数从 a.go 复制到 b.go，评论原定位在 a.go，RelocateAcrossFiles 在 b.go diff 中恰好 1 命中，整体迁移成功",
+    "同一代码块在多个文件重复出现（>1 命中），迁移被拒绝避免歧义，降级走 LLM 或保留原位",
+    "函数被重命名+重构，字符串匹配无命中，LLM 根据 diff/现有代码/建议内容推理出真实目标位置",
+    "分布式 mock 代码被整体移动后文本一致，字符串匹配直接迁移成功，零 LLM 成本"
+   ],
+   "anti_patterns": [
+    "采用『首次命中即接受』而非『恰好 1 命中』，把评论错误安放到同名代码的无关拷贝上",
+    "直接把 LLM 输出当最终答案而不经 extractCodeBlock 清洗，混入解释性文本导致定位失败",
+    "失败路径直接丢弃评论，破坏『评论不丢失』契约",
+    "用归一化（去空白/大小写）后的文本做字符串匹配，破坏逐字匹配的确定性语义"
+   ]
+  },
+  {
+   "id": "eng-compression",
+   "name": "上下文三区压缩",
+   "what": [
+    "上下文压缩把会话消息划分为三个区：frozen（messages[0:2] 系统/前置固定区）+ compress 区（可压缩区）+ active 区（最近活动区）",
+    "compress 区由 LLM 摘要为 previous_review_summary，追加进 user 消息以保留审查连续性",
+    "active 区按剩余预算保留最近 K 轮对话，保证当前任务的完整上下文",
+    "60% 软阈值：后台异步触发压缩，不阻塞审查；80% 警告阈值：同步立即压缩，防止溢出",
+    "压缩失败时保留原消息，不丢内容；每会话独立 compressionState，防止跨文件互踩"
+   ],
+   "why": [
+    "长会话中历史轮次占满上下文窗口，导致当前轮次被截断或模型质量下降",
+    "分区设计让『必须保留的协议头』（frozen）与『可压缩的历史审查』（compress）分离，结构清晰可预测",
+    "软/硬双阈值平衡成本与质量：60% 后台异步压缩无感，80% 同步兜底防溢出",
+    "每会话独立状态避免多文件并行会话共享压缩状态，导致 A 会话压缩污染 B 会话"
+   ],
+   "how": [
+    "会话消息按三区划分：frozen=前 2 条（系统提示等），compress=中间历史区，active=最近对话区",
+    "触发时机由已用上下文占比决定：达到 60% 软阈值时后台异步执行压缩，不阻塞当前审查",
+    "达到 80% 警告阈值时同步立即压缩，强制腾出空间防止溢出",
+    "压缩时 LLM 将 compress 区内容摘要成 previous_review_summary，追加进 user 消息",
+    "active 区按剩余预算保留最近 K 轮消息，其余并入 compress 区",
+    "压缩失败时保留原始消息列表，不执行破坏性替换，保证审查连续性不中断",
+    "每个文件会话持有独立 compressionState 实例，互不共享"
+   ],
+   "cases": [
+    "单文件 30 轮审查后上下文达 60%，后台异步触发摘要，用户无感继续审查",
+    "超大 diff 审查中上下文冲到 80%，同步压缩立即执行，防止当前请求溢出失败",
+    "摘要后的 previous_review_summary 让后续轮次仍能引用早期审查结论，保持连续性",
+    "并行审查 5 个文件会话，各会话独立压缩互不干扰"
+   ],
+   "anti_patterns": [
+    "全量压缩包括 frozen 系统消息，破坏协议前缀导致后续工具调用失效",
+    "压缩失败后仍执行截断丢弃，违反『失败保留原消息』契约",
+    "全局共享单一压缩状态，多文件会话互相踩踏（A 的压缩清掉 B 的 active 区）",
+    "只压缩不保留摘要，审查结论断档，后续轮次无法引用早期决策"
+   ]
+  },
+  {
+   "id": "eng-session",
+   "name": "会话 JSONL 持久化",
+   "what": [
+    "会话持久化把每次代码审查的完整执行轨迹以 JSONL 落盘，默认目录 ~/.opencodereview/sessions/",
+    "GetOrCreateFileSession(newPath) 按文件路径建立独立会话文件，一文件一会话",
+    "AppendTaskRecord 记录 Plan/Main/MemoryCompression/ReLocation/ReviewFilter 等任务类型的事件",
+    "session_end 事件落盘标记会话正常结束",
+    "会话可回放、可审计：任何一次审查都能重建执行过程"
+   ],
+   "why": [
+    "审查过程可审计：企业级代码审查需要知道每条评论怎么来的、走了哪条定位链、用了多少轮",
+    "支持断点续审：JSONL 会话记录是 --resume 恢复执行的基础数据源",
+    "故障排查：LLM 超时、定位失败、压缩事故都能从会话记录还原现场",
+    "一文件一会话保证并行审查互不串扰，且单文件会话文件增长可控"
+   ],
+   "how": [
+    "会话文件位于 ~/.opencodereview/sessions/，按文件路径派生（GetOrCreateFileSession(newPath)）",
+    "会话生命周期内所有关键任务通过 AppendTaskRecord 追加 JSONL 行，任务类型包括 Plan（规划）、Main（主审查）、MemoryCompression（记忆压缩）、ReLocation（重定位）、ReviewFilter（评论过滤）",
+    "会话结束时写入 session_end 记录并落盘，标识完整生命周期",
+    "回放时逐行读取 JSONL 重建任务时序与决策过程",
+    "审计时可按任务类型过滤查询，如只查所有 ReLocation 事件"
+   ],
+   "cases": [
+    "审查结束后 3 天复盘，回放 JSONL 确认某条评论经历了三级定位回退才落位",
+    "线上会话崩溃后读取 JSONL 恢复现场，通过 session_end 缺失定位崩溃点",
+    "用 --resume 读取旧会话，跳过已完成指纹任务直接续审未决项",
+    "审计团队过滤 ReviewFilter 事件统计被过滤掉的低质量评论数量"
+   ],
+   "anti_patterns": [
+    "多文件共用单一会话文件，并行审查事件交错，无法还原单文件时序",
+    "会话结束不写 session_end，回放时无法区分『正常结束』与『中断』",
+    "只记结果不记过程（跳过 Plan/ReLocation 等中间任务），审计失去意义",
+    "内存缓冲未落盘即结束，崩溃后会话数据全丢"
+   ]
+  },
+  {
+   "id": "eng-resume",
+   "name": "断点续审与指纹复用",
+   "what": [
+    "断点续审通过任务指纹复用跳过已完成审查，从断点继续执行未决项",
+    "reviewItemFingerprint = sha256(mode + oldPath + newPath + diffText)，是评审项的确定性身份指纹",
+    "父 manifest 中标记 completed/reused 的评论直接回填 Collector（复用），未决项重跑",
+    "scanItemFingerprint = sha256(full_scan + path + content)，是全文件扫描项的指纹",
+    "SealedInput 冻结 commit 端点，防止 ref 移动导致身份漂移",
+    "用法入口：ocr review --resume <session-id>"
+   ],
+   "why": [
+    "大仓库/长会话中断后从头重审成本极高，指纹复用把已完成工作降为 O(1) 回填",
+    "指纹基于内容与路径而非时间，同一 diff 多次审查指纹一致，天然幂等",
+    "SealedInput 冻结端点解决审查进行中远端 ref 更新导致的前后身份不一致",
+    "复用/重跑决策由父 manifest 状态驱动，覆盖度契约是单一事实源"
+   ],
+   "how": [
+    "生成评审项指纹 reviewItemFingerprint=sha256(mode+oldPath+newPath+diffText)，作为任务身份标识",
+    "续审时查询父 manifest：条目状态为 completed 或 reused 的评论直接回填 Collector，不重新调用 LLM",
+    "未决（pending/failed）条目重新执行审查子任务",
+    "scan 模式生成 scanItemFingerprint=sha256(full_scan+path+content) 标识扫描项用于复用",
+    "SealedInput 在会话启动时冻结 commit 端点（commit hash 级别），后续引用不变",
+    "执行入口 ocr review --resume <session-id> 指定要恢复的会话"
+   ],
+   "cases": [
+    "30 文件审查跑到第 25 个断网，--resume 后 25 个 completed 指纹直接回填，仅重跑 5 个",
+    "同一 diff 被评审两次（如重复提交），指纹一致直接复用评论，无重复 LLM 开销",
+    "审查中远端仓库被 push 新 commit，SealedInput 保证本会话仍引用冻结端点，评论身份不漂移",
+    "scan 模式下文件内容未变的扫描项按 scanItemFingerprint 复用，仅重扫变化文件"
+   ],
+   "anti_patterns": [
+    "指纹遗漏 diffText 或 mode 分量，同一 diff 不同模式产出相同指纹，错误复用评论",
+    "不检查父 manifest 状态直接复用，failed 条目被当 completed 回填污染评论集",
+    "依赖可变 ref（如分支名）而非冻结 commit 端点，审查期间 ref 移动导致身份漂移、评论错位",
+    "续审时重建全部会话而非按指纹差量续跑，退化为全量重审"
+   ]
+  },
+  {
+   "id": "eng-manifest",
+   "name": "Run Manifest 覆盖度契约",
+   "what": [
+    "Run Manifest 是审查运行的覆盖度契约，声明本次审查覆盖了哪些项、每项什么状态、哪些失败，schema 标识为 'ocr.run-manifest/v1'",
+    "提供 RegisterSelected/SealSelected/MarkCompleted/Reused/Failed 等操作登记任务生命周期",
+    "FailureClass 分 8 类，实现精细化失败归因",
+    "SetRunFailure 与 SetPendingFailureCause 语义分离：预算截断（pending）≠ 运行失败（failure）",
+    "Finalize 冻结 input/repository/coverage，形成不可变快照",
+    "scan 模式无 manifest 属设计行为，非缺陷"
+   ],
+   "why": [
+    "审查工具必须能回答『这次审查到底完整吗』，manifest 是覆盖度的单一事实源",
+    "8 类 FailureClass 让失败可机器归因（超时/上下文溢出/LLM 错误等），支撑自动重试与审计",
+    "pending（预算截断）与 failure 分离，避免把『没审完』误判为『审坏了』",
+    "Finalize 冻结快照保证审计时引用的输入与产出严格一致"
+   ],
+   "how": [
+    "运行开始时通过 RegisterSelected 登记被选中的评审项，SealSelected 封存选定集合",
+    "每项完成后调用 MarkCompleted/Reused/Failed 更新状态，形成逐项覆盖度台账",
+    "失败按 FailureClass 8 类归因，如 LLM 调用失败、上下文截断、定位失败、超时等",
+    "预算截断类情况用 SetPendingFailureCause 记录未决原因，区别于 SetRunFailure 的整体运行失败",
+    "全部任务结束后 Finalize 冻结 input/repository/coverage 三元快照，落盘为不可变记录",
+    "scan 模式因无逐项评审任务，按设计不产出 manifest"
+   ],
+   "cases": [
+    "运行中 3 项因上下文溢出失败，manifest 记为 failed（类：上下文溢出），重试时精确重跑这 3 项",
+    "预算只够审 80 项中的 60 项，剩余 20 项记为 pending（SetPendingFailureCause），不污染失败统计",
+    "审计时读取 Finalize 快照，确认 coverage 与 input 严格对应",
+    "复用评论的条目 MarkReused，覆盖度统计中明确区分『新审』与『复用』"
+   ],
+   "anti_patterns": [
+    "把预算截断的 pending 项标记为 failed，覆盖度报告失真，误导重试与统计",
+    "跳过 Finalize 不冻结快照，后续审计无法确认输入与产出的对应关系",
+    "失败不按 FailureClass 归因而只记布尔值，机器无法自动分类重试",
+    "在 scan 模式强造 manifest，破坏『scan 无 manifest』的设计契约"
+   ]
+  },
+  {
+   "id": "eng-scan",
+   "name": "全文件扫描引擎",
+   "what": [
+    "全文件扫描引擎实现无 diff 审查：不依赖 git diff，对仓库全量文件内容做审查",
+    "Run 时序：Enumerate→filterScanItems→filterLargeScans→dispatchSubtasks（按 batch）→maybeRunProjectSummary→WaitBackground→Finalize",
+    "ScanItem 携带全文件 Content，供模型基于全文审查",
+    "DiffLookup 返回合成 Diff：NewFileContent=全文、Diff 为空，使 resolveFromFileContent 路径生效",
+    "额外存在 DEDUP_TASK（CommentCollector.Snapshot/Since/ReplaceSince 批次级去重）与 PROJECT_SUMMARY_TASK",
+    "Provider.Enumerate 用 git ls-files + 未跟踪文件列举，2MiB 大小上限，8000 字节内容嗅探"
+   ],
+   "why": [
+    "新仓库/未提交场景没有 diff 可审，全文件扫描是唯一可行的审查入口",
+    "全文件内容让模型看到完整上下文，能发现跨函数/跨文件的逻辑问题（diff 模式看不到未改动区域）",
+    "合成 Diff 复用同一套解析管线，无需为 scan 单独实现定位逻辑",
+    "DEDUP_TASK 解决批次重复生成相同评论的问题；PROJECT_SUMMARY_TASK 提供项目级整体结论"
+   ],
+   "how": [
+    "Enumerate 枚举仓库文件：git ls-files 列出跟踪文件 + 未跟踪文件，共同构成扫描候选集",
+    "filterScanItems 过滤无需扫描的项，filterLargeScans 剔除超大文件（2MiB 上限）",
+    "内容嗅探：8000 字节取样判断文件类型/可审性，跳过二进制等不可审内容",
+    "每个 ScanItem 携带全文件 Content 进入子任务，按 batch 经 dispatchSubtasks 分发",
+    "DiffLookup 为扫描项返回合成 Diff（NewFileContent=全文、Diff 为空），使 resolveFromFileContent 生效，行号定位直接基于全文",
+    "批次级 DEDUP_TASK 通过 CommentCollector.Snapshot/Since/ReplaceSince 对重复评论去重",
+    "maybeRunProjectSummary 视条件触发 PROJECT_SUMMARY_TASK 生成项目级总结，最后 WaitBackground 等待后台任务后 Finalize"
+   ],
+   "cases": [
+    "全新仓库首次审查无 git 历史，scan 模式全量枚举并逐文件审查",
+    "仓库含 3 个 5MB 大文件被 filterLargeScans 剔除，其余文件正常扫描",
+    "多个子任务对同一代码模式给出重复评论，DEDUP_TASK 批次级去重只保留一条",
+    "未跟踪的新文件被 Enumerate 纳入扫描范围，提交前就能被审查"
+   ],
+   "anti_patterns": [
+    "把 scan 模式当 diff 模式用，期待行号定位基于 diff 行号而非全文（合成 Diff 语义不同）",
+    "忘记 2MiB 上限，超大文件直接进子任务拖垮上下文",
+    "忽略 8000 字节嗅探，二进制文件被当文本扫描产出垃圾评论",
+    "不做 DEDUP_TASK 去重，批次重复评论成倍污染最终结果"
+   ]
+  },
+  {
+   "id": "cli-overview",
+   "name": "ocr 命令总览与安装",
+   "what": [
+    "ocr 是阿里巴巴开源的 AI 代码审查 CLI 工具（项目 alibaba/open-code-review），以 Go 编写，命令名为 ocr，面向开发者提供本地化、可自定义的代码审查能力",
+    "基于 cobra 构建的命令树，顶层子命令包括 review（核心审查）、scan（全文件扫描）、delegate（委托模式）、config（配置管理）、session（会话管理）、llm（LLM 工具）、rules（规则调试）、viewer（WebUI 查看器）、completion（shell 补全）、version（版本信息）",
+    "官方推荐安装方式为 npm 全局安装：npm install -g @alibaba-group/open-code-review，该方式对 Node 环境用户最便捷",
+    "硬性前置条件为 Git 版本不低于 2.41，工具底层大量依赖 git diff、git 搜索与仓库操作能力，版本不足将直接导致功能不可用",
+    "提供多条安装路径以适应不同环境：install.sh / install.ps1 脚本安装、GitHub Release 预编译二进制、源码构建（Makefile）",
+    "根命令支持 -V / --version 查看版本号，--help 查看完整命令树与参数说明，是熟悉工具的第一步"
+   ],
+   "why": [
+    "统一入口封装了多种审查模式（review/scan/delegate）与配套管理能力（config/session/llm/rules/viewer），避免用户为每种能力安装独立工具",
+    "Git>=2.41 的版本门槛保证了 diff 解析、变更搜索、仓库操作等底层原语的稳定性，是审查准确性的基础保障",
+    "多安装方式（npm/脚本/二进制/源码）覆盖 Linux、macOS、Windows 及无包管理器的受限环境，降低接入成本"
+   ],
+   "how": [
+    "npm install -g @alibaba-group/open-code-review 全局安装，随后直接执行 ocr 命令",
+    "先执行 git --version 核对 Git 版本是否满足 >=2.41，不满足则先升级 Git 再安装",
+    "无 npm 环境时执行 curl 下载 install.sh（Linux/macOS）或 install.ps1（Windows）脚本安装",
+    "从 GitHub Releases 页面下载对应操作系统与架构的预编译二进制，解压后放入 PATH",
+    "源码方式：git clone 仓库后按 Makefile 目标执行构建（如 make build），生成二进制",
+    "安装后执行 ocr -V 或 ocr --version 验证安装成功，执行 ocr --help 浏览命令树",
+    "执行 ocr completion <shell> 生成对应 shell 的补全脚本，提升日常使用效率"
+   ],
+   "cases": [
+    "开发机快速上手：单条 npm install -g 命令完成安装，随后 ocr --version 验证即开始使用",
+    "CI 服务器或 Docker 镜像构建场景：Git 版本常较旧，先升级 Git 到 2.41+，再用 GitHub Release 二进制或脚本安装，避免 npm 依赖",
+    "Windows 开发环境：使用 install.ps1 脚本或下载 exe 二进制，绕过 npm/Git 工具链兼容问题",
+    "内网/离线环境：预先下载 Release 二进制离线分发，源码构建则需预置 Go 工具链"
+   ],
+   "anti_patterns": [
+    "忽略 Git 版本前置条件：在 Git<2.41 的环境直接安装，运行 review/scan 时报错后才发现是底层 git 能力不足，应先 git --version 检查",
+    "二进制安装后未加入 PATH 或 PATH 顺序错误，执行 ocr 提示 command not found，误以为安装失败而重复安装",
+    "多安装方式混用导致版本混乱：npm 全局版与 Release 二进制同时存在，PATH 优先命中旧版本，行为与文档不符，应统一保留一种安装方式并核对版本"
+   ]
+  },
+  {
+   "id": "cli-review",
+   "name": "ocr review",
+   "what": [
+    "ocr review 是工具的主命令，基于 git 变更执行 AI 代码审查，是日常使用频率最高的入口",
+    "支持三种审查模式：裸运行 ocr review 审查 workspace（暂存 + 未暂存 + 未跟踪的改动）；--from/--to 指定合并基准（如 --from main --to feature-branch）做分支对比；--commit <hash> 针对单个 commit 审查",
+    "输出格式可选 text（默认，人类可读）、json（结构化，供脚本消费）、sarif（供 CI/静态分析工具集成）",
+    "受众维度通过 --audience 控制：human 面向人类阅读、agent 面向 AI Agent 消费，输出详略与措辞不同",
+    "资源控制参数齐全：--concurrency（默认 8）控制并行度、--timeout（默认 10 分钟）控制单次审查超时、--max-tokens / --max-tokens-budget / --max-tools / --max-git-procs 约束 token 预算、工具调用数与 git 子进程数",
+    "支持 --resume 断点续审（配合 session）、--background(-b)/--background-file(-B) 后台执行、--preview(-p) 预演不实际调用 LLM、--provider/--model 指定模型、--no-filter 关闭结果过滤、--rule/--exclude 控制规则与排除路径"
+   ],
+   "why": [
+    "三种模式精确对应日常开发流程：提交前看工作区改动、合并前看分支差异、复盘时看单次提交，无需切换工具",
+    "json/sarif 输出使审查结果可被 CI 流水线、缺陷管理平台与其他工具链消费，而不只是给人看的文本",
+    "并发、超时、token 预算等参数让大仓库审查可控可预期，避免长时间无响应或预算超支"
+   ],
+   "how": [
+    "审查当前工作区全部改动：ocr review",
+    "分支合并前对比审查：ocr review --from main --to feature-branch",
+    "审查单个提交：ocr review --commit abc123",
+    "结构化输出：ocr review --format json 或 ocr review --format sarif（CI 集成）",
+    "面向 Agent 消费：ocr review --audience agent",
+    "精细控制范围：ocr review --rule <rule-id> --exclude '<glob>' 指定规则并排除路径",
+    "控制资源：ocr review --concurrency 8 --timeout 30m --max-tokens-budget 200000 --max-git-procs 4",
+    "指定模型与预演：ocr review --provider openai --model gpt-4o；ocr review --preview 查看将审查的变更而不调用 LLM",
+    "后台执行：ocr review --background --background-file review.jsonl，之后用 ocr session 查看进度与结果",
+    "中断后续审：ocr review --resume <session-id> 从断点继续"
+   ],
+   "cases": [
+    "提交前自查：改完代码直接 ocr review，快速获得 AI 对暂存与未暂存改动的审查意见，修复后再提交",
+    "PR 合并前把关：在 feature 分支上执行 ocr review --from main --to feature-branch，聚焦本次合并将引入的全部差异",
+    "CI 集成：流水线中执行 ocr review --format sarif --audience agent，将 SARIF 上报给代码平台或缺陷系统",
+    "大仓库长时间审查：开启 ocr review --background --background-file out.jsonl 后台跑，配合 --concurrency/--timeout 调整，随后用 session 查看并 --resume 续审"
+   ],
+   "anti_patterns": [
+    "不调 --timeout 直接审超大仓库：默认 10 分钟超时对大型变更远远不够，中途超时后未用 --resume 续审，导致已消耗的 token 与时间全部浪费，应预估规模后显式设置 --timeout 与 --max-tokens-budget",
+    "--concurrency 与 --max-git-procs 拉满追求速度：并发过高导致 LLM API 限流报错或 git 进程冲突、diff 计算互相干扰，应结合仓库规模与限流阈值保守设置",
+    "依赖默认文本输出对接自动化：管道消费 text 格式脆弱，脚本应显式使用 --format json 或 sarif，并留意 --audience 对输出结构的影响",
+    "后台模式不使用 --background-file 指定输出路径：默认位置不易定位，结果文件被清理后无处恢复，应显式指定并记录路径"
+   ]
+  },
+  {
+   "id": "cli-scan",
+   "name": "ocr scan",
+   "what": [
+    "ocr scan 是全文件扫描模式，不依赖 git 历史与 diff，直接对磁盘上的源码文件逐个审查，覆盖 review 模式无法触及的历史遗留问题",
+    "裸运行 ocr scan 扫描整个仓库；--path <path> 可指定目录或文件缩小范围（如 ocr scan --path internal/agent）",
+    "分批策略由 --batch 控制：none（不分批）、by-language（按语言分批）、by-directory（按目录分批），默认按语言/目录自动分批以控制单轮上下文与成本",
+    "执行分三阶段：PLAN（制定扫描计划）、DEDUP（跨文件去重，避免重复问题重复报告）、PROJECT_SUMMARY（项目级汇总）",
+    "支持 --no-plan / --no-dedup / --no-summary 分别跳过对应阶段，便于针对性调试或控制耗时",
+    "支持 --resume 断点续审，配合 session 机制在中断后恢复"
+   ],
+   "why": [
+    "陌生代码库往往没有可用的 git 历史或当前无变更，review 的 diff 驱动模型无从下手，scan 的全文件模式是审计陌生代码库的入口",
+    "按语言/目录分批（--batch）可以控制每次扫描的上下文规模与 token 成本，大仓库不至于单次调用爆掉",
+    "三阶段流水线（计划/去重/汇总）保证扫描有序、结果无重复、结论有全局视角，而非零散问题列表"
+   ],
+   "how": [
+    "扫描整个仓库：ocr scan",
+    "扫描指定目录或文件：ocr scan --path internal/agent 或 ocr scan --path internal/agent/main.go",
+    "按语言分批：ocr scan --batch by-language",
+    "按目录分批：ocr scan --batch by-directory",
+    "不分批全量扫描：ocr scan --batch none",
+    "跳过计划阶段直接扫描：ocr scan --no-plan",
+    "关闭去重看原始命中：ocr scan --no-dedup",
+    "跳过项目汇总只出单文件问题：ocr scan --no-summary",
+    "中断后续扫：ocr scan --resume <session-id>"
+   ],
+   "cases": [
+    "接手遗留系统摸底：新团队拿到无历史记录或 git 历史被裁剪的代码库，直接 ocr scan 全量扫描，快速得到问题全貌与项目级汇总",
+    "指定模块深度审查：只关心某个模块时 ocr scan --path internal/agent --batch none，避免全仓噪音",
+    "大仓库预算控制：先 ocr scan --path 逐目录分批扫，或 --batch by-directory 由工具自动分批，每批结束后评估问题再决定是否扩范围",
+    "中断恢复：长扫描被网络/断电打断后，ocr scan --resume 从断点继续，不重复消耗已完成的批次"
+   ],
+   "anti_patterns": [
+    "大仓库直接默认全量扫描：上下文与 token 预算被撑爆、耗时超长，应先 --path 收窄范围或显式 --batch 分批，再逐步扩大",
+    "关闭去重（--no-dedup）后把重复问题当新问题处理：跨文件相似代码会被重复报告，处理问题时须结合 DEDUP 阶段的去重信息合并同类项",
+    "中断后弃用 --resume 重跑全量：已完成的批次全部重扫，token 与时间双倍浪费，应始终用 --resume 续扫",
+    "把 scan 当增量审查日常使用：scan 是全文件模式，每次都是全量成本，日常增量审查应使用 ocr review（diff 驱动）"
+   ]
+  },
+  {
+   "id": "cli-delegate",
+   "name": "ocr delegate",
+   "what": [
+    "ocr delegate 是委托模式：工具自身不调用 LLM，只负责分析准备，把审查工作委托给宿主编码 Agent（如 Cursor/Claude Code 等）用自己的模型完成",
+    "子命令 preview：输出审查准备的元数据，--format json 时结构化返回 mode（workspace/range/commit 三种范围模式）、merge_base（合并基准）、可审查文件清单、excluded_files（被排除文件）",
+    "子命令 rule：ocr delegate rule <paths> 按 source|pattern|text 三元组对规则进行聚类，输出规则结构，供宿主 Agent 理解将应用的规则体系",
+    "该模式无需 OCR API Key，也不消耗 OCR 侧模型额度，模型费用由宿主 Agent 自身的 LLM 承担",
+    "适合将 ocr 的分析管道（git diff 解析、文件筛选、规则匹配）复用为第三方 Agent 的审查前置步骤"
+   ],
+   "why": [
+    "许多用户的主要工作流在 AI 编码 Agent 中完成，ocr 直接调 LLM 会与宿主 Agent 的模型形成双重调用与双份成本，delegate 让宿主用自己的模型完成审查",
+    "避免 API Key 集中管理：无需在 ocr 侧配置任何提供商密钥，降低密钥泄露面",
+    "preview 输出结构化元数据（mode/merge_base/文件清单/排除清单），宿主 Agent 可精确复现 ocr 的审查范围，保证一致性"
+   ],
+   "how": [
+    "获取审查准备元数据：ocr delegate preview --format json，解析其中的 mode、merge_base、可审查文件清单与 excluded_files",
+    "按输出调整范围：根据 mode（workspace/range/commit）确认审查口径，用 merge_base 确定对比基准",
+    "获取规则结构：ocr delegate rule <paths>（paths 为目录或文件），查看按 source|pattern|text 三元组聚类的规则输出",
+    "将 preview 的文件清单与 rule 输出一并交给宿主 Agent，由宿主 Agent 用自己的 LLM 逐文件审查并产出结论"
+   ],
+   "cases": [
+    "在 Claude Code/Cursor 等 Agent 环境中委托审查：宿主 Agent 先运行 ocr delegate preview --format json 拿到变更清单，再自行逐文件审查，全程无 OCR API Key",
+    "无模型额度场景：本机没有配置任何 LLM Key 或不想在 ocr 侧花钱时，用 delegate 把分析交给已有 Agent 生态",
+    "审查范围精确控制：在 merge 前只想审 feature 分支引入的变更，通过 preview 的 mode 与 merge_base 字段核对范围是否符合预期"
+   ],
+   "anti_patterns": [
+    "期望 delegate 直接产出审查结论：delegate 只做分析准备（preview/rule），不调 LLM 也不产出审查意见，把产出归零当工具故障是常见误解",
+    "忽略 preview 的 mode/merge_base 字段直接开审：范围口径错误会导致审查了不该审的文件或漏掉关键变更，务必先核对元数据",
+    "把 ocr delegate rule 的输出当作最终规则文件直接套用：它只是规则结构的聚类视图，规则生效链路仍要回到 ocr rules check 与四层规则链确认"
+   ]
+  },
+  {
+   "id": "cli-config",
+   "name": "ocr config",
+   "what": [
+    "ocr config 是配置管理命令，统一管理模型提供商、模型名、token 上限、自定义提供商、MCP 服务器、LLM 行为、语言与遥测等配置项",
+    "config set <key> <value> 写入配置，支持的键域包括：provider、model、max_tokens、providers.<name>.<field>（官方提供商字段）、custom_providers、mcp_servers、llm.*、language、telemetry.*",
+    "config unset <key> 删除指定配置项，恢复默认或清除错误写入",
+    "config provider 与 config model 为 Bubble Tea 构建的 TUI 交互向导：引导选择官方 provider、输入 API key、测试连接，面向新手友好",
+    "配置文件默认位于 ~/.opencodereview/config.json；环境变量 OCR_CONFIG_PATH 可覆盖配置的读路径，但写路径强制使用默认位置，防止配置写入被重定向造成泄漏"
+   ],
+   "why": [
+    "模型/提供商/LLM/遥测等配置项繁多且相互关联，集中式 key-value 管理与 TUI 向导比手改 JSON 更不易出错",
+    "providers.<name>.<field> 的点分键域设计让 27 个内置 provider 与自定义 provider 的字段都能通过同一机制配置，无需特殊命令",
+    "OCR_CONFIG_PATH 只覆盖读路径的强制设计，避免共享环境/CI 中配置被写入意外位置导致 API Key 等敏感信息泄漏到非预期文件"
+   ],
+   "how": [
+    "设置提供商：ocr config set provider <name>（如 openai、deepseek）",
+    "设置模型：ocr config set model <model-id>",
+    "设置官方提供商字段：ocr config set providers.openai.apiKey sk-xxx 或 ocr config set providers.openai.baseUrl <url>",
+    "设置自定义提供商：ocr config set custom_providers.<name>.<field> <value>",
+    "设置 LLM 与遥测：ocr config set llm.temperature 0.2、ocr config set telemetry.enabled false",
+    "删除配置项：ocr config unset provider",
+    "交互式向导：ocr config provider（选择 provider 并输入 API key、测试连接）、ocr config model（选择模型）",
+    "指定配置读取：OCR_CONFIG_PATH=/path/to/config.json ocr config set provider openai，注意写路径仍为默认位置"
+   ],
+   "cases": [
+    "首次安装配置：ocr config provider 进入 TUI 向导，选择官方 provider、粘贴 API key、测试连接成功后即可开始 review",
+    "切换模型供应商：ocr config set provider deepseek && ocr config set model deepseek-chat，一次切换全部生效",
+    "多环境隔离：CI 中设置 OCR_CONFIG_PATH 指向项目私有配置读取，同时保证写操作不会污染共享配置文件",
+    "排查字段名：不确定某 provider 支持哪些字段时，用 ocr config set providers.<name>.<field> 结合 ocr llm providers/test 验证"
+   ],
+   "anti_patterns": [
+    "手改 ~/.opencodereview/config.json 导致 JSON 语法错误或字段拼写错误，工具静默回退默认配置，行为与预期不符，应优先用 config set/unset 与 TUI 向导",
+    "误以为 OCR_CONFIG_PATH 也覆盖写路径：用它指定配置后执行 set，配置被写入默认位置而非预期路径，误以为未生效或造成敏感信息落到错误文件",
+    "混淆 providers.<name>.<field>（内置提供商字段）与 custom_providers（自定义提供商）两个键域，把自定义字段写进 providers 导致不生效，接入非官方模型时应明确使用 custom_providers"
+   ]
+  },
+  {
+   "id": "cli-session",
+   "name": "ocr session",
+   "what": [
+    "ocr session 是会话管理命令，管理审查任务的持久化会话，会话数据定位在 ~/.opencodereview/sessions/ 目录",
+    "子命令 list：列出历史会话，支持 --json 结构化输出、--limit 控制条数（默认 20）、--repo 按仓库过滤",
+    "子命令 show：查看单个会话的详情",
+    "子命令 comments：查看会话的审查评论，支持 --json 输出及 --severity（严重级别）、--category（类别）过滤",
+    "会话机制与 ocr review --resume 联动，实现断点续审：长审查中断后可恢复，无需从头开始"
+   ],
+   "why": [
+    "AI 审查是长耗时、高成本任务（大仓库可达数十分钟与大量 token），会话持久化使中断可恢复，避免重复消耗",
+    "历史会话是审查过程与结果的审计记录，list/show/comments 支持回看、统计与按仓库筛选，便于团队复盘",
+    "review 后台模式（--background）产出的进度与结果都落在会话中，session 是查看后台任务状态的统一入口"
+   ],
+   "how": [
+    "列出会话：ocr session list",
+    "JSON 输出：ocr session list --json",
+    "控制条数与过滤：ocr session list --limit 50、ocr session list --repo <repo-name>",
+    "查看会话详情：ocr session show <session-id>",
+    "查看评论：ocr session comments <session-id>",
+    "过滤评论：ocr session comments <session-id> --severity high 或 ocr session comments <session-id> --category <category>",
+    "断点续审：ocr review --resume <session-id>，从上次中断处继续",
+    "配合后台审查：ocr review --background 启动后，用 ocr session list 观察会话状态与完成度"
+   ],
+   "cases": [
+    "长审查中断恢复：大仓库 review 中途断网，ocr session list 找到会话后用 ocr review --resume <session-id> 续审，已消耗的 token 不浪费",
+    "按仓库回溯：一周内审了多个仓库，ocr session list --repo <repo> 只看目标仓库的审查记录",
+    "高严重度问题收敛：ocr session comments <session-id> --severity high --json 导出高危评论集中修复与上报",
+    "后台任务跟踪：--background 启动后定期 ocr session list 查看进度，完成后 show/comments 取结果"
+   ],
+   "anti_patterns": [
+    "依赖默认 limit 20 以为会话丢失：会话多于 20 条时 list 默认只显示前 20，找不到旧会话应先 --limit 放大或 --repo 过滤，而不是以为被清理",
+    "随手清理 ~/.opencodereview/sessions/ 目录：误删会话文件后 --resume 失效、历史评论不可查，删除前应确认无续审与审计需求",
+    "混淆 show 与 comments 的用途：show 看会话整体详情，comments 看具体评论，二者输出不同，用错命令会漏掉评论或拿不到过程信息"
+   ]
+  },
+  {
+   "id": "cli-viewer",
+   "name": "ocr viewer",
+   "what": [
+    "ocr viewer 是 WebUI 会话查看器，以本地网页形式可视化回放审查会话，默认监听 localhost:5483",
+    "只读回放 session 的 JSONL 数据，不修改任何会话内容，定位为审查过程的回放与审计工具",
+    "访问路由为 /r/{repo}/{sessionID}，按仓库与会话 ID 直接定位具体审查会话",
+    "内置 hostGuard 防护机制，防止 DNS-rebind 攻击（恶意域名解析回 localhost 后劫持本地服务）",
+    "界面按任务类型渲染卡片式视图，任务类型包括 Plan（计划）、Main（主审查）、压缩（context compaction）、重定位（relocation）、反思（reflection）等，还原审查流水线各阶段"
+   ],
+   "why": [
+    "命令行只能看到最终评论，无法直观浏览审查过程；viewer 把 JSONL 中的任务流水以卡片可视化，便于理解 AI 的审查步骤与决策路径",
+    "只读回放天然安全：不会误改会话数据，适合事后审计与向他人展示审查过程",
+    "默认绑定 localhost 保证审查数据不出本机，hostGuard 再挡一层 DNS-rebind 攻击，兼顾便利与安全"
+   ],
+   "how": [
+    "启动查看器：ocr viewer，默认监听 localhost:5483",
+    "自定义监听地址与端口：ocr viewer --addr 0.0.0.0:9000（局域网共享时）或 ocr viewer --addr 127.0.0.1:8080",
+    "浏览器打开 http://localhost:5483，进入 /r/{repo}/{sessionID} 路由回放指定会话",
+    "结合 ocr session list 获取 repo 与 sessionID，再在 viewer 中定位对应会话",
+    "按任务类型（Plan/Main/压缩/重定位/反思）浏览卡片，逐阶段查看审查执行流水"
+   ],
+   "cases": [
+    "审查过程复盘：大型审查完成后用 viewer 打开会话，逐卡片回放 Plan→Main→反思各阶段，理解模型在每个文件的判断依据",
+    "向同事展示审查结果：局域网内 ocr viewer --addr 0.0.0.0:9000 启动后共享 URL，对方无需安装工具即可查看",
+    "审计与留档：把本地 viewer 回放作为审查证据链，配合 session JSONL 原始数据留档备查"
+   ],
+   "anti_patterns": [
+    "把 --addr 绑定到公网网卡暴露内网代码：viewer 回放的是完整源码变更内容，绑定 0.0.0.0 且无鉴权时等于把代码公开，应保持 localhost 或仅在可信内网临时使用",
+    "误以为 viewer 可以编辑/标记会话：viewer 是只读回放，修改会话需回到命令行操作（或另存数据），在界面上找不到编辑入口属正常",
+    "忘记 hostGuard 存在而测试自定义域名访问：把域名指向 localhost 访问会被 hostGuard 拦截（这是预期行为），本地访问应直接用 localhost/127.0.0.1"
+   ]
+  },
+  {
+   "id": "cli-rules",
+   "name": "ocr rules",
+   "what": [
+    "ocr rules 是规则调试命令，核心子命令为 check：ocr rules check <file-path> 显示指定文件命中的规则层与匹配模式",
+    "输出明确区分规则层级：custom（自定义规则）、project（项目级规则）、global（全局规则）、system（系统内置规则）四层，说明每层命中的具体规则与匹配模式",
+    "用于回答'为什么这个文件被这样审查'：把某个文件的审查结果与规则命中对齐，定位结论来源",
+    "与四层规则链配合：custom/project/global/system 从高到低构成规则体系，check 是验证该体系对具体文件生效情况的调试工具"
+   ],
+   "why": [
+    "规则分层（custom/project/global/system）与匹配模式组合复杂，肉眼难以推断某个文件最终命中哪些规则，check 提供确定性的可视验证",
+    "审查结论异常（该审的没审、不该审的审了）时，需要快速定位是规则问题还是模型问题，check 是第一排查手段",
+    "新增或修改自定义规则后，需要立即验证规则是否按预期命中目标文件，check 比跑完整审查更快更省"
+   ],
+   "how": [
+    "检查单个文件的规则命中：ocr rules check src/foo.go",
+    "检查目录下文件的命中：ocr rules check internal/agent",
+    "解读输出：查看命中的规则层（custom/project/global/system）与每层匹配的规则 id 及匹配模式",
+    "修改自定义规则后重跑 check 验证生效：ocr rules check <file-path> 对比修改前后的命中变化",
+    "结合 delegate/rule 输出交叉验证规则结构，确认规则体系在代理与本地两条路径上一致"
+   ],
+   "cases": [
+    "新加自定义规则验证：写完一条只针对 *_test.go 的规则后，ocr rules check 测试文件与非测试文件各跑一次，确认命中范围正确",
+    "文件被意外审查/忽略排查：某文件没被审，ocr rules check 该文件，发现被某层规则的排除模式命中，定位后修正规则",
+    "审查结论溯源：review 对某文件给出奇怪结论，先 check 确认规则命中是否符合预期，把规则层问题与模型判断问题分开",
+    "四层规则链整体校验：批量对关键文件跑 check，确认 custom 覆盖 project、project 覆盖 global、global 覆盖 system 的优先级按预期工作"
+   ],
+   "anti_patterns": [
+    "改完规则不跑 check 直接跑完整 review 验证：成本高且结论混杂模型因素，应先 check 快速确认规则命中再进 review",
+    "忽视规则层优先级：custom 规则与 project 规则冲突时以为都生效，实际按层优先级裁决，check 输出会显示最终命中层，误读优先级导致规则'不生效'的假象",
+    "把 ocr rules check 当 lint 工具使用：check 只回答规则命中问题，不产出审查意见，用它替代 review/scan 会得出'规则系统正常'的错误安全感"
+   ]
+  },
+  {
+   "id": "cli-llm",
+   "name": "ocr llm",
+   "what": [
+    "ocr llm 是 LLM 工具命令，用于模型层的连通性验证与能力查询，是排查模型配置问题的第一站",
+    "子命令 test：发送测试对话验证模型连通性，覆盖 API key 有效性、网络可达性、模型名正确性、响应解析等环节",
+    "子命令 providers：列出全部 27 个内置 provider 及其信息，供核对 provider 名称与字段配置",
+    "与 ocr config 联动：配置改动（set provider/model 等）后可用 ocr llm test 立即验证是否生效",
+    "在 review/scan 前先行 test，可将模型层问题与工具层问题快速隔离"
+   ],
+   "why": [
+    "模型配置错误（key 失效、网络不通、模型名拼错、baseURL 错误）是审查失败的最高频根因，独立 test 命令把这类问题从完整审查流程中剥离出来",
+    "27 个内置 provider 的名称与字段容易记错，providers 子命令提供权威清单，避免配置时编造名称",
+    "test 失败信息聚焦模型层（认证/网络/模型名），比在 review 的超长日志中翻找根因高效得多"
+   ],
+   "how": [
+    "验证当前配置连通性：ocr llm test，观察返回的测试对话结果或错误信息",
+    "列出内置 provider：ocr llm providers，核对当前 provider 名称是否在清单内",
+    "确认 provider 后修正配置：ocr config set provider <name> 与 ocr config set model <model-id>",
+    "修正后复测：再次 ocr llm test，确认认证与响应正常后再进入 review/scan",
+    "多 provider 切换验证：分别配置后用 ocr llm test 逐一验证，选出可用的模型组合"
+   ],
+   "cases": [
+    "401 报错排查：review 报认证失败，先 ocr llm test 确认是 API key 无效，再用 ocr config set providers.<name>.apiKey 更新后复测通过",
+    "新提供商接入：先 ocr llm providers 确认真实名称，再按清单字段配置 custom_providers 或官方字段，最后 test 验证",
+    "网络环境变更后恢复：换网络后 review 全挂，ocr llm test 秒级定位网络层问题，处理后再继续",
+    "review 前预热：CI 中先 ocr llm test 快速失败（fail fast），避免整轮 review 因模型不可用而空耗"
+   ],
+   "anti_patterns": [
+    "跳过 test 直接 review：模型不可用时整轮 review 在超时后才失败，浪费大量时间与上下文，应先 test 秒级验证",
+    "编造 provider 名称：凭记忆输入不存在的 provider 名，配置静默不生效，应先 ocr llm providers 核对清单",
+    "忽视 test 的失败细节：test 错误信息区分了认证/网络/模型名三类问题，笼统地反复改 key 而不看错误类别，导致问题无法收敛，应按错误类别对症修改"
+   ]
+  },
+  {
+   "id": "cfg-providers",
+   "name": "Provider 体系",
+   "what": [
+    "内置 27 个 LLM provider，覆盖国内外主流大模型服务商：anthropic、bedrock(AWS SigV4)、openai、edenai、gemini、dashscope、dashscope-tokenplan、volcengine、deepseek、tencent-tokenhub、hy-tokenplan、iflytek、kimi、kimi-global、z-ai、z-ai-coding、mimo、minimax、minimax-cn、baidu-qianfan、ollama-cloud、novita、xai、litellm、siliconflow、siliconflow-cn、mistral",
+    "每个 provider 携带完整的连接元数据：BaseURL（API 端点）、AuthHeader（认证头格式）、EnvVar（对应环境变量名）、Models（可用模型列表），开箱即用",
+    "支持 custom_providers 自定义 provider，可指向任意端点，包括私有化部署的 LLM（内网/自建网关）",
+    "国内用户可直接选择 DashScope（阿里通义）或 DeepSeek，无需海外网络即可使用",
+    "provider 体系与协议层解耦：provider 决定连谁，协议（openai/anthropic 等）决定怎么连",
+    "provider 选择可通过 config.json 的 providers/custom_providers 段或命令行 --provider 参数指定"
+   ],
+   "why": [
+    "避免厂商锁定：一套 CLI 即可在 OpenAI/Anthropic/国内各家模型间切换，评估与迁移成本低",
+    "适配国内网络与合规环境：内置 DashScope、DeepSeek、Volcengine、百度千帆等国内端点，直连无需代理",
+    "满足私有化需求：企业可通过 custom_providers 接入内网模型网关，代码审查数据不出内网"
+   ],
+   "how": [
+    "持久配置：在 config.json 的 providers 段配置官方 provider（models 列表、max_tokens 等参数）",
+    "私有化接入：在 custom_providers 段定义自定义端点，配置 base_url、auth_header、env_var、models 等字段",
+    "命令行指定：ocr review --provider deepseek --model deepseek-chat",
+    "环境变量覆盖：OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL 可覆盖 provider 的连接信息",
+    "AWS 场景：选 bedrock provider，配合 anthropic-bedrock 协议（SigV4 签名）走通鉴权",
+    "查看当前生效的 provider 与模型配置，确认 BaseURL/AuthHeader 与密钥是否就绪"
+   ],
+   "cases": [
+    "国内用户：--provider deepseek --model deepseek-chat 直连使用，无需代理",
+    "阿里云用户：选 dashscope（通义千问系列），与云上环境天然匹配",
+    "企业私有化：custom_providers 指向内网 vLLM/统一网关端点，审查数据不出内网",
+    "AWS 环境：bedrock provider + anthropic-bedrock 协议，模型名进 URL 路径完成 SigV4 请求"
+   ],
+   "anti_patterns": [
+    "误以为 27 个 provider 全部开箱即用：未设置 provider 对应 EnvVar 的密钥时鉴权必然失败",
+    "选海外 provider（openai/gemini 等）而不考虑网络：国内直连可能超时，应改用国内 provider 或代理",
+    "混淆 provider 与协议：bedrock 必须配 anthropic-bedrock 协议做 SigV4 签名，配成 openai/anthropic 会 403",
+    "custom_providers 只配 base_url 不配 AuthHeader/协议，导致 401 或协议不匹配报错"
+   ]
+  },
+  {
+   "id": "cfg-protocol",
+   "name": "LLM 协议层",
+   "what": [
+    "抽象统一 LLMClient 接口，核心方法 CompletionsWithCtx，屏蔽不同厂商协议差异",
+    "4 种内置协议：anthropic（Messages API，基于 anthropic-sdk-go）、openai（Chat Completions，端点 /v1/chat/completions，基于 openai-go/v3）、openai-responses（OpenAI Responses API，端点 /v1/responses，URL 自动补后缀）、anthropic-bedrock（AWS SigV4 签名，模型名进 URL 路径）",
+    "OpenAI 系协议流式响应走 ssestream（SSE 流解析）",
+    "Responses API 为无状态设计：每个请求携带全量对话历史，服务端不维护会话状态",
+    "协议选择可通过 PROTOCOL 环境变量或 USE_ANTHROPIC 兼容开关控制"
+   ],
+   "why": [
+    "不同厂商 API 形态差异大（Messages 与 Chat Completions 的消息结构、工具调用格式不同），统一接口降低接入成本",
+    "协议可插拔：新增厂商只需实现 LLMClient 接口，扩展点清晰",
+    "Responses API 无状态设计简化服务端实现，代价是客户端需自行携带全量历史"
+   ],
+   "how": [
+    "显式指定：export OCR_LLM_PROTOCOL=openai（或 anthropic/openai-responses/anthropic-bedrock）",
+    "Claude 兼容习惯：USE_ANTHROPIC=true 走 anthropic 协议（Messages API）",
+    "AWS Bedrock：协议选 anthropic-bedrock，配置 AWS 凭证完成 SigV4 签名，模型名放入 URL 路径",
+    "openai-responses：base URL 后自动补 /v1/responses 后缀，无需手动拼路径",
+    "OpenAI 兼容网关（vLLM/OneAPI 等）：选 openai 协议指向 /v1/chat/completions",
+    "自定义 provider 时按端点能力选协议：OpenAI 兼容端点选 openai，Anthropic 兼容端点选 anthropic"
+   ],
+   "cases": [
+    "OpenAI 兼容网关：openai 协议 + /v1/chat/completions 端点",
+    "Claude 官方或兼容端点：anthropic 协议 Messages API",
+    "AWS Bedrock 上部署的模型：anthropic-bedrock 协议 + SigV4 签名",
+    "新项目接入 Responses API：openai-responses，享受无状态端点简化"
+   ],
+   "anti_patterns": [
+    "忘记 Responses API 无状态特性：把短历史当会话用，模型丢失前文；每请求必须带全量历史",
+    "Bedrock 选错协议：不用 anthropic-bedrock 就没有 SigV4 签名，请求 403",
+    "openai-responses 手动拼接 URL：协议已自动补 /v1/responses 后缀，再拼会重复路径",
+    "流式响应当普通 JSON 解析：SSE 流需按 ssestream 处理，直接解析会截断或失败"
+   ]
+  },
+  {
+   "id": "cfg-priority",
+   "name": "配置优先级",
+   "what": [
+    "5 级优先级链，实现于 internal/llm/resolver.go 的 ResolveEndpointWithOptions",
+    "① 最高：命令行显式 --provider/--model 参数",
+    "② OCR 配置文件：config.json 的 providers/custom_providers 段",
+    "③ OCR 环境变量：OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL/OCR_LLM_AUTH_HEADER/OCR_LLM_EXTRA_HEADERS/OCR_LLM_PROTOCOL/OCR_LLM_USE_ANTHROPIC/OCR_LLM_TIMEOUT",
+    "④ Claude Code 环境：ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/ANTHROPIC_MODEL",
+    "⑤ 最低：shell RC（.zshrc/.bashrc 中 export 的 ANTHROPIC_* 系列）",
+    "高优先级覆盖低优先级：命令行 > config.json > OCR_* env > ANTHROPIC_* env > shell RC"
+   ],
+   "why": [
+    "配置来源多层并存（项目配置/CI 环境/用户 shell），确定性覆盖规则避免“改了不生效”的困惑",
+    "与 Claude Code 生态兼容：用户已有 ANTHROPIC_* 环境变量时可零配置复用",
+    "CI 场景用环境变量注入比改配置文件更灵活，且不污染仓库"
+   ],
+   "how": [
+    "临时指定（一级）：ocr review --provider openai --model gpt-4o",
+    "持久配置（二级）：写 config.json 的 providers 段",
+    "CI/脚本（三级）：export OCR_LLM_URL=... OCR_LLM_MODEL=... OCR_LLM_TOKEN=...",
+    "复用 Claude Code（四级）：export ANTHROPIC_BASE_URL=... ANTHROPIC_AUTH_TOKEN=... ANTHROPIC_MODEL=...",
+    "shell 常驻（五级）：在 .zshrc/.bashrc 中 export ANTHROPIC_* 系列",
+    "调超时：export OCR_LLM_TIMEOUT 覆盖默认超时",
+    "排查生效来源：对照 resolver.go 的 ResolveEndpointWithOptions 逐级确认当前取值",
+    "验证：查看实际请求的 base URL/模型名，确认被哪一级覆盖"
+   ],
+   "cases": [
+    "CI 中覆盖用户 shell 默认模型：CI 步骤 export OCR_LLM_MODEL（三级）压过用户 shell RC（五级）",
+    "团队统一端点：config.json 固定 provider，个人临时用命令行参数覆盖",
+    "Claude Code 用户零配置迁移：已有 ANTHROPIC_* 环境变量直接生效",
+    "生产排障：请求超时/连错端点时按五级逐层排查取值来源"
+   ],
+   "anti_patterns": [
+    "误以为环境变量优先于配置文件：实际 config.json（二级）优先于 OCR_* 环境变量（三级），改 env 不生效先查 config.json",
+    "shell RC 改动后忘记新开终端/重启 shell，误判“配置不生效”",
+    "混用 ANTHROPIC_* 与 OCR_* 两组变量导致来源不明，排查前先确认当前生效级别",
+    "同时改 --provider 与 config.json provider 段但不一致：命令行参数生效，看起来“配置没改”",
+    "依赖 shell RC 的 ANTHROPIC_* 而未意识到它优先级最低，任何上层配置都能覆盖它"
+   ]
+  },
+  {
+   "id": "cfg-rules-chain",
+   "name": "四层规则链",
+   "what": [
+    "四层规则链，优先级：custom（--rule 旗标）> project（<repo>/.opencodereview/rule.json）> global（~/.opencodereview/rule.json）> system（内嵌 system_rules.json + rule_docs/ 44 个语言规则 md）",
+    "首匹配优先：规则命中时按层序取最上层匹配",
+    "文件匹配支持 doublestar glob（** 递归匹配任意层目录）+ 花括号 {a,b} 展开",
+    "merge_system_rule 选项控制是否合并系统内置规则",
+    "规则值可引用 .md/.txt 文件路径作为内容源；相对路径机制防目录穿越",
+    "CanonicalConfig() 生成 rule_config_sha256 规则指纹；内置 10+ 语言规则集（Java/TS/Go/Python/Kotlin/Rust/C++/C）及 NPE、线程安全、XSS、SQL 注入专项规则"
+   ],
+   "why": [
+    "分层治理：个人/团队/仓库/内置四层隔离，不同范围各自演进不互相污染",
+    "多语言与专项安全规则开箱即用，无需从零编写",
+    "glob 语法贴近开发者习惯（gitignore 风格），可精确圈定审查文件范围"
+   ],
+   "how": [
+    "项目级：仓库根建 .opencodereview/rule.json 定义规则",
+    "全局级：~/.opencodereview/rule.json 供所有项目共享",
+    "临时级：ocr review --rule <自定义规则文件路径>",
+    "文件匹配：glob 支持 **（如 **/src/**/*.java）与 {a,b}（如 *.{ts,tsx}）",
+    "规则内容外置：rule 值指向 .md/.txt 路径（仅相对路径，防目录穿越）",
+    "系统规则控制：merge_system_rule 决定是否合并内置规则",
+    "验证指纹：CanonicalConfig() 输出的 rule_config_sha256 用于确认规则集版本与缓存一致性"
+   ],
+   "cases": [
+    "团队统一规范：global 层放团队通用规则，项目层放仓库特有规则",
+    "专项安全审查：启用 NPE/线程安全/XSS/SQL 注入专项规则集",
+    "按语言分流：Java 规则匹配 **/*.java，TS 规则匹配 **/*.{ts,tsx}",
+    "长规则文本外置：写入 .md 文件，rule.json 只引用路径"
+   ],
+   "anti_patterns": [
+    "glob 写错导致规则静默失效：用 * 而非 ** 时匹配不到多层目录下的文件",
+    "误改 ~/.opencodereview/rule.json 以为是项目配置：实际影响本机所有项目",
+    "关闭 merge_system_rule 后安全专项规则（NPE/XSS 等）全部消失",
+    "规则值引用绝对路径或越级相对路径造成目录穿越风险：必须只用受限相对路径",
+    "多层同名规则并存时靠首匹配优先裁决：理解错层序会得到预期外的审查行为"
+   ]
+  },
+  {
+   "id": "cfg-mcp",
+   "name": "MCP 扩展",
+   "what": [
+    "通过 Model Context Protocol（MCP）接入外部工具，扩展模型能力",
+    "双传输：stdio 子进程（mcp.CommandTransport）+ remote Streamable HTTP（headerTransport）",
+    "remote 的 headerTransport 支持 $ENV_VAR 环境变量展开，且对 401/403 返回友好报错",
+    "config.json 的 mcp_servers.<name> 配置节点：type(stdio|remote)、command、args、env、url、headers、tools、setup 字段",
+    "RegisterAll 注册时带 allowlist 过滤，保留名冲突自动跳过（不覆盖内置工具）",
+    "工具经 ToToolDef 转换为 llm.ToolDef 接入统一工具调用链路，基于 github.com/modelcontextprotocol/go-sdk 实现"
+   ],
+   "why": [
+    "让审查模型能调用外部工具（漏洞库查询、内部 API 等），突破纯文本审查边界",
+    "stdio 与 remote 双模式覆盖本地子进程与远端服务两种部署形态",
+    "安全边界：allowlist 过滤 + 保留名冲突跳过，防止恶意或重复工具定义干扰"
+   ],
+   "how": [
+    "stdio 模式：mcp_servers.<name> 配 type=stdio + command/args/env，启动子进程 MCP server",
+    "remote 模式：type=remote + url 走 Streamable HTTP，headers 中用 $ENV_VAR 注入密钥",
+    "工具过滤：tools 字段列允许的工具名；setup 字段做启动准备",
+    "冲突规避：RegisterAll 遇保留名自动跳过，无需手动处理",
+    "鉴权排障：401/403 时查看友好报错信息定位问题",
+    "验证工具接入：确认工具经 ToToolDef 转换后在模型工具列表中可见"
+   ],
+   "cases": [
+    "接入本地 CLI 型 MCP server：stdio 模式拉起子进程",
+    "接入远端 MCP 网关：remote + HTTP，headers 里 $TOKEN 展开注入密钥",
+    "白名单管控：tools 字段只开放少量工具，缩小攻击面",
+    "企业内部工具：私有 MCP server 挂入审查链路"
+   ],
+   "anti_patterns": [
+    "密钥明文写进 headers 而非用 $ENV_VAR 展开，造成密钥泄露",
+    "忽略 401/403 友好报错：鉴权失败应看报错提示定位，而非盲目重试",
+    "自定义工具与内置工具重名：RegisterAll 会跳过保留名冲突，误以为注册成功",
+    "stdio 模式没配全 command/args/env，子进程启动失败且无明确提示",
+    "不配 tools allowlist：工具面过大引入不必要的安全风险"
+   ]
+  },
+  {
+   "id": "int-gha",
+   "name": "GitHub Actions 集成",
+   "what": [
+    "composite action（action.yml）封装完整审查流程，workflow 中一行引用即可接入",
+    "必填入参：llm_url、llm_auth_token、llm_model、llm_use_anthropic",
+    "可选入参：language（默认 English）、ocr_version（默认 latest）、review_concurrency、background、rule、upload_artifacts、sticky_summary、incremental（默认 false）、incremental_overlap_threshold（默认 0.6 IoU）、review_comment_batch_size（默认 50）、route_severity_below、route_categories、base_ref、head_sha",
+    "输出：comments_total、comments_inline、comments_skipped、comments_routed、comments_failed、summary_comment_url",
+    "流程：fork-safe PR 解析（checkout base + fetch pull/N/head）→ merge-base → ocr review --from MERGE_BASE --to HEAD_SHA --audience agent --format json → post-review-comments.js 发评论",
+    "post-review-comments.js 实现：sticky 摘要、增量 IoU 去重、50 条批量、severity+category 路由，fail-open 设计不丢 finding；upload_artifacts/sticky_summary/incremental 必须用字面字符串 'true'/'false'"
+   ],
+   "why": [
+    "PR 场景自动审查：push/pull_request 触发即审，评论直达 diff",
+    "fork-safe：外部贡献者 PR 也能正确解析 base 与 head，不因 fork 结构失败",
+    "fail-open：后处理脚本出错也不丢 finding，审查结果可事后回看",
+    "去重+批量+路由控制评论噪音：IoU 0.6 增量去重、50 条批量、按严重级/类别分流"
+   ],
+   "how": [
+    "基础接入：workflow 中 uses: alibaba/open-code-review@<版本>，配齐 4 个必填入参",
+    "增量审查：incremental: 'true' 只审新增/变更区域，IoU 阈值用 incremental_overlap_threshold 调（默认 0.6）",
+    "sticky 摘要：sticky_summary: 'true' 固定摘要评论位置",
+    "路由分流：route_severity_below / route_categories 按严重级/类别分发",
+    "后台模式：background: true 异步执行不阻塞 CI",
+    "结果消费：读取 outputs.comments_total/comments_inline 等统计驱动后续步骤",
+    "版本与语言：ocr_version 指定 CLI 版本，language 指定评论语言",
+    "并发控制：review_concurrency 限制同时审查的任务数"
+   ],
+   "cases": [
+    "标准 PR 审查：pull_request 事件 + 4 个必填入参即可上线",
+    "大型 PR 控噪：incremental 'true' + 调小 review_comment_batch_size + route 分流",
+    "只关注高危：route_severity_below 屏蔽低危 finding 的评论",
+    "外部贡献者 fork PR：内置 fork-safe 解析自动处理 base/head"
+   ],
+   "anti_patterns": [
+    "把 incremental/sticky_summary/upload_artifacts 写成布尔 true/false 而非字符串 'true'/'false'，参数解析失效",
+    "fork PR 场景不用内置 fork-safe 解析而自行 checkout，导致 base 分支取错",
+    "误解 fail-open 语义：后处理失败=审查失败，实际 finding 不丢但评论可能未发",
+    "不配 route 参数导致所有 finding 全量刷评论，PR 噪音过大",
+    "background 模式忘记收集 outputs，后续步骤拿不到审查统计"
+   ]
+  },
+  {
+   "id": "int-cicd",
+   "name": "其他 CI 集成",
+   "what": [
+    "examples/ 目录提供 6 套非 GitHub CI 集成模板：gitlab_ci、gerrit_ci、gitflic_ci、bitbucket_pipelines、codeup_ci",
+    "gitlab_ci：.gitlab-ci.yml + post_review.py，环境变量 OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL + 重试系列 OCR_RETRY_BASE_DELAY/OCR_MAX_RETRIES + OCR_STICKY_SUMMARY/OCR_INCREMENTAL/OCR_ROUTE_*/OCR_FAIL_ON_SEVERITY",
+    "gitlab_ci 产物：.ocr/ocr-stats.env + result.json + stderr.log，支持 fork MR",
+    "gerrit_ci：Jenkinsfile + post_review.py",
+    "gitflic_ci：gitflic-ci.yaml + post_review.py",
+    "bitbucket_pipelines：bitbucket-pipelines.yml；codeup_ci：阿里云 Codeup codeup-flow.yml + post_review.py"
+   ],
+   "why": [
+    "覆盖国内常用平台：阿里云 Codeup、GitLab、Bitbucket 等，多平台审查体验一致",
+    "环境变量式配置天然适配各 CI 平台的 secrets/变量注入机制",
+    "gitlab_ci 支持 fork MR，保证开源协作场景可用"
+   ],
+   "how": [
+    "GitLab：参考 examples/gitlab_ci/.gitlab-ci.yml 配置 job，变量经 GitLab CI/CD Variables 注入",
+    "重试控制：OCR_RETRY_BASE_DELAY 与 OCR_MAX_RETRIES 配合调 API 重试策略",
+    "增量/粘性对齐：OCR_INCREMENTAL / OCR_STICKY_SUMMARY 行为与 GHA 版一致",
+    "路由：OCR_ROUTE_* 系列按严重级/类别分流 finding",
+    "失败策略：OCR_FAIL_ON_SEVERITY 设定达到某严重度即令 CI 失败",
+    "阿里云用户：直接套用 examples/codeup_ci/codeup-flow.yml",
+    "结果消费：解析 .ocr/ocr-stats.env 与 result.json 供下游步骤使用"
+   ],
+   "cases": [
+    "GitLab 私有仓库 MR 审查：gitlab_ci 模板 + CI/CD Variables 注入三件套",
+    "阿里云 Codeup 用户：codeup-flow.yml 开箱即用",
+    "Gerrit 评审流：Jenkinsfile + post_review.py 集成",
+    "fork MR 场景：gitlab_ci 支持 fork MR 解析"
+   ],
+   "anti_patterns": [
+    "忘记设置 OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL 三件套，任务启动即鉴权失败",
+    "不配重试参数：网络抖动时一次性失败；OCR_MAX_RETRIES 应配合 OCR_RETRY_BASE_DELAY 使用",
+    "乱设 OCR_FAIL_ON_SEVERITY：低危问题也会让 CI 失败，阻塞流水线",
+    "CI 清理策略删掉 .ocr/ 产物目录，result.json/stderr.log 丢失无法事后排查",
+    "照抄 GHA 的输入参数名（如 llm_url）到其他 CI：非 GitHub 集成用 OCR_* 环境变量体系，混用不生效"
+   ]
+  },
+  {
+   "id": "int-claude",
+   "name": "Claude Code 插件",
+   "what": [
+    "Alibaba Open Code Review 为 Claude Code 提供的官方集成插件，仓库路径为 plugins/open-code-review/claude-code/，核心清单文件为 .claude-plugin/plugin.json，其中 commands 字段指向 ./commands 目录，即插件以斜杠命令（slash command）形式暴露能力",
+    "插件安装后为 Claude Code 注入两条核心斜杠命令：/open-code-review:review（触发代码审查）与 /open-code-review:delegate-review（触发委托审查），命令定义位于插件 commands 目录下",
+    "除插件注册的命令外，仓库根目录还内置 .claude/commands/open-code-review.md 作为开箱即用的斜杠命令，同目录另有 commit.md（提交辅助）与 tag.md（打标签辅助）两条配套命令",
+    "该插件本质是把 ocr CLI 的能力以 Claude Code 原生命令的方式暴露，让用户在会话中直接输入斜杠命令即可启动审查流程，无需记忆 CLI 参数",
+    "属于仓库多 IDE/多 Agent 生态中的 Claude Code 官方入口，与 Codex、Cursor、OpenCode 等集成并列"
+   ],
+   "why": [
+    "Claude Code 是当前主流 AI 编码 Agent 之一，用户习惯以斜杠命令触发工作流，插件化集成可让审查能力零门槛融入既有会话，无需切换到终端手动执行 CLI",
+    "斜杠命令封装了 ocr 的复杂参数与调用链，降低使用门槛，同时通过 /open-code-review:delegate-review 提供委托审查路径，适应「宿主模型把关、OCR 干活」的组织分工场景",
+    "内置 .claude/commands/open-code-review.md 与 commit.md/tag.md 命令形成「审查—提交—打标签」的完整闭环，覆盖代码合并前的主要操作环节"
+   ],
+   "how": [
+    "前置条件：确保已安装 ocr CLI（ocr --version 可验证），并完成 API Key 配置，使 ocr 命令可独立运行",
+    "从 Claude Code 的插件市场安装：执行 /plugin marketplace add alibaba/open-code-review 将阿里官方仓库添加为插件市场源",
+    "随后执行 /plugin install open-code-review@open-code-review 安装插件本体，安装后插件命令即注册到当前会话",
+    "重启或刷新 Claude Code 会话后，输入 /open-code-review:review 并附加目标范围参数（如文件、提交或目录）即可发起审查",
+    "需要委托审查时，使用 /open-code-review:delegate-review 命令，按提示指定审查范围与委托配置",
+    "若不想走插件市场，也可直接依赖仓库根目录内置命令：将仓库中的 .claude/commands/open-code-review.md（以及 commit.md、tag.md）复制到本地项目的 .claude/commands/ 目录，即可获得同等的斜杠命令体验",
+    "执行审查后，Claude Code 会在会话内呈现审查结果，可继续以对话方式追问、过滤或修复发现的问题"
+   ],
+   "cases": [
+    "开发者在 Claude Code 会话中完成一个 feature 分支的编码后，直接输入 /open-code-review:review 审查改动文件，在提交前拦截潜在缺陷",
+    "团队采用「AI 审查 + 人工确认」流程：开发者在合并前先跑 /open-code-review:review，再针对高严重度问题与 Claude 讨论修复方案，最后用内置 commit.md 生成规范提交信息",
+    "安全敏感仓库中，开发者通过 /open-code-review:delegate-review 将审查委托给 OCR 模型执行，Claude 仅负责汇总与裁决，实现职责分离"
+   ],
+   "anti_patterns": [
+    "只装插件不装 CLI：插件本质是 CLI 的薄封装，若本机缺少 ocr 可执行文件或未配置 Key，命令会直接失败；应先用终端验证 ocr --version 与一次最小审查通过",
+    "重复安装源：先 add marketplace 又手动复制 .claude/commands 文件，可能导致同一命令被注册两次、行为冲突；二选一即可",
+    "在会话中混淆 review 与 delegate-review：两者审查范围与权限模型不同，普通代码审查误用 delegate-review 可能走不到预期模型配置，应先明确两条命令的差异再选用",
+    "忽略内置命令差异：误以为只有插件才有命令，实际仓库根的 .claude/commands 已内置 open-code-review.md，直接复制即可用，无需为简单场景搭建插件市场流程"
+   ]
+  },
+  {
+   "id": "int-codex",
+   "name": "Codex 插件",
+   "what": [
+    "Alibaba Open Code Review 为 OpenAI Codex（CLI/Agent 形态）提供的官方集成，插件清单 .codex-plugin/plugin.json 声明 skills: ./skills/ 目录，即通过 Skill 机制暴露审查能力",
+    "插件 interface 声明了 capabilities Read，即仅请求读取类能力，不申请文件写入等更高级权限，符合审查工具只读分析定位",
+    "defaultPrompt 内置 3 条默认提示词，为插件预置了开箱即用的调用模板，用户可在此基础上扩展",
+    "安装并启用后，用户在 Codex 会话中以 @Open Code Review review ... 的形式调用，将审查作为 Agent 的一个可调用技能",
+    "属于多 Agent 生态中的 Codex 官方入口，与 Claude Code 插件、Cursor 插件等并列，保证同一套 OCR 能力在不同 Agent 宿主间复用"
+   ],
+   "why": [
+    "Codex 与 Claude Code 一样占据主流 AI 编码工具生态位，但两者的插件协议不同（Claude 用 .claude-plugin 斜杠命令，Codex 用 .codex-plugin Skill），需要独立的适配层",
+    "通过 Skill + defaultPrompt 的方式，将 ocr 的复杂命令序列封装为 @Open Code Review 一次调用，用户无需了解底层参数细节",
+    "interface 仅声明 Read capability 体现了最小权限原则：审查只需读代码与输出结果，降低插件在宿主中的安全风险面",
+    "面向已有 Codex 使用习惯的团队，可让审查能力直接并入现有 Agent 工作流，避免工具切换成本"
+   ],
+   "how": [
+    "前置条件：安装并登录 Codex CLI，同时在环境中准备好可运行的 ocr CLI 与对应 API Key",
+    "添加插件市场：执行 codex plugin marketplace add alibaba/open-code-review，将官方仓库注册为 Codex 插件市场源",
+    "安装插件：执行 codex plugin install open-code-review（或按 Codex 版本对应的 /plugins 交互流程操作），随后在 /plugins 面板中启用该插件",
+    "插件启用后，在任意 Codex 会话中输入 @Open Code Review review <目标>，其中 <目标> 可为文件路径、目录、提交范围或 git diff 范围",
+    "Codex 会加载插件 defaultPrompt 并执行审查流程，审查输出以 Agent 回复形式返回，可在会话内追问细节",
+    "如需调整审查深度或范围，可结合 defaultPrompt 的既有模板，在调用指令中附加说明，让 Codex 自动映射到 ocr 对应参数",
+    "审查完成后将结果与人工确认结合，再决定修复动作；插件本身不申请写入权限，修改需在宿主中显式执行"
+   ],
+   "cases": [
+    "Codex 用户完成编码任务后，在会话中直接输入 @Open Code Review review src/ 对改动目录发起一轮审查，先于 CI 发现隐患",
+    "团队把审查能力纳入 Codex 的日常开发循环：每次功能完成、提交之前固定调用 @Open Code Review，审查结果作为合并前的质量闸门之一",
+    "依赖 Codex 进行大规模重构时，用 @Open Code Review review <diff 范围> 精准限定审查对象，避免无关文件噪音"
+   ],
+   "anti_patterns": [
+    "忽略插件的 Read-only 能力边界：想当然地让插件「顺便修复问题」，实际插件不申请写入权限，修复必须在宿主中另行执行",
+    "跳过 /plugins 启用步骤：只 add marketplace 却不在 /plugins 面板启用，导致 @Open Code Review 不可用；两个步骤缺一不可",
+    "把 @Open Code Review 当万能命令：它按 defaultPrompt 模板工作，随意附加与模板冲突的语义可能让 Codex 映射出错误的 ocr 参数，应先跑一次默认调用再定制",
+    "在无 Key/无 CLI 环境直接调用：插件调用依赖本机 ocr 与模型 Key，环境未就绪时表现为静默失败或超时，应先做最小可用性验证"
+   ]
+  },
+  {
+   "id": "int-cursor",
+   "name": "Cursor 插件",
+   "what": [
+    "Alibaba Open Code Review 为 Cursor（AI 编辑器）提供的集成插件，清单文件 .cursor-plugin/plugin.json，其 skills 字段指向 ../skills/ 目录，即复用仓库通用 skills 目录中的同一份 Skill 定义",
+    "安装方式为手动复制：将 plugins/open-code-review/ 整个目录复制到 ~/.cursor/plugins/local/open-code-review/ 路径下，即可被 Cursor 识别为本地插件",
+    "其核心是可移植 skill 机制：同一份 skill 定义可被 Cursor、通用 Agent 等不同宿主共享，实现「一份技能、多处复用」",
+    "插件本质是把通用 open-code-review Skill（含 --audience agent --background 等工作流）挂载进 Cursor 的插件体系，使 Cursor 用户获得与 CLI 一致的审查能力",
+    "作为多生态集成的一环，Cursor 路径代表了面向编辑器的轻量集成方式：无插件市场依赖、纯本地文件复制"
+   ],
+   "why": [
+    "Cursor 是市场占有率高的 AI 编辑器，其本地插件机制支持从目录直接加载，手动复制是最低摩擦的交付方式，无需上架插件市场",
+    "通过复用 ../skills/ 指向的同一份 skill 定义，避免为每个宿主维护多份重复技能文件，保证 Cursor 与通用 Agent 的行为一致（单源维护）",
+    "可移植 skill 机制使技能资产跨宿主沉淀：无论用户切到 Cursor、Claude Code 还是其他支持 skill 的 Agent，审查工作流保持一致",
+    "本地插件方式便于企业内网/受限网络环境离线安装，不依赖外网插件市场"
+   ],
+   "how": [
+    "前置条件：本机安装 ocr CLI 并配置好模型 API Key，确保 ocr 命令可独立运行",
+    "定位仓库中的插件目录：找到 open-code-review 仓库下的 plugins/open-code-review/ 目录（内含 .cursor-plugin/plugin.json）",
+    "创建目标目录：mkdir -p ~/.cursor/plugins/local/open-code-review/",
+    "执行复制安装：将插件目录内容复制到 ~/.cursor/plugins/local/open-code-review/（如 cp -r plugins/open-code-review/* ~/.cursor/plugins/local/open-code-review/），确保 .cursor-plugin 子目录一并复制",
+    "重启 Cursor 或触发插件重载，使 Cursor 扫描并加载本地插件目录",
+    "在 Cursor 中按插件注册的方式调用审查技能（通常通过 Agent/Skill 面板或命令入口触发），审查流程将复用通用 SKILL.md 中定义的 review 工作流（--audience agent --background 等）",
+    "验证：发起一次小范围审查确认插件被正确加载且 ocr 调用链路通畅",
+    "升级插件时重新复制新版本目录并重启 Cursor，覆盖旧文件"
+   ],
+   "cases": [
+    "Cursor 用户希望在编辑器内完成审查而无需切终端：复制插件后，直接在编辑会话中触发 review 技能即可",
+    "团队统一在 Cursor 中使用审查：把插件目录随初始化脚本（如 dotfiles/bootstrap 脚本）分发到每台开发机 ~/.cursor/plugins/local/，实现团队级开箱即用",
+    "内网开发环境无法访问插件市场：采用手动复制方式离线安装，实现受限网络下的审查能力落地"
+   ],
+   "anti_patterns": [
+    "复制路径错误：把 plugins/open-code-review/ 之外的文件或把目录内容散落复制到其他位置，导致 Cursor 无法识别；必须整体复制且 .cursor-plugin 子目录结构保持完整",
+    "复制后不重启：Cursor 对本地插件的扫描通常发生在启动/重载时，直接使用会提示插件不存在，应先重启再调用",
+    "忽略 skill 文件依赖：plugin.json 的 skills 指向 ../skills/，若复制时裁剪了上级 skills 目录或改变相对路径，技能加载将失败；应按仓库原始结构完整搬运",
+    "以为改一处配置即可全局生效：本地插件是每机器复制模式，改动后需在所有目标机器重新同步，没有插件市场式的自动更新"
+   ]
+  },
+  {
+   "id": "int-opencode",
+   "name": "OpenCode 原生插件",
+   "what": [
+    "Alibaba Open Code Review 为 OpenCode（本工具）提供的原生插件，文件为 plugins/open-code-review/opencode/open-code-review.ts，基于 @opencode-ai/plugin 官方插件 SDK 开发",
+    "插件通过 tool() 函数注册一个原生工具，将 ocr 审查能力以 OpenCode 工具调用的形态暴露，而非斜杠命令或外部 Skill",
+    "工具实现内部通过 spawn 执行 'ocr review --audience agent --format json' 子进程，即调用 ocr CLI 并以 JSON 格式输出供程序化消费",
+    "工具参数经过校验，commit / from / to / resume / preview 等参数之间存在互斥约束，非法组合会被拒绝，避免含糊的审查范围",
+    "提供「原生工具调用体验」：在 OpenCode 会话中，模型可直接以标准工具调用协议触发审查，结果以结构化 JSON 回流，适合程序化与自动化链路"
+   ],
+   "why": [
+    "OpenCode 与 OCR 同属 AI 编码生态，原生插件形式（相对斜杠命令/Skill）让审查能力以标准工具调用参与模型决策循环，可被自动编排（如审查后自动接修复）",
+    "--audience agent --format json 的输出设计面向 Agent 消费，保证模型能稳定解析审查结果，这是工具化集成的关键前提",
+    "参数互斥校验（commit/from/to/resume/preview）在工具层前置拦截非法调用，避免审查范围含糊导致的结果不可信或误报",
+    "与官方 SDK 对齐的开发方式降低了维护成本，也方便社区复用该插件模式"
+   ],
+   "how": [
+    "前置条件：安装 ocr CLI 并配置 API Key；当前环境为 OpenCode 且已支持 @opencode-ai/plugin 插件体系",
+    "将 plugins/open-code-review/opencode/ 下的 open-code-review.ts 及其依赖放入 OpenCode 的插件目录（如 ~/.config/opencode/plugin/ 或项目级 .opencode/plugin/），按 OpenCode 插件加载规范注册",
+    "OpenCode 启动时加载插件，tool() 注册的原生工具自动出现在模型可用的工具列表中",
+    "在会话中向模型发起审查意图（如「审查当前改动」），模型会以工具调用方式触发 ocr review --audience agent --format json",
+    "通过工具参数指定审查范围：提交范围用 from/to（或 commit），需要续跑时用 resume，仅预览时用 preview；注意这些参数互斥，不能混用",
+    "工具返回 JSON 审查报告后，模型在会话内呈现结果并可与用户继续讨论、筛选或安排修复",
+    "可用 preview 参数先行预览审查意图，确认范围正确后再正式执行，避免误审大范围代码",
+    "验证：在会话中发起一次最小审查（如单文件），确认子进程调用与 JSON 返回正常"
+   ],
+   "cases": [
+    "在 OpenCode 中完成代码修改后，直接要求模型「审查本次提交之前的改动」，模型自动调用原生工具完成审查并在会话内汇报",
+    "构建自动审查链路：让模型在完成编码任务后自动触发审查工具，若发现高严重度问题则继续修复并复跑，形成「编码—审查—修复」闭环",
+    "对历史提交做定向审查：用 from/to 参数限定两个提交之间的范围，工具互斥校验保证不会同时混入 preview 等冲突语义"
+   ],
+   "anti_patterns": [
+    "混用互斥参数：同时传 commit 与 from/to（或 preview 与 resume），工具参数校验会直接拒绝；应先理解互斥关系，一次只指定一种范围语义",
+    "不装 CLI 直接依赖插件：插件内部 spawn 'ocr review'，本机无 ocr 可执行文件时工具必然失败；任何 OpenCode 集成前先验证 CLI 可用",
+    "把 --format json 的输出当人类阅读文本：JSON 是给 Agent 消费的结构化数据，直接展示原始 JSON 会破坏可读性，应由模型转述",
+    "忽略 preview 的价值：在大范围审查前不先用 preview 校验范围，导致误审并消耗大量 token；先预览后执行是成本控制的关键习惯"
+   ]
+  },
+  {
+   "id": "int-qca",
+   "name": "QCA Forward 委托",
+   "what": [
+    "「QCA Forward」是一种委托（delegate）模式，配置位于 qca/ 目录，核心文件为 system-prompt.md 与 template.example.json",
+    "该模式只允许调用 ocr delegate 子命令中的 preview 与 rule 两个只读子能力，明确禁止使用 ocr review，整体为只读行为设计",
+    "工作机制：由宿主模型（如 Claude、Qwen 等）按 template.example.json 模板组织审查请求，OCR 侧仅在收到委托请求时执行 preview/rule 操作，自身不发起任何 LLM 调用",
+    "template.example.json 提供了委托请求的示例模板，用于规范宿主模型与 OCR 之间的消息契约，保证委托内容结构化可解析",
+    "典型适用场景：不想为 OCR 单独配置 API Key 的组织——审查推理发生在宿主模型侧，OCR 侧零 LLM 消耗",
+    "是 Open Code Review 多 Agent 生态中「委托/Forward」模式的代表实现，与 delegate 六步工作流互补"
+   ],
+   "why": [
+    "解决 Key 治理痛点：很多组织不希望在 CLI 侧再配一份模型 Key；QCA Forward 把推理放在已有宿主模型上，OCR 只做规则/预览等确定性操作，零 LLM 调用",
+    "只读安全边界：禁 ocr review、仅开放 preview/rule，保证委托模式下 OCR 不可能主动发起大范围审查，从机制上杜绝越权行为",
+    "通过 system-prompt.md 约束宿主行为、template.example.json 规范请求格式，让「谁说了算、什么格式」在集成前就确定，降低对接歧义",
+    "适合网关/中间层场景：组织已有统一模型网关（QCA 式），希望所有 AI 流量都走宿主，Forward 委托让 OCR 能力兼容该架构"
+   ],
+   "how": [
+    "前置条件：确认 ocr CLI 可用，并在组织中确定宿主模型（负责推理的一方）与 OCR（仅执行 preview/rule 的一方）",
+    "阅读 qca/system-prompt.md，将其注入宿主模型的系统提示，使宿主理解：只能使用 ocr delegate preview / ocr delegate rule，禁止 ocr review，所有操作只读",
+    "参照 qca/template.example.json 模板结构，在宿主侧构造委托请求体（含目标文件/规则/范围等字段），保证与 OCR 期望的输入契约一致",
+    "宿主模型发起调用：执行 ocr delegate preview <范围> 先预览委托效果，确认目标与预期相符",
+    "需要规则检查时执行 ocr delegate rule <范围>，按配置的规则集对目标执行只读分析",
+    "OCR 侧按委托请求执行并返回结果，全程不调用 LLM；审查判断与修复建议由宿主模型结合自身推理完成",
+    "验证：以模板示例为蓝本跑通一次「宿主发起 preview → OCR 返回结果」的链路，再逐步扩大范围",
+    "组织落地时把 system-prompt.md 与 template.example.json 固化进团队模板仓库，保证所有宿主按统一口径委托"
+   ],
+   "cases": [
+    "某企业已有统一大模型网关（QCA）承担所有 AI 成本核算，接入 OCR 审查时采用 QCA Forward：宿主模型做审查判断，OCR 只执行 preview/rule，无需为 OCR 单独配 Key",
+    "合规敏感环境要求所有代码访问只读：QCA Forward 模式下 OCR 侧被 system-prompt 约束为纯只读操作，天然满足审计要求",
+    "多宿主混合团队：不同成员用不同宿主模型，统一通过 template.example.json 的契约向同一 OCR 实例委托 preview/rule，审查口径一致"
+   ],
+   "anti_patterns": [
+    "在委托模式下偷偷启用 ocr review：system-prompt 明确禁止，若宿主绕过约束直接调 review，将破坏「零 LLM 调用、纯只读」的架构承诺并产生意外成本",
+    "把 template.example.json 当固定配置而非示例：不同宿主/场景需要按实际字段调整模板，直接硬套可能导致委托请求解析失败",
+    "忽略 host 侧 Key 需求：QCA Forward 只免了 OCR 侧的 Key，宿主模型仍需要自己的 Key/网关凭证，部署前应把两侧依赖清单列清楚",
+    "把 QCA Forward 与常规 delegate 混为一谈：Forward 模式禁用 review 且零 LLM，与 delegate 六步工作流（含逐文件审查、覆盖率报告）的能力边界不同，选型时应按组织的 Key 策略与审查深度需求区分"
+   ]
+  },
+  {
+   "id": "int-skill",
+   "name": "通用 Agent Skill",
+   "what": [
+    "Open Code Review 以 Skill 形态向任意支持 skill 机制的 Agent 暴露能力，核心文件为 skills/open-code-review/SKILL.md 与 skills/open-code-review-delegate/SKILL.md",
+    "skills/open-code-review/SKILL.md 定义标准审查工作流：以 --audience agent --background 模式运行，包含四步——review（审查）、filter（过滤）、fix（修复）、report（报告）",
+    "审查结果按 severity（严重度）× category（类别）二维矩阵分级，便于按风险优先级处理",
+    "skills/open-code-review-delegate/SKILL.md 定义委托审查六步流程：preview（预览）→ rule（规则检查）→ git diff（差异分析）→ 逐文件审查 → 格式化（输出整理）→ 覆盖率报告",
+    "plugins/open-code-review/skills/ 目录存放同款双份 skill 文件，供插件体系（如 Cursor 插件）复用，保证 CLI 与插件入口行为一致",
+    "兼容任意 skill 型 Agent：Claude Code、Cursor、Codex 及自定义 Agent 均可通过加载同一份 skill 获得一致审查能力"
+   ],
+   "why": [
+    "Skill 是跨宿主的标准能力封装形态，一次编写即可被多种 Agent 加载，避免为每个工具重复造轮子（单源多宿主）",
+    "--audience agent --background 的参数组合专为 Agent 消费设计：输出面向 Agent 可解析、运行不阻塞交互，是机器友好集成的前提",
+    "severity×category 分级让审查结果可排序可筛选，Agent 可优先处理高严重度问题，配合 filter 步骤控制噪音",
+    "delegate 六步流程把「预览→规则→diff→逐文件→格式化→覆盖率」拆成可独立校验的阶段，适合需要精细控制与审计的委托场景",
+    "plugins/open-code-review/skills/ 双份存放保证插件化入口与纯 Skill 入口共享同一份工作流定义，降低维护漂移"
+   ],
+   "how": [
+    "前置条件：安装 ocr CLI 并配置 API Key，确认 ocr 可独立运行",
+    "获取 skill 文件：从仓库复制 skills/open-code-review/ 目录（或使用 plugins/open-code-review/skills/ 下的同款副本）到目标 Agent 的 skills 目录",
+    "在目标 Agent 中启用 skill（具体方式取决于宿主，如 Cursor 通过插件机制、自定义 Agent 通过技能目录注册）",
+    "按 SKILL.md 定义发起审查：以 ocr review --audience agent --background <范围> 作为核心调用，覆盖目标文件、目录或提交范围",
+    "对返回结果执行四步流程：先 review 获得初始报告，再 filter 按 severity×category 过滤噪音，必要时 fix 修复，最后 report 汇总给用户",
+    "需要委托审查时加载 open-code-review-delegate skill，按六步执行：先用 preview 预览委托、再 rule 检查规则、分析 git diff、逐文件审查、格式化输出、最后生成覆盖率报告",
+    "根据宿主 Agent 的 skill 协议调整调用封装（如参数传递方式），保证 ocr 命令行参数正确透传",
+    "验证：以一个小范围 diff 跑通完整流程，确认 JSON 输出可被 Agent 正确解析与汇报"
+   ],
+   "cases": [
+    "自定义 Agent（非三大商业工具）需要审查能力：直接加载 skills/open-code-review/SKILL.md，获得与官方集成一致的审查工作流",
+    "Cursor 插件场景：插件 skills 字段指向 ../skills/，复用同一份 skill，保证编辑器内与 CLI 审查口径一致",
+    "精细委托场景：审计团队按 delegate 六步流程执行，先 preview 确认范围、再 rule + git diff 定位、逐文件审查后产出格式化报告与覆盖率报告，形成可归档的审查档案",
+    "自动化流水线：CI 或 Agent 编排中以 --audience agent --background 调用并解析 JSON，按 severity×category 自动升级高严重度问题到人工"
+   ],
+   "anti_patterns": [
+    "只复制 SKILL.md 不复制配套文件：skill 目录常含辅助脚本/示例，缺文件会导致工作流中途失败；应整目录复制",
+    "忽略 --audience agent --background：默认模式面向人类阅读，Agent 消费会解析困难或阻塞等待；自动化场景必须显式带上这两个参数",
+    "把 review skill 与 delegate skill 混用：前者是四步直审，后者是六步委托（含 git diff 与覆盖率报告），流程与产物不同，按场景选型而非随意互换",
+    "跳过 filter 直接全量汇报：低严重度问题淹没高严重度问题，失去 severity×category 分级的意义；四步流程中 filter 是控制噪音的关键环节，不应省略"
+   ]
+  },
+  {
+   "id": "int-vscode",
+   "name": "VSCode 扩展",
+   "what": [
+    "Open Code Review 提供 VSCode 官方扩展，代码位于仓库 extensions/vscode/ 目录，面向编辑器内审查场景",
+    "UI 层基于 React webview 实现，包含三个 Provider：SidebarProvider（侧边栏）、ConfigPanelProvider（配置面板）、CommentProvider（评论视图），构成扩展的主要交互界面",
+    "服务层包含多个模块：CliService（封装 ocr CLI 调用并支持取消操作）、ConfigService（配置管理与读取）、ReviewSession（审查会话状态管理）、GitService（git 相关能力，如获取 diff/提交信息）",
+    "支持国际化（i18n），内置 en（英文）与 zh（中文）两种语言资源",
+    "工程体系采用 webpack 打包 + jest 测试，代码组织为典型的前端工程结构",
+    "作为编辑器集成入口，与 CLI、Skill、各 Agent 插件并列，覆盖「不想离开 IDE」的用户群体"
+   ],
+   "why": [
+    "大量开发者习惯在编辑器内完成从编码到审查的全流程，VSCode 扩展降低工具切换成本，审查结果直接呈现在 IDE 上下文中",
+    "React webview + Provider 分层（Cli/Config/ReviewSession/Git 服务拆分）支撑起配置、会话、取消等交互细节，比纯终端体验更完整",
+    "CliService 支持取消操作，说明设计上考虑了大范围审查的可中止性，避免阻塞用户",
+    "i18n en/zh 双语言满足中英文用户群体，降低出海/国内团队的使用门槛",
+    "webpack+jest 工程化保证扩展可构建、可测试、可持续维护，适合长期演进"
+   ],
+   "how": [
+    "前置条件：安装 ocr CLI 并配置 API Key（与 CLI 用法一致），安装 VSCode",
+    "从仓库获取扩展产物：构建 extensions/vscode/（npm install 后执行构建脚本，webpack 打包生成 .vsix）或获取官方发布的 vsix 包",
+    "安装扩展：在 VSCode 扩展面板中选择「从 VSIX 安装…」并选择打包产物，或按官方说明安装",
+    "打开配置面板（ConfigPanelProvider）：通过侧边栏/命令入口进入，配置 ocr 命令路径、模型/API Key 等参数（ConfigService 持久化）",
+    "在侧边栏（SidebarProvider）中选择审查目标（文件/目录/提交），点击触发审查",
+    "审查执行由 CliService 封装调用，支持取消；审查过程中 ReviewSession 维护会话状态，如中途取消可保留进度",
+    "审查结果通过 CommentProvider 以评论/注解形式展示在代码中，用户可就地查看问题定位",
+    "涉及 git 上下文（如审查某次提交的 diff）时由 GitService 提供支持；验证：对单个文件发起一次审查，确认 webview 正常展示结果"
+   ],
+   "cases": [
+    "开发者在 VSCode 中改完代码后，从侧边栏一键触发当前文件审查，结果以代码评论形式呈现，直接定位问题行",
+    "提交前审查：通过 GitService 获取待提交 diff，在提交动作前跑一轮审查并把结果留在评论视图，作为合并闸门",
+    "大范围审查中途发现范围不对：利用 CliService 的取消能力中止审查，调整范围后重新发起，避免浪费计算资源"
+   ],
+   "anti_patterns": [
+    "跳过配置直接审查：不通过 ConfigPanel 配置 CLI 路径/Key，CliService 找不到可执行文件或凭证导致审查失败；首次使用必须先完成配置",
+    "忽略 ReviewSession 状态：取消或中断审查后不检查会话状态，再次触发可能基于过期上下文；应确认会话已结束或重置后再发起",
+    "在构建产物缺失时手动改源码目录：扩展需 webpack 构建产物（或 vsix）才能加载，直接加载源码目录会失败；应先执行构建",
+    "忘记 CLI 依赖：扩展的 CliService 是薄封装，本机没有 ocr 或 Key 未配置时扩展表现为「点击无反应」或报错，排障时应先回到终端验证 CLI 本身可用"
+   ]
+  },
+  {
+   "id": "q-bench",
+   "name": "AACR-Bench 基准",
+   "what": [
+    "AACR-Bench 是 Open Code Review 项目构建的自动化 AI 代码审查基准（Automated AI Code Review benchmark），用于评测与对比 AI 审查能力",
+    "数据规模：覆盖 50 个流行仓库、200 个真实 PR、10 种编程语言，保证语料多样性与真实性（全部来自真实代码实践而非合成样例）",
+    "标注质量：由 80+ 名资深工程师交叉标注出 1505 个真实问题，多人在标保证问题标签的准确性与一致性",
+    "数据开源：数据集托管于 HuggingFace，仓库名为 Alibaba-Aone/aacr-bench，可公开获取用于复现与对比实验",
+    "评测口径：同模型、同 backend 下对比，控制变量以保证对比公平性",
+    "论文发表于 arXiv，编号 2608.09290，标题《OpenCodeReview: Determinism over Non-Determinism》（确定性优于非确定性）"
+   ],
+   "why": [
+    "AI 代码审查缺乏统一可信的评测标准，AACR-Bench 用真实 PR + 专家交叉标注构建 ground truth，让「审查质量」可量化、可对比",
+    "同模型同 backend 的控制变量设计，隔离模型能力与基础设施差异，保证 SEM-F1 等指标的对比结论归因于审查方法本身",
+    "开源数据集（HuggingFace）与论文并行的形式支持学术界/工业界复现验证，增强基准公信力",
+    "「Determinism over Non-Determinism」的定位说明项目追求确定性可复现的审查行为，基准是这一理念的量化支撑"
+   ],
+   "how": [
+    "数据获取：从 HuggingFace 拉取数据集 Alibaba-Aone/aacr-bench（含 50 仓库、200 PR、1505 条专家标注问题的数据文件）",
+    "复现对比：使用相同模型（如同一 LLM）与相同 backend，分别运行待测审查方法与基线，保证变量受控",
+    "计算指标：以 SEM-F1（语义匹配 F1）为核心指标衡量审查问题与专家标注的匹配度，同时统计 token 消耗与耗时",
+    "运行项目自身评测脚本/按论文方法执行，获取各项数值：SEM-F1、token 消耗、耗时、Recall 等",
+    "解读结果：对照「SEM-F1 最高 2.17x（25.10% vs 11.57%）、token 约 1/9、耗时更快」等已发布数据评估自身配置的相对水平",
+    "如需与 Codex 对比，参照其 2.5x SEM-F1 同成本的表现数据作为参照系",
+    "发布或审计时，可引用论文 arXiv 2608.09290 作为方法学依据",
+    "对 Recall 的解读：项目为精度优先、降误报而主动取舍 Recall 略低，对比时应同时看精度与误报率而非单看 Recall"
+   ],
+   "cases": [
+    "项目团队在发布新版本前跑 AACR-Bench 对比：同模型同 backend 下 SEM-F1 达到 25.10%，相对基线 11.57% 提升 2.17x，token 消耗降至约 1/9，作为版本宣传数据",
+    "潜在用户评估是否采用 OCR：在 AACR-Bench 上对比 Codex，得到 2.5x SEM-F1、同成本的结果，辅助选型决策",
+    "研究者基于 HuggingFace 开源数据（Alibaba-Aone/aacr-bench）复现论文 arXiv 2608.09290 的实验，验证方法结论并做延伸实验",
+    "评测强调确定性：在相同输入下多次运行应得到稳定一致的审查结果，呼应「Determinism over Non-Determinism」的论文主题"
+   ],
+   "anti_patterns": [
+    "跨 backend 直接对比：基准明确要求同模型同 backend 才可比，用不同后端（不同推理服务/参数）跑出的 SEM-F1 对比会得到误导性结论",
+    "只报 SEM-F1 不看 token/耗时/Recall：2.17x 是精度收益，但 token 约 1/9、耗时更快的成本优势与 Recall 略低的取舍同样重要，单指标宣传以偏概全",
+    "把 Recall 略低解读为缺陷：这是「精度优先、降误报」的设计取舍，审查场景下低误报往往比高召回更有工程价值，应结合误报率一起评估",
+    "忽略数据集版本与标注口径：1505 条问题来自 80+ 专家交叉标注，复现时若使用不同清洗/匹配规则，数字可能对不上；应严格按论文与数据集说明的评测流程执行"
+   ]
+  },
+  {
+   "id": "q-telemetry",
+   "name": "OpenTelemetry 遥测",
+   "what": [
+    "OCR 内置 OpenTelemetry 双管道（trace + metric），所有审查事件与指标均通过统一遥测框架埋点",
+    "支持两种导出方式：console 输出（本地调试直观可见）与 OTLP 导出（gRPC / HTTP-protobuf / HTTP-JSON 三种 wire protocol）",
+    "配置优先级为 defaults < config.json 的 telemetry 段 < 环境变量，环境变量拥有最终覆盖权",
+    "核心环境变量：OCR_ENABLE_TELEMETRY=1 开启遥测、OTEL_SERVICE_NAME 服务名、OTEL_EXPORTER_OTLP_ENDPOINT OTLP 端点、OTEL_EXPORTER_OTLP_PROTOCOL 协议选择、OCR_CONTENT_LOGGING=1 输出审查内容日志",
+    "埋点覆盖完整审查生命周期：任务开始/结束、每次模型调用、检索/过滤/压缩各阶段、token 消耗与重试事件",
+    "metric 侧聚焦成本与性能：token 计数、耗时、重试次数等可观测指标，便于与成本分析（token 计费）联动"
+   ],
+   "why": [
+    "审查流程横跨本地文件读取、git 操作、模型 API 调用等多个环节，无遥测则故障只能靠黑盒排查，定位慢",
+    "token 消耗是成本核心，通过 metric 管道持续观测 token 用量才能做成本治理与预算预警",
+    "支持 OTLP 导出意味着可无缝接入现有可观测性平台（Jaeger/Tempo/Prometheus 等），企业级集成零成本",
+    "环境变量优先的配置设计让 CI/CD 场景下无需改配置文件即可按流水线注入遥测开关"
+   ],
+   "how": [
+    "本地快速验证：设置 OCR_ENABLE_TELEMETRY=1 后运行 ocr review，在 console 观察 trace 输出，确认埋点链路完整",
+    "接入 OTLP 平台：设置 OCR_ENABLE_TELEMETRY=1、OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318、OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf，启动后到平台查看 span",
+    "切换协议：按需将 OTEL_EXPORTER_OTLP_PROTOCOL 设为 grpc 或 http/json，匹配后端 Collector 的接收端口",
+    "命名服务：设置 OTEL_SERVICE_NAME 区分不同仓库/流水线的遥测数据，避免多项目数据混淆",
+    "审计内容：设置 OCR_CONTENT_LOGGING=1 记录审查内容，用于事后核查模型看到了什么（注意隐私合规）",
+    "通过 config.json 的 telemetry 段配置默认值，再按环境用环境变量覆盖，形成可复用的分层配置"
+   ],
+   "cases": [
+    "本地调试：开启 console 输出，排查某次审查为何未产出评论，从 trace 中定位是检索失败还是模型调用异常",
+    "接入企业 APM：CI 中注入 OTLP 端点，让每次 MR 审查的 token 消耗与耗时进入统一大盘，按服务名区分项目",
+    "成本审计：通过 metric 中的 token 计数与重试次数，验证 prompt-cache 命中率与重试开销",
+    "回归对比：升级模型或改规则后，对比前后 trace 中各阶段耗时，量化优化效果"
+   ],
+   "anti_patterns": [
+    "在 CI 中误用 config.json 配置遥测而忽略环境变量注入，导致每个流水线任务覆盖不生效或泄露本地配置",
+    "OCR_CONTENT_LOGGING=1 与 OTLP 出口同时开启却未考虑数据合规：源码内容可能被导出到远端平台，生产环境需谨慎或脱敏",
+    "协议选错导致数据静默丢失：OTLP 端点与协议不匹配（如 gRPC 端点了却配 http/json）时无报错但无数据，排查时先核对协议与端口",
+    "未设置 OTEL_SERVICE_NAME 就把多仓库数据混入同一 Collector，后续无法按项目拆分指标"
+   ]
+  },
+  {
+   "id": "q-security",
+   "name": "安全设计",
+   "what": [
+    "FileReader 路径穿越防护：所有文件读取经 pathutil.WithinBase + EvalSymlinks 双重校验，符号链接与 ../ 均无法逃逸仓库根目录",
+    "file_read 工具调用设 500 行上限，防止模型读取超长文件造成上下文爆炸与滥用",
+    "git grep 操作拒绝 '..' 路径穿越，并拒绝以 '-' 开头的 ref（防选项注入攻击）",
+    "viewer 模块的 hostGuard 防 DNS-rebind：读取含源码的 JSONL 时校验 Host 头，避免恶意站点通过 DNS 重绑定窃取本地审查数据",
+    "manifest 哈希计算不包含密钥字段，规则清单的完整性校验不会把敏感凭据带入哈希或日志",
+    "规则文件采用相对路径解析并防目录穿越，项目规则无法通过构造路径读取仓库外文件",
+    "代码本地处理：审查数据不强制上传，隐私可控，适用于涉密代码库"
+   ],
+   "why": [
+    "CLI 工具运行在开发者机器上且会读取仓库文件，路径穿越/符号链接是本地工具被利用的经典入口，必须从源头拦截",
+    "模型可能被提示注入诱导读取任意文件，500 行上限与路径白名单是纵深防御的关键一环",
+    "DNS-rebind 攻击可让恶意网页读取 localhost 服务数据，viewer 读取含源码 JSONL 时必须防 Host 头伪造",
+    "安全设计直接决定该工具能否被用于涉密或私有代码库——本地处理是合规底线"
+   ],
+   "how": [
+    "路径安全默认内置：无需配置，所有 FileReader 调用自动执行 WithinBase + EvalSymlinks 双重校验，任何逃逸尝试直接拒绝",
+    "限制读取规模：模型请求超过 500 行的文件时自动截断，大文件走分片/摘要路径而非全量注入",
+    "安全使用 git 相关功能：ref 名称以 '-' 开头或含 '..' 时被拒，避免 --flag 注入与目录穿越",
+    "启用 viewer 前确认 hostGuard 生效：验证非授权 Host 头的请求被拒绝，再开放本地端口供浏览器访问",
+    "核对 manifest 哈希：校验规则文件完整性时确认哈希计算只覆盖文件内容，不包含其中可能的密钥字段",
+    "自定义规则文件使用仓库内相对路径，且解析时受目录穿越防护约束，不要用绝对路径引用仓库外文件"
+   ],
+   "cases": [
+    "审查含敏感业务的私有仓库：数据全程本地处理，无需上传，符合数据隐私要求",
+    "恶意仓库防御：打开不受信来源的 PR 分支时，路径穿越与 git grep 注入防护确保模型只能看到仓库内内容",
+    "浏览器查看审查结果：viewer 的 hostGuard 拦截 DNS-rebind，恶意网页无法读取本地审查 JSONL",
+    "CI 中运行：受控环境 + 路径白名单，即使代码来自外部贡献者也不会逃逸工作目录"
+   ],
+   "anti_patterns": [
+    "用绝对路径或 '../' 形式在自定义规则中引用外部文件，绕过相对路径约束，破坏目录穿越防护",
+    "为提升审查深度盲目调高 file_read 上限或禁用截断，把模型暴露给超大文件并放大注入面",
+    "对不受信仓库关闭 hostGuard 或开放 viewer 到 0.0.0.0，使 DNS-rebind 攻击面重新打开",
+    "在规则文件或配置文件里明文存放 API 密钥，虽哈希不计入，但文件本身仍可能被误提交或泄漏"
+   ]
+  },
+  {
+   "id": "q-retry",
+   "name": "重试与错误分类",
+   "what": [
+    "底层 SDK 内建 max-retries=5 重试策略，配合 retryCodesMiddleware 自动注入 x-should-retry 头驱动服务端重试语义",
+    "retryObserver 采集每次 HTTP 尝试的明细（次数、耗时、结果），为重试报告提供数据源",
+    "retry_boundary.go 提供 classifyBoundaryError / classifyStreamError 两类分类器，将错误归入 ErrorClass（timeout/cancelled/network/provider/unknown）并标注 FailurePhase（失败发生在哪个阶段）",
+    "retry_report 汇总生成重试报告，展示各错误类别的重试次数与最终成败",
+    "RetryCodes 可配置：允许自定义哪些 HTTP 状态码触发重试，适配不同 provider 的语义",
+    "OCR_RETRY_* 环境变量族（GitLab 示例中可见）可在不改代码的情况下调节重试行为"
+   ],
+   "why": [
+    "LLM API 是外部依赖，超时/限流/网络抖动是常态，无重试则一次抖动就导致整个审查失败",
+    "不同失败原因应对策略不同：网络错误值得重试，provider 侧 4xx 重试无意义——错误分类让重试策略有的放矢",
+    "把 ErrorClass 与 FailurePhase 分离，才能在报告中区分『重试后成功』与『彻底失败』，为成本与稳定性分析提供依据"
+   ],
+   "how": [
+    "使用默认策略：无需配置即生效 max-retries=5 与 x-should-retry 注入，多数场景可直接依赖",
+    "调优重试：按 provider 语义配置 RetryCodes，如把 429 限流码与 5xx 服务端码加入重试集合",
+    "环境变量覆盖：通过 OCR_RETRY_* 系列变量在 CI 或生产环境调整重试参数，避免改代码重新发布",
+    "诊断失败：查看 retry_report，按 ErrorClass 分组定位是 timeout/network 还是 provider 侧问题，再决定调重试还是换 provider",
+    "结合遥测联动：重试次数与耗时进入 metric 管道，与 token 成本一起评估重试的经济性"
+   ],
+   "cases": [
+    "模型 API 限流：429 命中 RetryCodes，自动退避重试后审查成功，报告显示重试 2 次均为 429",
+    "网络抖动：无重试时整批审查失败；开启重试后 classifyBoundaryError 识别为 network 类并成功恢复",
+    "Provider 故障升级：报告显示 provider 类错误占大头且重试全失败，据此决策切换到备用模型端点",
+    "CI 长任务稳定性：OCR_RETRY_* 注入让 5 次重试覆盖深夜限流高峰，减少人工重跑"
+   ],
+   "anti_patterns": [
+    "把所有状态码都加入 RetryCodes：4xx 客户端错误（如 401/403）重试永远失败，纯浪费 token 与时间",
+    "忽略 retry_report 直接看表面报错：不区分 ErrorClass 就盲目调大重试次数，掩盖 provider 侧真实问题",
+    "在无重试语义的自建服务上依赖 x-should-retry，服务端不识别导致重试行为与预期不符",
+    "重试与超时配置不匹配：重试次数过多而单次超时过短，反而放大整体耗时"
+   ]
+  },
+  {
+   "id": "q-release",
+   "name": "构建与发布体系",
+   "what": [
+    "npm 包 @alibaba-group/open-code-review 作为分发入口，bin 指向 bin/ocr.js，postinstall 钩子自动下载对应平台原生二进制",
+    "6 平台覆盖：@alibaba-group/ocr-{darwin-x64,darwin-arm64,linux-x64,linux-arm64,win32-x64,win32-arm64} 作为 optionalDependencies 按平台安装",
+    "install.sh：经 GitHub API 解析 latest tag → 下载后 sha256sum 校验完整性 → 安装到 OCR_INSTALL_DIR（默认 /usr/local/bin），支持 OCR_VERSION 锁定版本与 OCR_GITHUB_MIRROR 镜像加速",
+    "install.ps1：面向 PowerShell 5.1+，安装到 %LOCALAPPDATA%\\Programs\\ocr，免管理员权限",
+    "Makefile 提供完整构建链：build / test(race 检测) / coverage(90% 阈值门禁，低于即失败) / vet / check / build-all(6 平台交叉编译，CGO_ENABLED=0 静态二进制) / sha256sum / dist",
+    "启动时后台运行 update.js 检查新版本，18 分钟冷却防频繁请求，OCR_NO_UPDATE 可禁用自动更新"
+   ],
+   "why": [
+    "单一 npm 入口 + postinstall 下载二进制，兼顾『一条命令安装』与『原生性能』，比纯 Go 发布链更贴近 JS 生态用户",
+    "sha256sum 校验保证供应链安全，镜像变量解决部分网络环境 GitHub 不可达问题",
+    "90% 覆盖率门禁与 race 检测保证发布质量，交叉编译产出静态二进制降低运行时依赖",
+    "自动更新让用户及时获得修复与安全补丁，冷却与开关避免打扰"
+   ],
+   "how": [
+    "npm 安装：npm install -g @alibaba-group/open-code-review，postinstall 自动下载当前平台二进制",
+    "脚本安装（Linux/macOS）：curl -sSL https://raw.githubusercontent.com/alibaba/open-code-review/main/install.sh | bash；自定义目录用 OCR_INSTALL_DIR=/opt/ocr，锁版本用 OCR_VERSION=v1.x.x，国内加速用 OCR_GITHUB_MIRROR",
+    "Windows 安装：以 PowerShell 5.1+ 执行 install.ps1，二进制落于 %LOCALAPPDATA%\\Programs\\ocr",
+    "本地开发构建：make build 编译当前平台；make build-all 交叉编译 6 平台；make test 带 race 检测；make coverage 触发 90% 门禁",
+    "产出发布物：make sha256sum 生成校验和，make dist 打包分发包",
+    "禁用自动更新：设置 OCR_NO_UPDATE=1 后启动不再检查新版本，适合受控生产环境"
+   ],
+   "cases": [
+    "团队统一安装：运维脚本指定 OCR_VERSION 固定版本 + sha256sum 校验，避免版本漂移",
+    "离线内网环境：使用 OCR_GITHUB_MIRROR 指向内网镜像完成安装与更新",
+    "开发迭代：make test 的 race 检测捕获并发 bug，make coverage 门禁在合并前拦截覆盖率下滑",
+    "Windows 无管理员权限：install.ps1 装入用户目录，无需 UAC 即可使用"
+   ],
+   "anti_patterns": [
+    "绕过 npm postinstall 或直接下载 GitHub Release 二进制却跳过 sha256sum 校验，供应链风险敞口",
+    "在代理/内网环境用默认 GitHub 地址安装失败后不换 OCR_GITHUB_MIRROR，而是改用不校验的下载方式",
+    "CI 中每次全新安装最新版（不锁 OCR_VERSION），上游发布即影响构建结果，不可复现",
+    "误以为 npm 包即完整二进制而忽略 optionalDependencies 平台限制，在不支持平台上静默降级"
+   ]
+  },
+  {
+   "id": "q-token",
+   "name": "Token 计费与成本控制",
+   "what": [
+    "基于 tiktoken-go 精确计费：o1/o3/o4 系列用 o200k_base，其余模型用 cl100k_base，分词口径与 OpenAI 一致",
+    "estimate.go 提供 token 预估与预算前瞻：审查前估算输入 token 量，预判是否超出模型上下文与成本预算",
+    "filterLargeDiffs 自动丢弃超过 MaxTokens 80% 的超大文件 diff，防止单文件撑爆上下文",
+    "三区压缩策略：对超大输入分区压缩，显著降低送入模型的 token 总量",
+    "prompt-cache affinity key 设计：按（会话+任务+文件）组合生成缓存键，命中 provider 前缀缓存后 input 成本节省约 98%",
+    "端到端对比通用 Agent，同样审查任务 token 消耗节省 5-15 倍"
+   ],
+   "why": [
+    "token 即成本，审查任务动辄处理整个 diff，无预算控制会产生不可控账单",
+    "超大 diff 塞入模型不仅贵，还会稀释注意力导致审查质量下降，丢弃 80% 阈值之上的文件是质量与成本的双赢",
+    "前缀缓存命中与否直接决定 input 成本量级（约 98% 差异），affinity key 让重复/相似任务尽量复用缓存"
+   ],
+   "how": [
+    "默认策略即可享受收益：filterLargeDiffs 与三区压缩自动生效，无需配置",
+    "关注预算：审查前查看 estimate.go 输出的 token 预估，判断本次任务的成本量级",
+    "最大化缓存命中：保持会话与任务结构稳定（同一仓库同一文件多次审查），让 prompt-cache affinity key 命中 provider 前缀缓存",
+    "按模型选口径：使用 o1/o3/o4 时确认计费走 o200k_base，其余模型确认 cl100k_base，避免计费误判",
+    "结合遥测验证：在 metric 中观察 token 计数与缓存命中率，量化节省效果并发现异常增长"
+   ],
+   "cases": [
+    "超大 PR 审查：一个 2000 行文件被 filterLargeDiffs 自动跳过，审查继续进行而非整体失败，成本可控",
+    "重复审查同一分支：第二次运行命中前缀缓存，input token 成本骤降至约 2%",
+    "多模型对比：用预估工具对比不同模型的 token 消耗，选择性价比最高的审查模型",
+    "成本审计：月末按 metric 的 token 计数核对账单，确认无异常放大"
+   ],
+   "anti_patterns": [
+    "忽视 80% 阈值丢弃：以为『审查不完整』而调高阈值甚至禁用 filterLargeDiffs，导致成本与质量双双恶化",
+    "频繁变更 prompt 前缀（改系统提示/顺序），破坏前缀缓存命中，让 98% 的节省归零",
+    "用 cl100k_base 口径估算 o1 系列任务，token 数量与账单对不上，影响预算决策",
+    "在长会话中堆积无关上下文，压缩与缓存机制失效，实际 token 远超预估"
+   ]
+  },
+  {
+   "id": "use-pr-review",
+   "name": "场景：审查 PR/分支变更",
+   "what": [
+    "日常审查入口：对当前工作区、分支 diff 或指定 commit 进行 AI 代码审查，是使用频率最高的场景",
+    "支持三种触发方式：ocr review（审查当前工作区改动）、ocr review --from main --to feature-branch（审查分支间 diff）、ocr review --commit abc123（审查单个 commit）",
+    "GitHub PR 自动触发：examples/github_actions/ocr-review.yml 监听 pull_request_target 的 opened/synchronize/reopened 事件，以及 issue_comment 中出现 '/open-code-review' 命令时触发",
+    "评论触发权限受限：仅 MEMBER/OWNER/COLLABORATOR 可触发，防止陌生人滥用工作流",
+    "并发控制：以 ocr-<pr> 为并发组 key，同一 PR 同时只跑一个审查，避免重复评论",
+    "审查评论质量以 Precision 为核心指标：宁缺毋滥，减少开发者人工确认『假阳性』的成本"
+   ],
+   "why": [
+    "PR 审查是代码质量的咽喉，手动逐行 review 耗时且易漏，AI 预审把高频问题挡在合并前",
+    "分支/commit 级触发让审查可以发生在合并前的任意时点，而不仅限于 CI 阶段",
+    "Precision 优先是工程化决策：开发者对每条评论都有确认成本，低精度评论会让人逐渐无视工具输出"
+   ],
+   "how": [
+    "本地审查工作区改动：在仓库目录运行 ocr review，工具自动收集当前改动并产出评论",
+    "审查分支 diff：ocr review --from main --to feature-branch，无需 checkout 即可审查任意分支间的变更",
+    "审查单个 commit：ocr review --commit abc123，适合对历史提交定点复核",
+    "接入 GitHub 自动触发：复制 examples/github_actions/ocr-review.yml 到 .github/workflows/，配置好三个必填输入（llm_url/llm_auth_token/llm_model），PR 事件与 '/open-code-review' 评论即可自动触发",
+    "利用并发组：并发控制已内置为 ocr-<pr>，同一 PR 反复 push 时不会产生重复审查风暴"
+   ],
+   "cases": [
+    "日常开发流：提交 PR 后 AI 自动审查，synchronize 时增量复查，开发者专注修评论",
+    "Merge 前复查：在合并按钮前于 PR 评论输入 '/open-code-review' 手动触发一次全量复核",
+    "分支对比：--from main --to feature-branch 审查特性分支全部改动，无需等待 PR 创建",
+    "历史提交复核：--commit 对敏感 commit 单独审查，追溯问题引入点"
+   ],
+   "anti_patterns": [
+    "在 GitHub Actions 中把触发权限放开给所有人（不加 MEMBER/OWNER/COLLABORATOR 限制），外部贡献者可用评论触发你的工作流消耗 token",
+    "忽略并发组配置导致同一 PR 多次触发并发审查，评论重复且账单翻倍",
+    "只看评论数量不看 Precision，为凑覆盖率引入大量低质量评论，反而增加开发者负担",
+    "在超大 PR 上直接审查而不依赖 filterLargeDiffs，成本失控且审查质量下降"
+   ]
+  },
+  {
+   "id": "use-scan-codebase",
+   "name": "场景：审计陌生代码库",
+   "what": [
+    "面向无 git 历史或无有意义 diff 的仓库：接手遗留代码、安全审计、整体摸底时用扫描模式而非 diff 模式",
+    "ocr scan 扫描整个仓库，ocr scan --path internal/agent 可限定子目录，聚焦特定模块",
+    "--batch 支持 by-language 或 by-directory 分束：按语言或目录分批处理，控制单次扫描的规模与成本",
+    "DEDUP 机制对跨文件/跨批次重复问题去重，防止同一问题在多文件重复评论",
+    "PROJECT_SUMMARY 生成项目级总结：扫描后汇总整体健康状况、共性风险与改进建议，而非只给零散评论",
+    "适用场景：接手遗留代码、安全审计、新人熟悉代码库"
+   ],
+   "why": [
+    "陌生代码库没有『变更』概念，diff 模式无从谈起，必须整库扫描建立基线",
+    "全库一次性送入模型不可行，by-language/by-directory 分束把扫描切成可管理的批次",
+    "审计场景下重复评论噪音极大，DEDUP 保证每条问题只出现一次，报告才可信",
+    "项目级总结把『发现的问题』提升为『对项目的判断』，正是审计报告需要的形态"
+   ],
+   "how": [
+    "整库扫描：在仓库根目录运行 ocr scan，等待扫描完成并查看逐文件评论",
+    "限定范围：ocr scan --path internal/agent，只扫指定目录，快速聚焦目标模块",
+    "分束控制规模：ocr scan --batch by-language 按语言分批，或 --batch by-directory 按目录分批，避免单批过大",
+    "安全审计流程：先全库扫描 → 查看 DEDUP 后的去重问题列表 → 读 PROJECT_SUMMARY 项目级总结 → 按严重性逐项跟进",
+    "遗留代码接手：扫描建立基线后，把项目级总结作为改造计划与排期的输入"
+   ],
+   "cases": [
+    "接手遗留项目：整库扫描产出问题清单与项目总结，快速定位技术债最重的模块",
+    "安全审计：对指定敏感目录 ocr scan --path，配合去重列表逐条验证漏洞风险",
+    "技术选型评估：扫描候选第三方库源码，用项目总结判断代码质量与维护风险",
+    "团队代码体检：定期整库扫描，对比多次 PROJECT_SUMMARY 看质量趋势"
+   ],
+   "anti_patterns": [
+    "对超大仓库不做 --batch 直接全量扫描，单批输入超限导致任务失败或成本爆炸",
+    "忽略 DEDUP 去重，跨文件重复问题刷屏，掩盖真正的高价值发现",
+    "把扫描报告当最终结论而非输入：不结合人工验证就把问题列表直接派工",
+    "在无 git 历史的仓库误用 review 模式（无 diff 可审），应改用 scan 模式"
+   ]
+  },
+  {
+   "id": "use-no-key",
+   "name": "场景：免 Key 委托审查",
+   "what": [
+    "面向没有 LLM API Key 或希望复用宿主 Agent（如 QCA、Claude Code）模型能力的场景",
+    "ocr delegate preview --format json 输出当前可审查的文件清单，供委托前确认范围",
+    "ocr delegate rule src/main.go src/handler.go 输出针对指定文件的审查规则，作为委托审查的标准",
+    "委托流程：编码 Agent 用 git diff 取到 diff → 按 delegate 给出的规则审查 → 输出结构化评论，OCR 只做规则与编排",
+    "QCA / Claude Code 等宿主 Agent 插件内嵌委托命令，让审查能力融入已有工作流"
+   ],
+   "why": [
+    "很多开发者没有直接可用的 LLM API Key，或已有宿主 Agent 的模型额度，重复付费不划算",
+    "把『规则生成』与『审查执行』分离：OCR 负责高质量规则，宿主 Agent 负责执行，各用所长",
+    "委托模式让 OCR 审查能力可嵌入任何 Agent 工作流，而不局限于 OCR 自身的模型连接"
+   ],
+   "how": [
+    "查看可审查清单：运行 ocr delegate preview --format json，确认当前仓库哪些文件可进入委托范围",
+    "获取审查规则：运行 ocr delegate rule src/main.go src/handler.go，得到针对这两个文件的规则文本",
+    "执行委托审查：在编码 Agent 内用 git diff 取 diff，将 delegate rule 输出的规则与 diff 一起交给宿主 Agent，令其按规则输出结构化评论",
+    "嵌入插件：在 QCA / Claude Code 插件中内嵌 ocr delegate 命令，实现『宿主模型 + OCR 规则』的混合审查流"
+   ],
+   "cases": [
+    "无 Key 环境：只有宿主 Agent（如 Claude Code）模型可用，通过 delegate 获取规则后由宿主执行审查",
+    "规则标准化：团队把 delegate rule 输出固化为审查 checklist，所有成员与 Agent 共用同一套标准",
+    "插件集成：Claude Code 插件内调用 delegate 命令，审查能力一键获得",
+    "批量预审：preview 先圈定文件范围，避免委托审查覆盖无关文件"
+   ],
+   "anti_patterns": [
+    "把 delegate preview 当审查结果：preview 只是文件清单，真正的审查结论仍需 Agent 按规则执行",
+    "用宿主 Agent 直接审查而不取 delegate rule，等于放弃 OCR 沉淀的审查规则，质量回到裸模型水平",
+    "在委托链中丢失 git diff 上下文，宿主 Agent 只拿到文件全文而非变更，审查失去 diff 焦点",
+    "忽视输出结构化约束，宿主 Agent 返回自由文本评论，无法被下游解析与回贴"
+   ]
+  },
+  {
+   "id": "use-ci",
+   "name": "场景：接入 CI 流水线",
+   "what": [
+    "让 AI 审查自动跑在每次 MR/PR 上，无需人工触发，是规模化落地的标准形态",
+    "GitHub Actions：uses: alibaba/open-code-review@main，三个必填输入 llm_url / llm_auth_token / llm_model，Anthropic 协议模型需加 llm_use_anthropic",
+    "GitLab：在 .gitlab-ci.yml 中配置审查作业，结合 post_review.py 把审查结果回贴为 discussion 评论",
+    "Gerrit / Codeup / GitFlic / Bitbucket 等平台遵循同一模式：CI 作业执行审查 + 脚本回贴结果",
+    "审查产物：.ocr/ocr-stats.env（统计信息，如评论数/token 数）与 result.json（结构化审查结果），供下游消费",
+    "配置陷阱：action 输入中 'true'/'false' 必须写成字符串字面量，裸布尔会被 YAML 解析为布尔类型导致传参失败"
+   ],
+   "why": [
+    "人工 review 无法保证每个 MR 都覆盖，CI 自动化把审查变成合并的必经环节而非可选项",
+    "回贴讨论（GitLab discussion / GitHub comment）让审查结论与代码行绑定，开发者在原处即可处理",
+    "统计产物（ocr-stats.env）支撑团队度量：审查覆盖率、评论密度、token 成本都可量化",
+    "多平台一致模式降低落地成本：学会一套（Actions）即可复制到其他平台"
+   ],
+   "how": [
+    "GitHub Actions 接入：在工作流中 steps 内 uses: alibaba/open-code-review@main，配置 llm_url、llm_auth_token、llm_model 三个必填项，Anthropic 协议模型再加 llm_use_anthropic（注意 'true' 写字符串字面量）",
+    "GitLab 接入：在 .gitlab-ci.yml 新增审查 stage，作业内运行审查命令，随后用 post_review.py 将 result.json 回贴为 MR discussion",
+    "其他平台：仿照同一模式，CI 作业跑审查 + 读取 result.json + 平台 API 回贴评论",
+    "消费产物：审查后读取 .ocr/ocr-stats.env 与 result.json，接入通知（如机器人推送摘要）或度量面板",
+    "配置检查：审查 job 配置中所有布尔型输入用引号包裹（'true'/'false'），避免 YAML 布尔解析问题"
+   ],
+   "cases": [
+    "GitHub 团队落地：每个 PR 自动审查并评论，Precision 优先保证评论值得处理",
+    "GitLab 合规流程：审查结果回贴为 discussion，合并前必须处理高严重度评论",
+    "多平台统一：同一仓库在 GitLab 与 Gerrit 双平台使用，产物格式一致便于脚本复用",
+    "度量驱动：CI 产物汇总到面板，按月看评论采纳率与 token 成本趋势"
+   ],
+   "anti_patterns": [
+    "把 llm_auth_token 明文写进工作流文件而非 secrets 注入，凭据随仓库泄漏",
+    "布尔输入不写字符串字面量：llm_use_anthropic: true 被 YAML 解析为布尔，action 收到类型错误而静默失败",
+    "忽略 .ocr/ 产物，审查结果只留在日志里，无法被通知/度量/归档消费",
+    "把回贴脚本写死在审查 job 里而不做失败降级：审查失败时流水线全红，阻塞正常合并"
+   ]
+  },
+  {
+   "id": "use-configure",
+   "name": "场景：配置模型与规则",
+   "what": [
+    "首次上手必做步骤：配置模型提供方与审查规则，决定审查的语言、范围与标准",
+    "ocr config provider 选择模型提供方：内置 DashScope、DeepSeek 等选项，也支持自定义端点接入任意兼容服务",
+    "ocr config model 配置具体模型，工具会自动测试连通性，失败即反馈，避免配错模型名",
+    "ocr config set language zh-CN 设置审查语言（如中文输出评论）",
+    "项目级规则文件 .opencodereview/rule.json：include/exclude 控制文件范围 + 规则内容，路径匹配用 doublestar glob（支持 ** 多级匹配）",
+    "全局规则 ~/.opencodereview/rule.json：跨项目生效的默认规则；--rule 提供临时规则，单次命令生效",
+    "ocr rules check 验证规则命中：确认规则确实匹配到了目标文件，避免规则写错而静默失效"
+   ],
+   "why": [
+    "审查质量的上限由模型与规则决定：不配置模型则无法运行，不配置规则则审查无差异化",
+    "项目级与全局级分层让『团队标准』与『个人偏好』共存：全局规则兜底，项目规则精确",
+    "连通性自动测试与 rules check 都是防『静默失败』设计：配错模型/规则当场报错而非审查时才发现"
+   ],
+   "how": [
+    "配置模型：ocr config provider 选择内置 provider（如 DashScope/DeepSeek）或按自定义端点配置 → 随后 ocr config model 指定模型并自动测连通",
+    "设置语言：ocr config set language zh-CN，让审查评论以中文输出",
+    "配置项目规则：在仓库根目录编写 .opencodereview/rule.json，include/exclude 用 doublestar glob（如 **/internal/**）限定范围，并填写规则内容",
+    "配置全局规则：在 ~/.opencodereview/rule.json 编写跨项目默认规则，新仓库自动继承",
+    "临时规则：单次命令加 --rule，如 ocr review --rule '禁止硬编码密钥'，不污染仓库配置",
+    "验证规则：运行 ocr rules check，确认规则命中目标文件，输出与实际匹配一致后再正式审查"
+   ],
+   "cases": [
+    "团队统一标准：项目 .opencodereview/rule.json 内置团队编码规范（如禁止 TODO 合并、必须错误处理），所有开发者共享",
+    "个人偏好：全局规则加入个人关注点（如注释语言、命名风格），跨项目生效",
+    "新成员上手：按 provider → model → language 顺序完成配置，rules check 确认规则生效后即可开始审查",
+    "多语言仓库：include/exclude 配合 doublestar glob 限定仅审查 Go/Python 目录，避免无关文件噪音"
+   ],
+   "anti_patterns": [
+    "跳过 ocr config model 的连通性测试直接使用，配错模型名/端点后审查静默失败，排查成本高",
+    "doublestar glob 写错（如用单 * 期望匹配多级目录），include/exclude 不生效，规则范围失控",
+    "规则写好后不跑 ocr rules check，等审查时才发现规则从未命中目标文件",
+    "把全局与项目规则语义混淆：想项目内生效却写入全局文件，污染其他仓库的审查行为"
+   ]
+  },
+  {
+   "id": "use-extend",
+   "name": "场景：扩展审查能力",
+   "what": [
+    "内置规则不够用时提供四条扩展路径：MCP 接入、自定义规则文件、--rule ad-hoc 规则、委托模式",
+    "MCP 接入：config.json 的 mcp_servers.<name> 配置外部工具，支持 stdio（本地进程）与 remote（远程服务）两种模式，让审查过程调用外部工具能力",
+    "自定义规则文件：内置覆盖 10+ 语言，专项场景（特定框架/合规要求）可补写专属规则文件",
+    "--rule ad-hoc 规则：单次命令临时注入规则，不改动任何配置文件",
+    "委托模式：把审查规则喂给任意 Agent 的 skill（如 skills/open-code-review/），让外部 Agent 以 OCR 规则为 skill 执行审查",
+    "规则值可引用 .md/.txt 文件：复杂审查指令可写在独立文档中，规则文件仅引用其路径，便于维护长指令"
+   ],
+   "why": [
+    "单一内置规则无法覆盖所有团队规范与框架特性，扩展性是工具长期可用的前提",
+    "MCP 生态让审查能联动外部工具（如安全扫描器、数据库 schema 检查），审查从『读代码』升级为『查事实』",
+    "复杂指令内联在 JSON 规则里难以维护，引用外部 .md/.txt 把指令与配置分离，可读性与可维护性双提升"
+   ],
+   "how": [
+    "接入 MCP 工具：在 config.json 的 mcp_servers 下新增 <name>，配置 stdio（本地命令启动）或 remote（远程端点）类型，审查中即可调用该工具",
+    "编写专项规则：按内置规则文件格式新建自定义规则文件，覆盖内置 10+ 语言之外的场景（如特定框架规范），再在配置中启用",
+    "临时注入：运行审查时追加 --rule '规则内容'，一次性生效，适合现场临时检查",
+    "委托扩展：把审查规则以 skill 形式（skills/open-code-review/）喂给任意 Agent，外部 Agent 加载 skill 后按规则审查",
+    "复杂指令外置：把长审查指令写入 .md/.txt 文件，规则值引用文件路径，审查时读取文件内容作为指令"
+   ],
+   "cases": [
+    "框架专项审查：自定义规则覆盖公司内部框架约定，内置规则不认识的模式也能被审查",
+    "安全联动：MCP 接入依赖扫描器，审查时自动交叉验证依赖版本与已知漏洞",
+    "多 Agent 协作：委托模式 + skill 文件让 Claude Code 等宿主 Agent 用同一套 OCR 规则审查",
+    "复杂合规指令：审查标准写成 .md 文档（数十条细则），规则文件只引用路径，评审修改只动文档"
+   ],
+   "anti_patterns": [
+    "把长指令直接内联进 rule.json 的字符串值，JSON 转义与换行处理困难，且评审修改频繁改配置",
+    "MCP 工具地址配置为不可信远程端点，审查数据可能外泄，remote 模式需确认信任边界",
+    "--rule 临时规则被误以为是持久的，下次审查不生效时误判为 bug",
+    "自定义规则与内置规则命名冲突或作用域重叠，规则互相覆盖导致行为不可预测，改动前先用 ocr rules check 验证"
+   ]
+  }
+ ]
+}

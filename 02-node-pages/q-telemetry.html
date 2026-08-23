@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenTelemetry 遥测 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-F.html">工程保障</a> / <span>OpenTelemetry 遥测</span></div>
+  <h1>OpenTelemetry 遥测</h1>
+  <div class="badges"><span class="badge src" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">工程保障</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">工程保障</span><span class="badge grp">G-F · 工程保障</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-F"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-F.html"><span class="dir">返回组</span><span class="v">工程保障</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">console/OTLP 双导出（grpc/http），审查事件与指标埋点，OCR_ENABLE_TELEMETRY 环境变量开启</div><div class="bullet">OCR 内置 OpenTelemetry 双管道（trace + metric），所有审查事件与指标均通过统一遥测框架埋点</div><div class="bullet">支持两种导出方式：console 输出（本地调试直观可见）与 OTLP 导出（gRPC / HTTP-protobuf / HTTP-JSON 三种 wire protocol）</div><div class="bullet">配置优先级为 defaults &lt; config.json 的 telemetry 段 &lt; 环境变量，环境变量拥有最终覆盖权</div><div class="bullet">核心环境变量：OCR_ENABLE_TELEMETRY=1 开启遥测、OTEL_SERVICE_NAME 服务名、OTEL_EXPORTER_OTLP_ENDPOINT OTLP 端点、OTEL_EXPORTER_OTLP_PROTOCOL 协议选择、OCR_CONTENT_LOGGING=1 输出审查内容日志</div><div class="bullet">埋点覆盖完整审查生命周期：任务开始/结束、每次模型调用、检索/过滤/压缩各阶段、token 消耗与重试事件</div><div class="bullet">metric 侧聚焦成本与性能：token 计数、耗时、重试次数等可观测指标，便于与成本分析（token 计费）联动</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>审查流程横跨本地文件读取、git 操作、模型 API 调用等多个环节，无遥测则故障只能靠黑盒排查，定位慢</p><p>token 消耗是成本核心，通过 metric 管道持续观测 token 用量才能做成本治理与预算预警</p><p>支持 OTLP 导出意味着可无缝接入现有可观测性平台（Jaeger/Tempo/Prometheus 等），企业级集成零成本</p><p>环境变量优先的配置设计让 CI/CD 场景下无需改配置文件即可按流水线注入遥测开关</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">本地快速验证：设置 OCR_ENABLE_TELEMETRY=1 后运行 ocr review，在 console 观察 trace 输出，确认埋点链路完整</div><div class="bullet">接入 OTLP 平台：设置 OCR_ENABLE_TELEMETRY=1、OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318、OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf，启动后到平台查看 span</div><div class="bullet">切换协议：按需将 OTEL_EXPORTER_OTLP_PROTOCOL 设为 grpc 或 http/json，匹配后端 Collector 的接收端口</div><div class="bullet">命名服务：设置 OTEL_SERVICE_NAME 区分不同仓库/流水线的遥测数据，避免多项目数据混淆</div><div class="bullet">审计内容：设置 OCR_CONTENT_LOGGING=1 记录审查内容，用于事后核查模型看到了什么（注意隐私合规）</div><div class="bullet">通过 config.json 的 telemetry 段配置默认值，再按环境用环境变量覆盖，形成可复用的分层配置</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>本地调试：开启 console 输出，排查某次审查为何未产出评论，从 trace 中定位是检索失败还是模型调用异常</td></tr><tr><td>接入企业 APM：CI 中注入 OTLP 端点，让每次 MR 审查的 token 消耗与耗时进入统一大盘，按服务名区分项目</td></tr><tr><td>成本审计：通过 metric 中的 token 计数与重试次数，验证 prompt-cache 命中率与重试开销</td></tr><tr><td>回归对比：升级模型或改规则后，对比前后 trace 中各阶段耗时，量化优化效果</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>在 CI 中误用 config.json 配置遥测而忽略环境变量注入，导致每个流水线任务覆盖不生效或泄露本地配置</li><li>OCR_CONTENT_LOGGING=1 与 OTLP 出口同时开启却未考虑数据合规：源码内容可能被导出到远端平台，生产环境需谨慎或脱敏</li><li>协议选错导致数据静默丢失：OTLP 端点与协议不匹配（如 gRPC 端点了却配 http/json）时无报错但无数据，排查时先核对协议与端口</li><li>未设置 OTEL_SERVICE_NAME 就把多仓库数据混入同一 Collector，后续无法按项目拆分指标</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">OTLP 导出接入可观测平台，全链路可追踪</div><div class="evcode"><code>OCR_ENABLE_TELEMETRY=1</code><code>OTEL_SERVICE_NAME=ocr-pr-review</code><code>OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318</code><code>OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf</code><code>ocr review --from main --to feature-branch</code></div><div class="evdesc">开启遥测并按 http/protobuf 协议导出到 Collector，trace+metric 双管道让审查各阶段耗时与 token 消耗进入统一大盘，故障定位从黑盒变白盒。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">协议与端点不匹配，数据静默丢失</div><div class="evcode"><code>OCR_ENABLE_TELEMETRY=1</code><code>OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318</code><code>OTEL_EXPORTER_OTLP_PROTOCOL=grpc</code><code>ocr review</code></div><div class="evdesc">gRPC 走 4317 端口而 http/protobuf 走 4318，协议与端点错配时不报错但无任何数据上送，排查时先核对协议与端口是否对应。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">console 输出本地快速验证埋点链路</div><div class="evcode"><code>OCR_ENABLE_TELEMETRY=1 ocr review</code><code># 终端直接观察 trace 输出，确认任务开始/模型调用/token 统计各 span 完整</code></div><div class="evdesc">不搭平台也能验证埋点是否生效，适合本地调试与回归对比（升级模型后对比各阶段耗时）。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">内容日志与 OTLP 同开，源码随导出外泄</div><div class="evcode"><code>OCR_ENABLE_TELEMETRY=1</code><code>OCR_CONTENT_LOGGING=1</code><code>OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318</code><code>ocr review</code></div><div class="evdesc">OCR_CONTENT_LOGGING=1 记录审查内容，若同时导出到远端 Collector，源码内容可能进入第三方平台，生产/涉密环境需评估合规或脱敏。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">环境变量分层覆盖，CI 按流水线注入</div><div class="evcode"><code># config.json 保留 telemetry 默认段，CI 中仅用环境变量覆盖</code><code>OCR_ENABLE_TELEMETRY=1 OTEL_SERVICE_NAME=ci-${CI_PROJECT_NAME} ocr review</code></div><div class="evdesc">环境变量优先级高于 config.json，无需改配置文件即可按流水线/项目注入不同的服务名与端点。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">只用 config.json 配置遥测，多项目数据混淆</div><div class="evcode"><code># 所有项目共用同一 config.json 的 telemetry 段，未设 OTEL_SERVICE_NAME</code><code>ocr review</code></div><div class="evdesc">缺少 OTEL_SERVICE_NAME 区分时，多仓库数据混入同一 Collector，后续无法按项目拆分成本与性能指标。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/telemetry-provider.go.md" target="_blank">telemetry-provider.go.md</a></div><div class="assdesc">OpenTelemetry 双管道初始化节选</div><div class="assmeta">internal/telemetry/provider.go · 1317 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-cooccurrence" href="eng-session.html">会话 JSONL 持久化&#8594;会话 JSONL 是遥测素材<span class="etype">共现</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

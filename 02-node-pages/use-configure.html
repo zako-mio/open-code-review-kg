@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>场景：配置模型与规则 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-S.html">使用场景索引</a> / <span>场景：配置模型与规则</span></div>
+  <h1>场景：配置模型与规则</h1>
+  <div class="badges"><span class="badge src" style="color:#ffb86b;background:#3a2f12;border-color:#e8933b">使用场景</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#ff8a97;background:#3a1520;border-color:#e05563">场景索引</span><span class="badge grp">G-S · 使用场景索引</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-S"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-S.html"><span class="dir">返回组</span><span class="v">使用场景索引</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">首次上手必做：选 provider/模型/API Key，按项目定制规则（rule.json）、过滤路径、调并发与预算</div><div class="bullet">首次上手必做步骤：配置模型提供方与审查规则，决定审查的语言、范围与标准</div><div class="bullet">ocr config provider 选择模型提供方：内置 DashScope、DeepSeek 等选项，也支持自定义端点接入任意兼容服务</div><div class="bullet">ocr config model 配置具体模型，工具会自动测试连通性，失败即反馈，避免配错模型名</div><div class="bullet">ocr config set language zh-CN 设置审查语言（如中文输出评论）</div><div class="bullet">项目级规则文件 .opencodereview/rule.json：include/exclude 控制文件范围 + 规则内容，路径匹配用 doublestar glob（支持 ** 多级匹配）</div><div class="bullet">全局规则 ~/.opencodereview/rule.json：跨项目生效的默认规则；--rule 提供临时规则，单次命令生效</div><div class="bullet">ocr rules check 验证规则命中：确认规则确实匹配到了目标文件，避免规则写错而静默失效</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>审查质量的上限由模型与规则决定：不配置模型则无法运行，不配置规则则审查无差异化</p><p>项目级与全局级分层让『团队标准』与『个人偏好』共存：全局规则兜底，项目规则精确</p><p>连通性自动测试与 rules check 都是防『静默失败』设计：配错模型/规则当场报错而非审查时才发现</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">配置模型：ocr config provider 选择内置 provider（如 DashScope/DeepSeek）或按自定义端点配置 → 随后 ocr config model 指定模型并自动测连通</div><div class="bullet">设置语言：ocr config set language zh-CN，让审查评论以中文输出</div><div class="bullet">配置项目规则：在仓库根目录编写 .opencodereview/rule.json，include/exclude 用 doublestar glob（如 **/internal/**）限定范围，并填写规则内容</div><div class="bullet">配置全局规则：在 ~/.opencodereview/rule.json 编写跨项目默认规则，新仓库自动继承</div><div class="bullet">临时规则：单次命令加 --rule，如 ocr review --rule &#x27;禁止硬编码密钥&#x27;，不污染仓库配置</div><div class="bullet">验证规则：运行 ocr rules check，确认规则命中目标文件，输出与实际匹配一致后再正式审查</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>团队统一标准：项目 .opencodereview/rule.json 内置团队编码规范（如禁止 TODO 合并、必须错误处理），所有开发者共享</td></tr><tr><td>个人偏好：全局规则加入个人关注点（如注释语言、命名风格），跨项目生效</td></tr><tr><td>新成员上手：按 provider → model → language 顺序完成配置，rules check 确认规则生效后即可开始审查</td></tr><tr><td>多语言仓库：include/exclude 配合 doublestar glob 限定仅审查 Go/Python 目录，避免无关文件噪音</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>跳过 ocr config model 的连通性测试直接使用，配错模型名/端点后审查静默失败，排查成本高</li><li>doublestar glob 写错（如用单 * 期望匹配多级目录），include/exclude 不生效，规则范围失控</li><li>规则写好后不跑 ocr rules check，等审查时才发现规则从未命中目标文件</li><li>把全局与项目规则语义混淆：想项目内生效却写入全局文件，污染其他仓库的审查行为</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">标准上手三连：provider → model → language</div><div class="evcode"><code>ocr config provider  # 选 DashScope/DeepSeek 或自定义端点</code><code>ocr config model    # 自动测连通，失败即反馈</code><code>ocr config set language zh-CN</code></div><div class="evdesc">连通性自动测试当场暴露配错的模型名/端点，审查评论以中文输出，首次上手按序执行即可用。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">跳过连通性测试直接开跑</div><div class="evcode"><code># 只配了 provider 就 ocr review</code></div><div class="evdesc">模型未配置或配错时审查静默失败，排查成本高，且错误被延迟到审查时才暴露。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">项目规则 + doublestar glob + rules check 验证</div><div class="evcode"><code># .opencodereview/rule.json</code><code>{&quot;include&quot;: [&quot;**/internal/**/*.go&quot;], &quot;exclude&quot;: [&quot;**/*_test.go&quot;], &quot;rules&quot;: [...]}</code><code>ocr rules check  # 确认规则命中目标文件</code></div><div class="evdesc">include/exclude 用 doublestar glob（** 多级匹配）精确圈定范围，rules check 在正式审查前验证规则确实生效。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">glob 写错且不验证导致规则静默失效</div><div class="evcode"><code>&quot;include&quot;: [&quot;*/internal/*.go&quot;]  # 单 * 无法匹配多级目录</code><code># 且未运行 ocr rules check</code></div><div class="evdesc">规则从未命中目标文件却无人察觉，审查跑完发现规则形同虚设，返工成本高。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">--rule 临时规则一次生效不污染配置</div><div class="evcode"><code>ocr review --rule &#x27;禁止硬编码密钥&#x27;</code><code># 单次命令生效，项目/全局配置不受影响</code></div><div class="evdesc">临时检查场景（如发布前专项扫描）用完即走，不写入任何配置文件。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">把 --rule 当持久配置</div><div class="evcode"><code># 以为 --rule 已全局生效，下次不带参数直接审查</code></div><div class="evdesc">--rule 仅单次命令生效，下次审查不带则规则缺失，误判为工具 bug 而非使用方式问题。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/llm-providers.go.md" target="_blank">llm-providers.go.md</a></div><div class="assdesc">27 个内置 provider 注册表节选</div><div class="assmeta">internal/llm/providers.go · 1523 B</div></div><div class="assetcard"><div class="asstype">配置示例</div><div class="assname"><a href="../assets/configs/rule.example.json" target="_blank">rule.example.json</a></div><div class="assdesc">项目级规则示例（rule.json：include/exclude + 四规则含 glob/docs 外置）</div><div class="assmeta">(自建示例) · 1308 B</div></div><div class="assetcard"><div class="asstype">配置示例</div><div class="assname"><a href="../assets/configs/config.example.json" target="_blank">config.example.json</a></div><div class="assdesc">全局配置示例（provider/自定义端点/LLM/MCP/遥测）</div><div class="assmeta">(自建示例) · 1353 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-combination" href="cfg-providers.html">Provider 体系&#8592;provider+config 命令组合成配置场景<span class="etype">组合</span></a><a class="chip e-combination" href="cli-config.html">ocr config&#8592;provider+config 命令组合成配置场景<span class="etype">组合</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

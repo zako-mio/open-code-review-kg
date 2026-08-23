@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ocr review · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-C.html">命令行工具</a> / <span>ocr review</span></div>
+  <h1>ocr review</h1>
+  <div class="badges"><span class="badge src" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">命令行</span><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-C · 命令行工具</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-C"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-C.html"><span class="dir">返回组</span><span class="v">命令行工具</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">基于 git diff 的审查主命令：workspace/range/commit 三模式，--format text|json|sarif，--resume 断点续审</div><div class="bullet">ocr review 是工具的主命令，基于 git 变更执行 AI 代码审查，是日常使用频率最高的入口</div><div class="bullet">支持三种审查模式：裸运行 ocr review 审查 workspace（暂存 + 未暂存 + 未跟踪的改动）；--from/--to 指定合并基准（如 --from main --to feature-branch）做分支对比；--commit &lt;hash&gt; 针对单个 commit 审查</div><div class="bullet">输出格式可选 text（默认，人类可读）、json（结构化，供脚本消费）、sarif（供 CI/静态分析工具集成）</div><div class="bullet">受众维度通过 --audience 控制：human 面向人类阅读、agent 面向 AI Agent 消费，输出详略与措辞不同</div><div class="bullet">资源控制参数齐全：--concurrency（默认 8）控制并行度、--timeout（默认 10 分钟）控制单次审查超时、--max-tokens / --max-tokens-budget / --max-tools / --max-git-procs 约束 token 预算、工具调用数与 git 子进程数</div><div class="bullet">支持 --resume 断点续审（配合 session）、--background(-b)/--background-file(-B) 后台执行、--preview(-p) 预演不实际调用 LLM、--provider/--model 指定模型、--no-filter 关闭结果过滤、--rule/--exclude 控制规则与排除路径</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>三种模式精确对应日常开发流程：提交前看工作区改动、合并前看分支差异、复盘时看单次提交，无需切换工具</p><p>json/sarif 输出使审查结果可被 CI 流水线、缺陷管理平台与其他工具链消费，而不只是给人看的文本</p><p>并发、超时、token 预算等参数让大仓库审查可控可预期，避免长时间无响应或预算超支</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">审查当前工作区全部改动：ocr review</div><div class="bullet">分支合并前对比审查：ocr review --from main --to feature-branch</div><div class="bullet">审查单个提交：ocr review --commit abc123</div><div class="bullet">结构化输出：ocr review --format json 或 ocr review --format sarif（CI 集成）</div><div class="bullet">面向 Agent 消费：ocr review --audience agent</div><div class="bullet">精细控制范围：ocr review --rule &lt;rule-id&gt; --exclude &#x27;&lt;glob&gt;&#x27; 指定规则并排除路径</div><div class="bullet">控制资源：ocr review --concurrency 8 --timeout 30m --max-tokens-budget 200000 --max-git-procs 4</div><div class="bullet">指定模型与预演：ocr review --provider openai --model gpt-4o；ocr review --preview 查看将审查的变更而不调用 LLM</div><div class="bullet">后台执行：ocr review --background --background-file review.jsonl，之后用 ocr session 查看进度与结果</div><div class="bullet">中断后续审：ocr review --resume &lt;session-id&gt; 从断点继续</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>提交前自查：改完代码直接 ocr review，快速获得 AI 对暂存与未暂存改动的审查意见，修复后再提交</td></tr><tr><td>PR 合并前把关：在 feature 分支上执行 ocr review --from main --to feature-branch，聚焦本次合并将引入的全部差异</td></tr><tr><td>CI 集成：流水线中执行 ocr review --format sarif --audience agent，将 SARIF 上报给代码平台或缺陷系统</td></tr><tr><td>大仓库长时间审查：开启 ocr review --background --background-file out.jsonl 后台跑，配合 --concurrency/--timeout 调整，随后用 session 查看并 --resume 续审</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>不调 --timeout 直接审超大仓库：默认 10 分钟超时对大型变更远远不够，中途超时后未用 --resume 续审，导致已消耗的 token 与时间全部浪费，应预估规模后显式设置 --timeout 与 --max-tokens-budget</li><li>--concurrency 与 --max-git-procs 拉满追求速度：并发过高导致 LLM API 限流报错或 git 进程冲突、diff 计算互相干扰，应结合仓库规模与限流阈值保守设置</li><li>依赖默认文本输出对接自动化：管道消费 text 格式脆弱，脚本应显式使用 --format json 或 sarif，并留意 --audience 对输出结构的影响</li><li>后台模式不使用 --background-file 指定输出路径：默认位置不易定位，结果文件被清理后无处恢复，应显式指定并记录路径</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">分支合并前对比审查</div><div class="evcode"><code>ocr review --from main --to feature-branch</code></div><div class="evdesc">以 main 为基准对比 feature-branch 的全部差异，聚焦本次合并将引入的改动，是 PR 合并前把关的标准用法。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">不指定基准导致审查范围错误</div><div class="evcode"><code>ocr review  # 仅审 workspace，漏掉分支上已提交的改动</code><code>git status  # 输出空，误以为没有变更</code></div><div class="evdesc">裸 ocr review 只覆盖暂存+未暂存+未跟踪改动，分支间已提交的差异不会进入审查，合并前必须用 --from/--to 显式指定基准。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">超时与并发参数保障大仓库审查</div><div class="evcode"><code>ocr review --from main --to feature-branch --timeout 30m --concurrency 8 --max-git-procs 4</code></div><div class="evdesc">显式放宽超时（默认 10 分钟）并保守设置并发与 git 子进程数，避免大变更中途超时或 git 进程冲突。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">大仓库不调超时直接跑，超时后未续审</div><div class="evcode"><code>ocr review --from main --to feature-branch  # 10 分钟后超时中断</code><code>ocr review --from main --to feature-branch  # 从头重跑，token 双倍浪费</code></div><div class="evdesc">默认 10 分钟超时对大型变更不够，中断后不查 ocr session list 并 --resume 续审，导致已消耗 token 与时间全部浪费。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">后台审查 + 会话续审</div><div class="evcode"><code>ocr review --background --background-file review.jsonl</code><code>ocr session list</code><code>ocr review --resume &lt;session-id&gt;</code></div><div class="evdesc">后台执行把进度与结果落在会话中，中断后用 ocr review --resume &lt;session-id&gt; 从断点继续，长任务可中断恢复。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">并发拉满触发限流与进程冲突</div><div class="evcode"><code>ocr review --concurrency 32 --max-git-procs 32</code><code>ERROR: rate limit exceeded / git: unable to start 32 processes</code></div><div class="evdesc">并发与 git 子进程数过高导致 LLM API 限流报错或 git 进程冲突、diff 计算互相干扰，应按仓库规模与限流阈值保守设置。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">工具 schema</div><div class="assname"><a href="../assets/tools/tools.json" target="_blank">tools.json</a></div><div class="assdesc">6 个审查专用工具 schema 权威源（plan_task/main_task 相位旗标）</div><div class="assmeta">internal/config/toolsconfig/tools.json · 10082 B</div></div><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/diff-resolver.go.md" target="_blank">diff-resolver.go.md</a></div><div class="assdesc">行号解析五级回退链节选：ResolveComment / matchConsecutive</div><div class="assmeta">internal/diff/resolver.go · 2009 B</div></div><div class="assetcard"><div class="asstype">源码节选</div><div class="assname"><a href="../assets/code/session-manifest.go.md" target="_blank">session-manifest.go.md</a></div><div class="assdesc">Run Manifest 覆盖度契约节选：RegisterSelected / FailureClass</div><div class="assmeta">internal/session/manifest.go · 2464 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-dependency" href="eng-session.html">会话 JSONL 持久化&#8594;review 产生会话记录<span class="etype">依赖关联</span></a><a class="chip e-dependency" href="int-opencode.html">OpenCode 原生插件&#8592;OpenCode 插件 spawn CLI<span class="etype">依赖关联</span></a><a class="chip e-dependency" href="int-vscode.html">VSCode 扩展&#8592;VSCode 扩展封装 CLI<span class="etype">依赖关联</span></a><a class="chip e-prerequisite" href="cli-overview.html">ocr 命令总览与安装&#8592;安装后先学 review<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="use-pr-review.html">场景：审查 PR/分支变更&#8594;PR 审查场景指向 review 命令<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="eng-resume.html">断点续审与指纹复用&#8592;review 支持 --resume 续审<span class="etype">前置依赖</span></a><a class="chip e-variant" href="cli-delegate.html">ocr delegate&#8592;委托 vs OCR 驱动<span class="etype">变体</span></a><a class="chip e-variant" href="cli-scan.html">ocr scan&#8594;两种审查模式互为变体<span class="etype">变体</span></a><a class="chip e-combination" href="use-pr-review.html">场景：审查 PR/分支变更&#8594;Action+review 组合成 PR 自动审查<span class="etype">组合</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

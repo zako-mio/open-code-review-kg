@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QCA Forward 委托 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-E.html">集成生态</a> / <span>QCA Forward 委托</span></div>
+  <h1>QCA Forward 委托</h1>
+  <div class="badges"><span class="badge src" style="color:#ff8a97;background:#3a1520;border-color:#e05563">集成生态</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-E · 集成生态</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-E"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-E.html"><span class="dir">返回组</span><span class="v">集成生态</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">QCA 宿主模型运行委托模式：只允许 ocr delegate preview/rule（只读），OCR 侧零 LLM 调用</div><div class="bullet">「QCA Forward」是一种委托（delegate）模式，配置位于 qca/ 目录，核心文件为 system-prompt.md 与 template.example.json</div><div class="bullet">该模式只允许调用 ocr delegate 子命令中的 preview 与 rule 两个只读子能力，明确禁止使用 ocr review，整体为只读行为设计</div><div class="bullet">工作机制：由宿主模型（如 Claude、Qwen 等）按 template.example.json 模板组织审查请求，OCR 侧仅在收到委托请求时执行 preview/rule 操作，自身不发起任何 LLM 调用</div><div class="bullet">template.example.json 提供了委托请求的示例模板，用于规范宿主模型与 OCR 之间的消息契约，保证委托内容结构化可解析</div><div class="bullet">典型适用场景：不想为 OCR 单独配置 API Key 的组织——审查推理发生在宿主模型侧，OCR 侧零 LLM 消耗</div><div class="bullet">是 Open Code Review 多 Agent 生态中「委托/Forward」模式的代表实现，与 delegate 六步工作流互补</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>解决 Key 治理痛点：很多组织不希望在 CLI 侧再配一份模型 Key；QCA Forward 把推理放在已有宿主模型上，OCR 只做规则/预览等确定性操作，零 LLM 调用</p><p>只读安全边界：禁 ocr review、仅开放 preview/rule，保证委托模式下 OCR 不可能主动发起大范围审查，从机制上杜绝越权行为</p><p>通过 system-prompt.md 约束宿主行为、template.example.json 规范请求格式，让「谁说了算、什么格式」在集成前就确定，降低对接歧义</p><p>适合网关/中间层场景：组织已有统一模型网关（QCA 式），希望所有 AI 流量都走宿主，Forward 委托让 OCR 能力兼容该架构</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">前置条件：确认 ocr CLI 可用，并在组织中确定宿主模型（负责推理的一方）与 OCR（仅执行 preview/rule 的一方）</div><div class="bullet">阅读 qca/system-prompt.md，将其注入宿主模型的系统提示，使宿主理解：只能使用 ocr delegate preview / ocr delegate rule，禁止 ocr review，所有操作只读</div><div class="bullet">参照 qca/template.example.json 模板结构，在宿主侧构造委托请求体（含目标文件/规则/范围等字段），保证与 OCR 期望的输入契约一致</div><div class="bullet">宿主模型发起调用：执行 ocr delegate preview &lt;范围&gt; 先预览委托效果，确认目标与预期相符</div><div class="bullet">需要规则检查时执行 ocr delegate rule &lt;范围&gt;，按配置的规则集对目标执行只读分析</div><div class="bullet">OCR 侧按委托请求执行并返回结果，全程不调用 LLM；审查判断与修复建议由宿主模型结合自身推理完成</div><div class="bullet">验证：以模板示例为蓝本跑通一次「宿主发起 preview → OCR 返回结果」的链路，再逐步扩大范围</div><div class="bullet">组织落地时把 system-prompt.md 与 template.example.json 固化进团队模板仓库，保证所有宿主按统一口径委托</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>某企业已有统一大模型网关（QCA）承担所有 AI 成本核算，接入 OCR 审查时采用 QCA Forward：宿主模型做审查判断，OCR 只执行 preview/rule，无需为 OCR 单独配 Key</td></tr><tr><td>合规敏感环境要求所有代码访问只读：QCA Forward 模式下 OCR 侧被 system-prompt 约束为纯只读操作，天然满足审计要求</td></tr><tr><td>多宿主混合团队：不同成员用不同宿主模型，统一通过 template.example.json 的契约向同一 OCR 实例委托 preview/rule，审查口径一致</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>在委托模式下偷偷启用 ocr review：system-prompt 明确禁止，若宿主绕过约束直接调 review，将破坏「零 LLM 调用、纯只读」的架构承诺并产生意外成本</li><li>把 template.example.json 当固定配置而非示例：不同宿主/场景需要按实际字段调整模板，直接硬套可能导致委托请求解析失败</li><li>忽略 host 侧 Key 需求：QCA Forward 只免了 OCR 侧的 Key，宿主模型仍需要自己的 Key/网关凭证，部署前应把两侧依赖清单列清楚</li><li>把 QCA Forward 与常规 delegate 混为一谈：Forward 模式禁用 review 且零 LLM，与 delegate 六步工作流（含逐文件审查、覆盖率报告）的能力边界不同，选型时应按组织的 Key 策略与审查深度需求区分</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">宿主按模板委托 preview/rule，OCR 侧零 LLM 调用</div><div class="evcode"><code>ocr delegate preview --scope=src/</code><code>ocr delegate rule --scope=src/</code><code># 宿主按 template.example.json 构造请求</code></div><div class="evdesc">遵循 qca/system-prompt.md 的约束，宿主只调用 ocr delegate preview / rule 两个只读子能力；推理在宿主侧完成，OCR 零 LLM 消耗，无需为 OCR 单独配 Key。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">宿主绕过约束调用 ocr review，破坏只读架构</div><div class="evcode"><code>ocr review --scope=src/  # 违反 system-prompt 禁令</code><code># 触发 LLM 调用与意外成本，审计口径被破坏</code></div><div class="evdesc">system-prompt 明确禁止 ocr review，宿主若绕过约束直接调用，将破坏「零 LLM 调用、纯只读」的架构承诺并产生意外成本，合规环境还会违反只读审计要求。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">多宿主团队统一契约委托</div><div class="evcode"><code># 各宿主均按 template.example.json 字段构造委托请求</code><code>ocr delegate preview --scope=src/  # 审查口径一致</code></div><div class="evdesc">不同成员用不同宿主模型，统一按模板契约向同一 OCR 实例委托 preview/rule，保证审查口径一致，适合已有统一模型网关（QCA）的组织。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">把模板当固定配置硬套，请求解析失败</div><div class="evcode"><code># 直接复制 template.example.json 不按宿主调整字段</code><code>ocr delegate preview → 契约不匹配，委托失败</code></div><div class="evdesc">template.example.json 是示例而非固定配置，不同宿主/场景需按实际字段调整；直接硬套会导致委托请求与 OCR 期望契约不匹配而解析失败。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">插件</div><div class="assname"><a href="../assets/plugins/qca-system-prompt.md" target="_blank">qca-system-prompt.md</a></div><div class="assdesc">QCA Forward 委托系统提示（只允许 delegate preview/rule）</div><div class="assmeta">plugins/open-code-review/qca/system-prompt.md · 1217 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><p class="dim">本节点没有与其他节点的关系边。</p></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>

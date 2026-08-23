@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ocr 命令总览与安装 · Open Code Review 项目解析知识图谱</title>
+<style>
+
+:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}
+header .crumb{color:var(--dim);font-size:13px;margin-bottom:6px;}
+header .crumb a{color:var(--accent);text-decoration:none;}
+header .crumb a:hover{text-decoration:underline;}
+header h1{font-size:20px;font-weight:650;color:#f0f3f9;display:inline-block;margin-right:12px;}
+.badges{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle;}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;letter-spacing:.3px;}
+.badge.grp{background:#1d2a3f;color:#7fb0ff;border-color:#2b3d5f;}
+.badge.cnt{background:#23272f;color:#9aa0ab;border-color:#3a3f4a;}
+main{padding:24px;max-width:1150px;margin:0 auto;}
+h2{font-size:18px;margin:34px 0 12px;color:#cfd6e4;border-bottom:1px solid var(--border);padding-bottom:8px;}
+h2 .dim{font-size:13px;font-weight:400;}
+h3{font-size:15px;margin:20px 0 8px;color:#b8c2d4;}
+p,li{font-size:14px;}
+ul{padding-left:22px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.dim{color:var(--dim);}
+.section{scroll-margin-top:8px;}
+.brieflead{background:#0d1a14;border:1px solid #2f5a4a;border-left:4px solid var(--ok);border-radius:8px;padding:12px 16px;font-size:15px;color:#cfe8dd;margin:12px 0;}
+.whybox{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:14px 18px;margin:10px 0;}
+.bullet{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0;font-size:14px;color:#d3d9e4;}
+.pit li{margin:5px 0;font-size:14px;}
+.pit li::marker{color:var(--warn);}
+.tblwrap{overflow-x:auto;margin:8px 0;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid var(--border);padding:7px 11px;font-size:13px;text-align:left;vertical-align:top;}
+th{background:var(--panel);color:#b8c2d4;white-space:nowrap;}
+td.nid{white-space:nowrap;font-family:Consolas,monospace;font-size:12px;}
+td.nid a{color:#8fb5ff;}
+td .nname{font-weight:600;color:var(--text);}
+td.brief{font-size:12.5px;color:#b6c0d0;}
+.navseq{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+.navseq a{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:14px;color:#b8c2d4;text-align:center;min-width:150px;}
+.navseq a .dir{display:block;font-size:11px;color:var(--dim);margin-bottom:2px;}
+.navseq a .v{font-weight:600;color:var(--accent);}
+.navseq a.nav-index .v{color:var(--ok);}
+.navseq .spacer{flex:1;min-width:60px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.chip{font-size:12px;background:#1d2a3f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;}
+.chip:hover{background:#2b3d5f;}
+.chip .etype{font-size:10px;opacity:.85;margin-left:4px;}
+.chip.e-prerequisite{background:#16273f;border-color:#2b3d5f;color:#9cc2ff;}
+.chip.e-variant{background:#3a2f12;border-color:#4a3f20;color:#e8c66a;}
+.chip.e-combination{background:#2b2040;border-color:#4a3560;color:#c9a8ef;}
+.chip.e-cooccurrence{background:#12302c;border-color:#2b4a44;color:#7fe0d8;}
+.chip.e-dependency{background:#332412;border-color:#4a3a20;color:#e8a25e;}
+.pathbox{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:10px 0;}
+.path-label{font-size:12px;color:var(--dim);margin-bottom:8px;}
+.path-seq{display:flex;flex-wrap:wrap;gap:4px 0;font-size:13px;}
+.path-seq a{display:inline-block;background:#16273f;border:1px solid #2b3d5f;border-radius:6px;padding:2px 8px;color:#7fb0ff;text-decoration:none;margin:2px;}
+.path-seq a:hover{background:#2b3d5f;}
+.dep-list{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px;margin-top:8px;}
+.dep-list li{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;border-left:3px solid var(--warn);}
+.dep-list .evi{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.treenav{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0 18px;display:flex;flex-wrap:wrap;gap:2px 10px;}
+.treenav .label{font-size:12px;color:var(--dim);align-self:center;flex-shrink:0;}
+.treenav a{color:var(--dim);font-size:12px;text-decoration:none;border-radius:5px;padding:1px 6px;}
+.treenav a:hover{color:var(--accent);background:#1d2a3f;}
+footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;text-align:center;}
+@media (max-width:720px){
+  main{padding:14px;}
+  header{padding:12px 14px;}
+  header h1{font-size:17px;}
+  .navseq a{min-width:100%;}
+  .badges{display:flex;margin-top:6px;}
+}
+@media print{
+  body{background:#fff;color:#000;}
+  header,footer,.navseq,.treenav{display:none;}
+  th,td{border-color:#999;color:#000;}
+}
+
+table.cmp th{text-align:center;}
+td.diffsrc{color:#cfe8dd;background:#0d1a14;}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+@media (max-width:760px){.evgrid{grid-template-columns:1fr;}}
+.evcard{border-radius:8px;padding:12px 14px;border:1px solid;}
+.ev-pro{background:#0d1a14;border-color:#2f5a4a;}
+.ev-con{background:#1d1214;border-color:#5a2f33;}
+.evtag{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.ev-pro .evtag{color:#2fb98a;}
+.ev-con .evtag{color:#e05563;}
+.evtitle{font-size:13.5px;font-weight:600;color:#e6e8ee;margin-bottom:6px;}
+.evcode{margin:6px 0;}
+.evcode code{display:block;font-family:Consolas,monospace;font-size:12px;background:#0d1424;border:1px solid #24406e;border-radius:5px;padding:5px 9px;margin:3px 0;color:#9cc2ff;white-space:pre-wrap;word-break:break-all;}
+.ev-pro .evcode code{background:#0d1a14;border-color:#2f5a4a;color:#8fe3c0;}
+.ev-con .evcode code{background:#1d1214;border-color:#5a2f33;color:#f0a0a8;}
+.evdesc{font-size:12.5px;color:#b6c0d0;}
+.assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:8px 0;}
+.assetcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--accent);}
+.asstype{font-size:10.5px;color:var(--accent);letter-spacing:.5px;margin-bottom:4px;}
+.assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
+.assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
+.assmeta{font-size:10.5px;color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-C.html">命令行工具</a> / <span>ocr 命令总览与安装</span></div>
+  <h1>ocr 命令总览与安装</h1>
+  <div class="badges"><span class="badge src" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">命令行</span><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-C · 命令行工具</span></div>
+</header>
+<main>
+<div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-C"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-C.html"><span class="dir">返回组</span><span class="v">命令行工具</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
+<div class="section"><h2>What · 是什么</h2><div class="brieflead">安装方式（npm/脚本/二进制/源码）、cobra 命令树、全局参数与 version/completion 子命令</div><div class="bullet">ocr 是阿里巴巴开源的 AI 代码审查 CLI 工具（项目 alibaba/open-code-review），以 Go 编写，命令名为 ocr，面向开发者提供本地化、可自定义的代码审查能力</div><div class="bullet">基于 cobra 构建的命令树，顶层子命令包括 review（核心审查）、scan（全文件扫描）、delegate（委托模式）、config（配置管理）、session（会话管理）、llm（LLM 工具）、rules（规则调试）、viewer（WebUI 查看器）、completion（shell 补全）、version（版本信息）</div><div class="bullet">官方推荐安装方式为 npm 全局安装：npm install -g @alibaba-group/open-code-review，该方式对 Node 环境用户最便捷</div><div class="bullet">硬性前置条件为 Git 版本不低于 2.41，工具底层大量依赖 git diff、git 搜索与仓库操作能力，版本不足将直接导致功能不可用</div><div class="bullet">提供多条安装路径以适应不同环境：install.sh / install.ps1 脚本安装、GitHub Release 预编译二进制、源码构建（Makefile）</div><div class="bullet">根命令支持 -V / --version 查看版本号，--help 查看完整命令树与参数说明，是熟悉工具的第一步</div></div>
+
+<div class="section"><h2>Why · 为什么</h2><div class="whybox" style="border-color:#4f8cff"><div class="tag" style="color:#8fb5ff">原理 · Principle</div><p>统一入口封装了多种审查模式（review/scan/delegate）与配套管理能力（config/session/llm/rules/viewer），避免用户为每种能力安装独立工具</p><p>Git&gt;=2.41 的版本门槛保证了 diff 解析、变更搜索、仓库操作等底层原语的稳定性，是审查准确性的基础保障</p><p>多安装方式（npm/脚本/二进制/源码）覆盖 Linux、macOS、Windows 及无包管理器的受限环境，降低接入成本</p></div></div>
+
+<div class="section"><h2>How · 怎么做</h2><div class="bullet">npm install -g @alibaba-group/open-code-review 全局安装，随后直接执行 ocr 命令</div><div class="bullet">先执行 git --version 核对 Git 版本是否满足 &gt;=2.41，不满足则先升级 Git 再安装</div><div class="bullet">无 npm 环境时执行 curl 下载 install.sh（Linux/macOS）或 install.ps1（Windows）脚本安装</div><div class="bullet">从 GitHub Releases 页面下载对应操作系统与架构的预编译二进制，解压后放入 PATH</div><div class="bullet">源码方式：git clone 仓库后按 Makefile 目标执行构建（如 make build），生成二进制</div><div class="bullet">安装后执行 ocr -V 或 ocr --version 验证安装成功，执行 ocr --help 浏览命令树</div><div class="bullet">执行 ocr completion &lt;shell&gt; 生成对应 shell 的补全脚本，提升日常使用效率</div></div>
+
+<div class="section"><h2>案例 · Cases</h2><div class="tblwrap"><table><tr><th>代表性案例</th></tr><tr><td>开发机快速上手：单条 npm install -g 命令完成安装，随后 ocr --version 验证即开始使用</td></tr><tr><td>CI 服务器或 Docker 镜像构建场景：Git 版本常较旧，先升级 Git 到 2.41+，再用 GitHub Release 二进制或脚本安装，避免 npm 依赖</td></tr><tr><td>Windows 开发环境：使用 install.ps1 脚本或下载 exe 二进制，绕过 npm/Git 工具链兼容问题</td></tr><tr><td>内网/离线环境：预先下载 Release 二进制离线分发，源码构建则需预置 Go 工具链</td></tr></table></div></div>
+
+<div class="section"><h2>反模式 · Anti-patterns</h2><ul class="pit"><li>忽略 Git 版本前置条件：在 Git&lt;2.41 的环境直接安装，运行 review/scan 时报错后才发现是底层 git 能力不足，应先 git --version 检查</li><li>二进制安装后未加入 PATH 或 PATH 顺序错误，执行 ocr 提示 command not found，误以为安装失败而重复安装</li><li>多安装方式混用导致版本混乱：npm 全局版与 Release 二进制同时存在，PATH 优先命中旧版本，行为与文档不符，应统一保留一种安装方式并核对版本</li></ul></div>
+
+<div class="section"><h2>正反实例论证 · Evidence</h2><div class="evgrid"><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">npm 全局安装后验证版本与命令树</div><div class="evcode"><code>npm install -g @alibaba-group/open-code-review</code><code>ocr -V</code><code>ocr --help</code></div><div class="evdesc">先确认 Git&gt;=2.41（git --version），npm 安装后 ocr -V 输出版本号、ocr --help 展示完整命令树，说明安装与 PATH 均正常，可进入实际使用。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">Git 版本低于 2.41 直接安装使用</div><div class="evcode"><code>git --version  # 输出 git version 2.39.0</code><code>npm install -g @alibaba-group/open-code-review</code><code>ocr review</code></div><div class="evdesc">底层 git diff/搜索/仓库操作依赖 Git&gt;=2.41，版本不足时 review 报 git 相关错误或行为异常，浪费排查时间。应先升级 Git 再安装。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">无 npm 环境用 Release 二进制并校验 PATH</div><div class="evcode"><code>curl -L -o ocr https://github.com/alibaba/open-code-review/releases/latest/download/ocr-linux-amd64</code><code>chmod +x ocr &amp;&amp; sudo mv ocr /usr/local/bin/</code><code>ocr --version</code></div><div class="evdesc">下载预编译二进制放入 PATH 后直接验证，适合 CI 或无 Node 环境；安装后立即 ocr --version 确认 PATH 命中，避免 command not found。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">二进制未加入 PATH 就执行命令</div><div class="evcode"><code>curl -L -o ~/downloads/ocr ...</code><code>ocr review  # bash: ocr: command not found</code></div><div class="evdesc">二进制只在下载目录而未加入 PATH，执行报 command not found，误以为安装失败反复重下。应 mv 到 PATH 目录或使用完整路径执行。</div></div><div class="evcard ev-pro"><div class="evtag">正例 · Pro</div><div class="evtitle">源码构建（Makefile）安装</div><div class="evcode"><code>git clone https://github.com/alibaba/open-code-review.git</code><code>cd open-code-review &amp;&amp; make build</code><code>./bin/ocr --version</code></div><div class="evdesc">有 Go 工具链的环境可通过源码构建获取最新版本，构建产物路径随 Makefile 约定（如 bin/），构建后验证版本即完成安装。</div></div><div class="evcard ev-con"><div class="evtag">反例 · Con</div><div class="evtitle">多安装方式混用导致旧版本命中</div><div class="evcode"><code>npm install -g @alibaba-group/open-code-review</code><code>mv ./ocr-linux-amd64 /usr/local/bin/ocr</code><code>ocr -V  # 显示旧版本号</code></div><div class="evdesc">npm 全局版与手动放置的二进制同时存在时 PATH 优先命中其一，版本与文档不符；应只保留一种安装方式并核对 ocr -V 版本一致。</div></div></div></div>
+
+<div class="section"><h2>实践资产 · Assets</h2><div class="assetgrid"><div class="assetcard"><div class="asstype">构建发布</div><div class="assname"><a href="../assets/build/install.sh" target="_blank">install.sh</a></div><div class="assdesc">Linux/macOS 安装脚本（latest tag + sha256 校验 + OCR_GITHUB_MIRROR）</div><div class="assmeta">install.sh · 4260 B</div></div><div class="assetcard"><div class="asstype">构建发布</div><div class="assname"><a href="../assets/build/install.ps1" target="_blank">install.ps1</a></div><div class="assdesc">Windows 安装脚本（PowerShell 5.1+）</div><div class="assmeta">install.ps1 · 5628 B</div></div><div class="assetcard"><div class="asstype">构建发布</div><div class="assname"><a href="../assets/build/package.json" target="_blank">package.json</a></div><div class="assdesc">npm 包定义（bin: ocr → bin/ocr.js）</div><div class="assmeta">package.json · 1385 B</div></div><div class="assetcard"><div class="asstype">文档</div><div class="assname"><a href="../assets/doc/README.zh-CN.md" target="_blank">README.zh-CN.md</a></div><div class="assdesc">官方中文 README（定位/基准/设计理念/快速开始）</div><div class="assmeta">README.zh-CN.md · 12231 B</div></div></div></div>
+
+<div class="section"><h2>相关边</h2><div class="chips"><a class="chip e-prerequisite" href="cli-review.html">ocr review&#8594;安装后先学 review<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cli-scan.html">ocr scan&#8594;安装后学 scan<span class="etype">前置依赖</span></a><a class="chip e-prerequisite" href="cli-config.html">ocr config&#8594;用前必须配置模型<span class="etype">前置依赖</span></a></div></div>
+</main>
+<footer>Open Code Review 项目解析知识图谱 · 节点页由 07-checkpoint/gen-nodes.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
+</body>
+</html>
