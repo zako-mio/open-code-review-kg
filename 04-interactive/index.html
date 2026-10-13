@@ -6,7 +6,7 @@
 <title>Open Code Review 图谱 · 交互式 DAG 总览</title>
 <style>
 
-  :root { --bg:#0f1117; --panel:#161a22; --border:#2a2f3a; --text:#e6e8ee; --dim:#9aa3b2; --accent:#4f8cff; --warn:#e0c35e; --danger:#e05563; }
+  :root{--text:#e6e8ee;--dim:#9aa3b2;--text-3:#7d8798;--link:#6ea8ff;--accent:#4f8cff;--border:#6b7280;--border-subtle:#2a2f3a;--bg:#0f1117;--panel:#161a22;--surface-2:#1d2330;--stripe:#141821;--ok:#2fb98a;--warn:#e8933b;--err:#ff6b6b;--ext:#c9a227;--upgrade:#b48a3c;--disabled:#6b7280;--focus-ring:#4f8cff;}
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; height:100vh; overflow:hidden; }
   header { position:fixed; top:0; left:0; right:0; z-index:10; background:var(--panel); border-bottom:1px solid var(--border); padding:8px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
@@ -23,8 +23,9 @@
   .btn { background:#20324f; color:#7fb0ff; border:1px solid #2a3a55; border-radius:20px; padding:4px 14px; font-size:12px; cursor:pointer; white-space:nowrap; }
   .btn:hover { background:#2a3a55; }
   .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-  .btn.on { background:#0f2b1f; color:#6fd3ae; border-color:#2fb98a; }
+  .btn.on { background:#0f2b1f; color:var(--ok); border-color:var(--ok); }
   #side { position:fixed; right:0; top:52px; bottom:0; width:300px; background:var(--panel); border-left:1px solid var(--border); padding:14px; overflow:auto; z-index:9; }
+  #sidetoggle { display:none; }
   #side h2 { font-size:13px; margin-bottom:8px; color:var(--dim); }
   #side .legend { font-size:12px; color:var(--dim); line-height:1.9; }
   #side .legend b { color:var(--text); }
@@ -43,7 +44,13 @@
   #glegend .row.active { color:var(--text); font-weight:600; }
   #empty { position:fixed; inset:0; top:52px; display:none; align-items:center; justify-content:center; color:var(--dim); font-size:14px; background:var(--bg); z-index:5; }
   @media (max-width:768px){
-    #side { width:220px; }
+    /* ★ 批 H（标准档 · C3-N4 收口）：原断点**只改宽度、不改存在性**（#side{width:220px}）⇒
+       @375 实测侧栏遮挡图谱 220px、图谱可视宽仅 155px。现改为**默认折叠**，
+       并由 #sidetoggle 开关（保留可展开性 —— ⛔ 不照抄 github-dag-tutorial 的裸 display:none，
+       那会让图例在窄屏上彻底不可达，见 solutions/07 §6 的风险缓解要求）。 */
+    #side { display:none; }
+    body.side-open #side { display:block; }
+    #sidetoggle { display:inline-block; }
     header { padding:6px 10px; gap:8px; }
     header h1 { font-size:13px; }
     .hint { display:none; }
@@ -59,6 +66,7 @@
   <span id="crumb"></span>
   <button id="backbtn" class="btn" style="display:none;">← 返回组级</button>
   <div class="controls">
+    <button id="sidetoggle" class="btn">图例</button>
     <button id="bridgebtn" class="btn">桥接高亮</button>
   </div>
 </header>
@@ -244,6 +252,11 @@
     }
   }
   $('backbtn').addEventListener('click', goBack);
+
+  // ★ 批 H：窄视口侧栏开关（C3-N4 收口）。默认折叠；按钮保留可展开性 ⇒ 图例在窄屏仍可达。
+  $('sidetoggle').addEventListener('click', function(){
+    document.body.classList.toggle('side-open');
+  });
 
   // ===== cytoscape =====
   const cy = cytoscape({

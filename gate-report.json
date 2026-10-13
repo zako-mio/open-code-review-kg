@@ -1,0 +1,63 @@
+{
+  "determinism_note": "★ 本件不含墙钟时间戳、不含作者机绝对路径；tree_digest 由「仓内文件路径+内容的 sha256」聚合而成并**排除本件自身** ⇒ 同输入两次生成逐字节相同。",
+  "deterministic": true,
+  "gates": [
+    {
+      "classes": [
+        "blind",
+        "hard",
+        "hard/report"
+      ],
+      "id": "tokens",
+      "judges": "G1–G11",
+      "script": "gate_tokens.py",
+      "selftest": true
+    },
+    {
+      "classes": [
+        "blind",
+        "report"
+      ],
+      "id": "dead-css",
+      "judges": "H1–H3",
+      "script": "gate_dead_css.py",
+      "selftest": true
+    },
+    {
+      "classes": [
+        "blind",
+        "report"
+      ],
+      "id": "a11y",
+      "judges": "A1–A5",
+      "script": "gate_a11y.py",
+      "selftest": true
+    },
+    {
+      "classes": [
+        "blind",
+        "report"
+      ],
+      "id": "seo-meta",
+      "judges": "S1–S5",
+      "script": "gate_seo_meta.py",
+      "selftest": true
+    },
+    {
+      "classes": [
+        "blind",
+        "report"
+      ],
+      "id": "responsive",
+      "judges": "R1–R4",
+      "script": "gate_responsive.py",
+      "selftest": true
+    }
+  ],
+  "generated_by": "07-checkpoint/gen-index.py（Q6-A：门控随生成器收尾内联调用）",
+  "mode": "enforce",
+  "site": "open-code-review-kg",
+  "tree_digest": "817ab56b4cb5babcf8c6525461f3219b2f7514eda717c583a16a4db07148f20a",
+  "tree_digest_scope": "仓内文件（路径 + 内容的 sha256），排除 gate-report.json 自身、.git/、__pycache__/、vendor/、node_modules/、07-checkpoint/",
+  "tree_file_count": 189
+}

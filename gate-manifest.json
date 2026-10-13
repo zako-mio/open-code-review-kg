@@ -1,0 +1,196 @@
+{
+  "site": "open-code-review-kg",
+  "schema_note": "范式沿用 hub 的 scripts/check_ci_manifest.py（见 AUD 侧 pipeline/check_gate_manifest.py 的 M1–M6）。★ 本文件由**站点仓内**版本化，⛔ 不含任何豁免/白名单字段（M4 会主动拒绝 waivers/exempt/allow/skip/ignore 一类键）。",
+  "generated_by": "批 H · ROLLOUT-PLAN 第 2 轮（open-code-review-kg 标准档）；判据实现见仓根 5 道门控脚本",
+  "location_note": "★ 施工前消解 B6：方案 §5.1 曾把门控落在 07-checkpoint/，而 pipeline/README.md §四 要求门控**仓内版本化**并以 vendor/pipeline/** 薄副本分发 ⇒ 统一口径＝门控放**站点仓根**（照批 E 在 12-factor 立的先例）。⛔ 不散落在 07-checkpoint/。",
+  "gates": [
+    {
+      "id": "gate-tokens",
+      "script": "gate_tokens.py",
+      "reads": [
+        "各页面内联 <style> 里的首个 :root{...} 令牌块（扫描面由 build/profile.json 的 page_families 决定）",
+        "生成器源码：07-checkpoint/gen_common.py（BASE_CSS）与 07-checkpoint/gen-interactive.py（CSS）",
+        "值件：vendor/pipeline/values/open-code-review-kg.json（含 dead_tokens 登记表）",
+        "profile：build/profile.json（targets / page_families / no_root_pages / single_source_invariants）"
+      ],
+      "selftest": true,
+      "mode": "enforce",
+      "mode_note": "★ 本站本步已把全部判据修到 0 FAIL，且 4 类硬阻断面（token-consistency / contrast / empty-set-guard / artifact-existence）实跑 0 FAIL ⇒ 以 enforce 起步。⛔ 这不是放宽阈值：阈值一字未改，只是不把已知全绿的判据降级为报告。空集守卫（G1）在任何模式下都不放宽。",
+      "judges": [
+        {"id": "G1", "name": "空集守卫（扫描面/族/令牌名均非空）", "class": "blind"},
+        {"id": "G2", "name": "族内唯一值（同族同名同值；⛔ 不判全站唯一值）", "class": "hard"},
+        {"id": "G3", "name": "派生一致性（页面与生成器源的首个 :root 块 == 值件派生）", "class": "hard"},
+        {"id": "G4", "name": "跨族差异逐族登记（多值的每一处都能被某族派生解释）", "class": "hard"},
+        {"id": "G5", "name": "★ 判据 4（Q2-A 收敛后的状态判）：--warn 全站唯一值且 --danger 命中数 = 0", "class": "hard"},
+        {"id": "G6", "name": "border 分档极性（强分隔对比度 > 弱分隔，判盘上取值）", "class": "hard"},
+        {"id": "G7", "name": "成对对比度（按 usage_tiers 的 min_contrast 与 gate 逐档）", "class": "hard/report"},
+        {"id": "G8", "name": "零引用令牌登记（站点级 hard / 页级 report；登记不得过期）", "class": "hard/report"},
+        {"id": "G9", "name": "生成器单源不变量（无字面值块 ＋ BASE_CSS 首行即 :root 块）", "class": "hard"},
+        {"id": "G10", "name": "未声明令牌（盘上令牌名 ⊆ 值件声明面）", "class": "hard"},
+        {"id": "G11", "name": "产物存在性与扫描面完备（targets 全在 ＋ 盘上 HTML ⊆ 扫描面 ＋ 每页恰 1 个 :root/<style>）", "class": "hard"}
+      ],
+      "judge_implication_note": "★ 判据蕴含关系（SH5 §4.0 第 8 条）：G5 ⊂ G4 —— G5 只对两枚已被用户裁定收敛的令牌（--warn / --danger）作**状态判**；G4 覆盖全部令牌并要求每一处多值都能被某个族解释且逐族登记。⛔ 两者不可互相替代。★ 为什么 G5 必须限定在这两枚上：pipeline/README.md:36-37 明禁「全站同名令牌唯一值」判据——那会把**合法**的页面族覆盖（如 12-factor 的 --warn 两值，Qa-A 裁定逐族保留）判成 FAIL。",
+      "not_enforced_here": [
+        "C1–C12 骨架级契约门控（值件 schema / 幂等 / 改动前令牌集覆盖 / 克隆零改动）——在 AUD 侧跑，⛔ 不复制到站点侧：C12 依赖仓外的本地克隆与 fe-starter-kit，在别的机器上必然 FAIL（判据成立但环境不成立）",
+        "三 job 发布形态（ADR-003）——本站发布形态未收敛（常设排除项）",
+        "像素层视觉回归（本机 agent-browser 不在 PATH）"
+      ]
+    },
+    {
+      "id": "dead-css",
+      "script": "gate_dead_css.py",
+      "reads": [
+        "站内 .html 产物里真实出现的 class 名集合（class 属性 + JS 里 className/classList 的字符串字面量）",
+        "样式表来源（生成器源码）里的类选择器集合",
+        "本清单的 registered_orphan_selectors 登记面（零引用选择器必须逐条登记）"
+      ],
+      "selftest": true,
+      "mode": "report",
+      "mode_note": "★ report-only：`site-profile.schema.json` 的 `hard_blocking` 枚举只有四项（token-consistency / contrast / empty-set-guard / artifact-existence），死 CSS 不在其中 ⇒ 擅自扩枚举＝改 schema（须走独立决策）。",
+      "judges": [
+        {"id": "H1", "name": "空集守卫（页/class/选择器三者均非空）", "class": "blind"},
+        {"id": "H2", "name": "零引用选择器（未命中者必须逐条登记）", "class": "report"},
+        {"id": "H3", "name": "登记不得过期／不得幽灵", "class": "report"}
+      ],
+      "not_enforced_here": [
+        "运行期由 JS 动态拼接的类名（本站 JS 只拼固定字面量，但未形式化证明）",
+        "选择器**特异性**与层叠顺序（本判据只判「有没有命中」，不判「命中后谁赢」）"
+      ]
+    },
+    {
+      "id": "a11y",
+      "script": "gate_a11y.py",
+      "reads": [
+        "各页的 <main> 地标计数",
+        "各页 <body> 之后的 skip link（锚文本含「跳到/skip」且 #id 在同页存在）",
+        "样式表来源里的 :focus-visible / prefers-reduced-motion",
+        "本清单的 main_landmark_exceptions 登记面（无 main 的页必须逐页登记）"
+      ],
+      "selftest": true,
+      "mode": "report",
+      "mode_note": "★ report-only（`hard_blocking` 枚举不含 a11y）。★ 实测基线：69 页全部**缺 skip link**、66 页缺 :focus-visible 规则、report.html 与 04-interactive 无 <main> ⇒ 本门控如实报 FAIL，把它变成可见的基线数字；⛔ 本批不修（属 SH2 基线的后续步）。",
+      "judges": [
+        {"id": "A1", "name": "空集守卫（扫描面/样式表来源/登记面均非空）", "class": "blind"},
+        {"id": "A2", "name": "`<main>` 地标（无 main 的页必须逐页登记）", "class": "report"},
+        {"id": "A3", "name": "登记不得过期／不得幽灵", "class": "report"},
+        {"id": "A4", "name": "skip link（锚文本 ＋ 位置 ＋ 同页 id 三条件）", "class": "report"},
+        {"id": "A5", "name": "焦点可见与动效熔断（判样式表来源）", "class": "report"}
+      ],
+      "not_enforced_here": [
+        "真实屏幕阅读器行为（本机无 AT 通道）",
+        "色彩以外的感知可达性（对比度归 gate_tokens.py 的 G7）",
+        "canvas 图谱的文本等价内容（属 SH2 §4.2 的交互图专项，本批未做）"
+      ]
+    },
+    {
+      "id": "seo-meta",
+      "script": "gate_seo_meta.py",
+      "reads": [
+        "各页 <head> 里的 title / meta[name=description] / link[rel=canonical] / link[rel~=icon]",
+        "（附）og:* 与 <html lang> 的命中页数（只记基线，不单列判据）"
+      ],
+      "selftest": true,
+      "mode": "report",
+      "mode_note": "★ report-only（`hard_blocking` 枚举不含 metadata）。★ 实测基线：69 页全部缺 description / og:* / canonical / favicon（title 齐备）⇒ 如实报 FAIL 作基线；⛔ 本批不修（改 <head> 会动全部 10 个生成器，属 SH4 后续步）。",
+      "judges": [
+        {"id": "S1", "name": "空集守卫（扫描面非空）", "class": "blind"},
+        {"id": "S2", "name": "`<title>` 非空且页页有", "class": "report"},
+        {"id": "S3", "name": "`meta[name=description]` 非空", "class": "report"},
+        {"id": "S4", "name": "`link[rel=canonical]` 存在且为绝对 URL", "class": "report"},
+        {"id": "S5", "name": "favicon（`link[rel~=icon]`）", "class": "report"}
+      ],
+      "not_enforced_here": [
+        "sitemap.xml / robots.txt（本站无，且属发布面而非页面面）",
+        "结构化数据（JSON-LD）",
+        "社交卡片真实抓取效果（需外部通道）"
+      ]
+    },
+    {
+      "id": "responsive",
+      "script": "gate_responsive.py",
+      "reads": [
+        "各页的 @media 断点计数",
+        "样式表来源里 .tblwrap 的 overflow-x 兜底",
+        "04-interactive/index.html 内联样式里的 #side / #graph 固定宽度规则与 @media(max-width:768px) 折叠规则"
+      ],
+      "selftest": true,
+      "mode": "report",
+      "mode_note": "★ report-only（`hard_blocking` 枚举不含 responsive）。",
+      "judges": [
+        {"id": "R1", "name": "空集守卫（页/断点/交互页样式表均非空）", "class": "blind"},
+        {"id": "R2", "name": "断点存在性（每页 ≥1 个 @media）", "class": "report"},
+        {"id": "R3", "name": "宽内容兜底（.tblwrap 的 overflow-x 局部滚动）", "class": "report"},
+        {"id": "R4", "name": "★ 判据 5 的**静态下界**：@375px 图谱可视宽 ≥300px（⛔ 非渲染实测）", "class": "report"}
+      ],
+      "not_enforced_here": [
+        "★★ **渲染几何未实测**：本机 **无浏览器**（`agent-browser` 不在 PATH）⇒ 判据 5 只做到「按 @media 断点与 #side/#graph 固定宽度规则算出的**静态下界**」。⛔ 该数字**不得**被读作「已实测渲染几何」。",
+        "四视口 screenshot 基线（无视觉回归门控）",
+        "字体/时序导致的 scrollWidth 抖动（需真渲染）"
+      ]
+    },
+    {
+      "id": "manifest-check",
+      "script": "check_gate_manifest.py",
+      "reads": [
+        "本清单与 build/profile.json 的 gates.commands 的**双向**一致性（登记⇒被调用 / 被调用⇒登记）",
+        "清单项数、命令数、每项的 reads 与 selftest 声明、未覆盖面声明"
+      ],
+      "selftest": true,
+      "mode": "hard",
+      "note": "本项是清单自身的守门人（vendored 薄副本，AUD 侧 pipeline/check_gate_manifest.py 为唯一真相源）。"
+    }
+  ],
+  "registered_orphan_selectors": [
+    {
+      "selector": ".navseq .spacer",
+      "defined_in": "07-checkpoint/gen_common.py（BASE_CSS）",
+      "declaration": ".navseq .spacer{flex:1;min-width:60px;}",
+      "disposition": "登记保留（⛔ 不删除）",
+      "reason": "★ 按 Q8-A 裁定：它是「审计点名的 5 组死 CSS 多数为误报（.navseq/.pathbox/.treenav/.dep-list 与 5 个 .chip.e-* 变体都被真实产物使用，e-* 合计 148 次/47 页）、真死的是另一个」这一教训的**实证样本**。删掉它会让该样本消失；且「删选择器」不在本批的改动面（本批只动令牌层 + 3 处具名缺陷）。",
+      "upstream_note": "本项同时是 Q8-A「回登共性方案」的落点：C3-N2 的结论写进本清单与站点值件的 known_site_defects_registered（⛔ 不改 _shared/SH* 本体）。"
+    },
+    {"selector": ".navseq a .dir", "defined_in": "07-checkpoint/gen_common.py（BASE_CSS）", "disposition": "登记保留（已确认未修）", "reason": "★ 实测更正：改动前的审计口径（「BASE_CSS 定义 35 个 class，唯一零引用者是 spacer」）**低估了**——按「选择器组合须同属一个 class 属性」的严格口径，真零引用者是 **16 个选择器组合**。`.navseq` 导航条本身有产物在用，但它的子元素样式（`.dir` 方向标签 / `.v` 值）从未被任何生成器渲染 ⇒ 属**未被使用的样式能力**，不是「写错了」。本批⛔ 不删（删选择器不在改动面），逐条登记。"},
+    {"selector": ".navseq a .v", "defined_in": "07-checkpoint/gen_common.py（BASE_CSS）", "disposition": "登记保留（已确认未修）", "reason": "同 `.navseq a .dir`：父级 `.navseq` 在用、子元素样式未被渲染。"},
+    {"selector": ".navseq a.nav-index .v", "defined_in": "07-checkpoint/gen_common.py（BASE_CSS）", "disposition": "登记保留（已确认未修）", "reason": "同 `.navseq a .dir`。"},
+    {"selector": ".chip .etype", "defined_in": "07-checkpoint/gen_common.py（BASE_CSS）", "disposition": "登记保留（已确认未修）", "reason": "★ 实测更正：`.chip` 与 5 个 `.chip.e-*` 变体确实在用（e-* 合计 148 次/47 页），但 `.chip .etype`（边类型标签的内层 span）未被渲染——`gen_common.edge_chip()` 生成的是 `<span class=\"etype\">` 而**不是** `<span class=\"chip\">` 的子元素？实测：该 span 的 class 是 `etype`，而选择器要求它是 `.chip` 的**后代** ⇒ 组合条件不成立 ⇒ 真零引用。属未使用的样式能力。"},
+    {"selector": ".dep-list .evi", "defined_in": "07-checkpoint/gen_common.py（BASE_CSS）", "disposition": "登记保留（已确认未修）", "reason": "`.dep-list` 在用（依赖列表），其 `.evi` 证据行样式未被渲染。"},
+    {"selector": ".treenav .label", "defined_in": "07-checkpoint/gen_common.py（BASE_CSS）", "disposition": "登记保留（已确认未修）", "reason": "`.treenav` 在用，其 `.label` 内层样式未被渲染。"},
+    {"selector": ".hint", "defined_in": "07-checkpoint/gen-interactive.py（CSS 常量）", "disposition": "登记保留（已确认未修）", "reason": "交互页的提示文字样式：`@media(max-width:768px)` 里有 `.hint{display:none}`，但模板里已无 `.hint` 元素（历史残留）。★ 属「断点规则引用了不存在的元素」，不是「断点失效」。"},
+    {"selector": ".seg", "defined_in": "07-checkpoint/gen-interactive.py（CSS 常量）", "disposition": "登记保留（已确认未修）", "reason": "交互页的分段控件样式族（`.seg` / `.seg button` / `.seg button.active` / `.seg button:hover:not(.active)`）**全部**未被渲染——模板里只有 `.btn` 一族按钮（桥接高亮 / 图例 / 返回组级）。属**未使用的样式能力**，共 4 条。"},
+    {"selector": ".seg button", "defined_in": "07-checkpoint/gen-interactive.py（CSS 常量）", "disposition": "登记保留（已确认未修）", "reason": "同 `.seg`。"},
+    {"selector": ".seg button.active", "defined_in": "07-checkpoint/gen-interactive.py（CSS 常量）", "disposition": "登记保留（已确认未修）", "reason": "同 `.seg`。"},
+    {"selector": ".seg button:hover:not(.active)", "defined_in": "07-checkpoint/gen-interactive.py（CSS 常量）", "disposition": "登记保留（已确认未修）", "reason": "同 `.seg`。"},
+    {"selector": ".btn.primary", "defined_in": "07-checkpoint/gen-interactive.py（CSS 常量）", "disposition": "登记保留（已确认未修）", "reason": "`.btn` 在用（桥接高亮 / 图例 / 返回组级三处），但 `.btn.primary` 与 `.btn.on` 两个**状态变体**未被渲染（`.btn.on` 是 JS 在桥接模式下 `classList.toggle('on', …)` 加的 ⇒ 见下条说明）。"},
+    {"selector": ".btn.on", "defined_in": "07-checkpoint/gen-interactive.py（CSS 常量）", "disposition": "登记保留（已确认未修）", "reason": "★ 本门控的**已声明局限**：`.btn.on` 由 JS 在运行期 `classList.toggle('on', bridgeMode)` 动态加上 ⇒ 静态 class 集合里看不到它。本门控按「只判静态字面量」的口径把它计入零引用；⛔ 这是**口径边界**，不是站点缺陷（见 `not_enforced_here` 的「运行期由 JS 动态拼接的类名」）。"},
+    {"selector": "#side .legend .sw", "defined_in": "07-checkpoint/gen-interactive.py（CSS 常量）", "disposition": "登记保留（已确认未修）", "reason": "侧栏图例的色块样式：`.sw` 由 JS `document.createElement('span')` + `sw.className = 'sw'` 动态创建 ⇒ 同 `.btn.on`，属本门控的**口径边界**（运行期动态创建的类名）。"},
+    {"selector": "#glegend .row .sw", "defined_in": "07-checkpoint/gen-interactive.py（CSS 常量）", "disposition": "登记保留（已确认未修）", "reason": "组配色图例的色块样式：`.row` 与 `.sw` 都由 JS `createElement` + `className` 动态创建 ⇒ 同 `.btn.on`（口径边界）。"},
+    {"selector": "#glegend .row.active", "defined_in": "07-checkpoint/gen-interactive.py（CSS 常量）", "disposition": "登记保留（已确认未修）", "reason": "组配色图例的选中态：`active` 类从未被 JS 加上（图例点击直接 `render()`，未加 active 标记）⇒ **真零引用**。"}
+  ],
+  "registered_orphan_selectors_note": "★ 登记面 = 本判据的**出口**（⛔ 不是白名单）：登记项同样要过 H3 的反向断言（必须真的零命中且在样式表内，过期或幽灵即 FAIL）。★ 口径更正留痕：改动前的审计与方案 §7 基线 5 记「BASE_CSS 定义 35 个 class，唯一零引用者是 spacer」——那是**按单类名去重**的口径；本门控按「选择器组合须同属一个 class 属性」的严格口径实测出 **16 个**零引用组合（含 3 条属 JS 动态类名的口径边界、13 条属未使用的样式能力）。两处口径都已在本清单与站点值件里登记，⛔ 不静默替换旧数字。",
+  "main_landmark_exceptions": [
+    {
+      "page": "04-interactive/index.html",
+      "reason": "交互 DAG 总览页：全屏 canvas 画布 + 固定 header/侧栏，正文不是文档流 ⇒ 无 <main> 地标。★ 本批⛔ 不改规则层（属 SH2 基线的后续步），故登记为已确认未修。",
+      "disposition": "登记保留（已确认未修）"
+    },
+    {
+      "page": "report.html",
+      "reason": "Mission 报告页（**仓外**一次性生成器产出，仓内不可复现）⇒ 本批只把它纳入令牌层（Q4-A），⛔ 不改其结构。",
+      "disposition": "登记保留（已确认未修）"
+    }
+  ],
+  "main_landmark_exceptions_note": "★ 登记面 = 本判据的**出口**（⛔ 不是白名单）：登记项同样要过 A3 的反向断言（必须真的无 main 且在扫描面内，过期或幽灵即 FAIL）。",
+  "not_covered": [
+    "★★ **渲染几何未实测**：本机无浏览器（`agent-browser` 不在 PATH）⇒ 方案 §7 判据 5 只做到静态下界（见 responsive 门控的 not_enforced_here）；像素层视觉回归亦未测",
+    "★★ **report.html 仓内不可复现**：其生成器在**仓外**（report.html:149 明记「委派子Agent 生成」），仓内 10 个生成器无一认领 ⇒ 本批按 Q4-A 把它纳入令牌层，但⛔ **不**为它新建生成器。它的令牌块一旦被仓外流程覆盖就无处复原。",
+    "★ **`.nojekyll` 仍未建**：Q6-A 不起 CI ⇒ 本批无产出点（ADR-003 要求由 build 产出）⇒ 登记为已确认未解项（H-O9）",
+    "★ **第二处仓外依赖**：`07-checkpoint/gen-assets-extract.py` 的 `SRC` 指向被 `.gitignore` 排除的 `open-code-review/` ⇒ `assets/` 与 `assets-manifest.json` 的抽取在仓内不可复现（H-O4）；本批⛔ 不跑该脚本",
+    "**px→rem 单位体系迁移未做**（Q7-A：本批不改、如实登记为已确认未修）⇒ `rem` 与 `clamp()` 仍为双 0",
+    "**SEO 元数据全缺**（description / og:* / canonical / favicon）与 **skip link 全缺**：本批只把它们变成门控可见的基线数字，⛔ 不修",
+    "**生成物（68 个 .html）退出仓库未做**（Q5-A：属 ADR-003 范围，本批只登记）",
+    "**发布形态收敛到 ADR-003 三 job 未做**（常设排除项；⛔ 本批不新建 CI）",
+    "**`--err` 仍为站点级零引用令牌**（69 页声明、0 处 var() 引用）：按「零引用令牌逐枚登记保留」纪律处理，⛔ 不删除、⛔ 不为它生造用途",
+    "**「门控真的在真实 CI 上跑过」本轮未验**：Q6-A 不起 CI ⇒ 只有「随生成器收尾内联调用 + gate-report.json 入库」这一条本地痕迹",
+    "**三 job 契约未在真实 GitHub Actions 上跑过**（本站不采用；本机亦无 actionlint）"
+  ]
+}

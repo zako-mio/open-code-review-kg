@@ -159,8 +159,15 @@ def edge_chip(e, node_id, node_by_id, other_dir_ok=True):
 
 
 # ---------------------------------------------------------------- 共享 CSS
+# ★ 批 H（标准档）说明：本常量首行即令牌块（形如「冒号 root 加大括号」），是 default / 05-views /
+#   assets 三族的**唯一字面落点**；令牌块由 pipeline 派生器从站点值件写入（⛔ 不手改）。
+#   `gen-index.py` 按「首个非空行即该令牌块」这一约定取用（由站点侧 gate_tokens.py 的 G8 看住）。
+#   ★ 注意：本注释**不得**写出令牌块的字面形状 —— 派生器的块定位正则会把注释里的字样当成
+#     第二个块，从而拒写（B1「恰有 1 个 :root 块」）。本步实测踩到过这一条。
+#   ★ Q8-A 留痕：`.navseq .spacer` 是实测**唯一**零引用选择器（审计点名的 5 组多数在用），
+#     按裁定**登记保留**、⛔ 不删除——删除会让「审计整改行号不可照抄」这一教训失去实证样本。
 BASE_CSS = """
-:root{--bg:#0f1117;--panel:#161a22;--border:#2a2f3a;--text:#e6e8ee;--dim:#9aa3b2;--accent:#4f8cff;--ok:#2fb98a;--warn:#e8933b;--err:#c0504d;}
+:root{--text:#e6e8ee;--dim:#9aa3b2;--text-3:#7d8798;--link:#6ea8ff;--accent:#4f8cff;--border:#6b7280;--border-subtle:#2a2f3a;--bg:#0f1117;--panel:#161a22;--surface-2:#1d2330;--stripe:#141821;--ok:#2fb98a;--warn:#e8933b;--err:#ff6b6b;--ext:#c9a227;--upgrade:#b48a3c;--disabled:#6b7280;--focus-ring:#4f8cff;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;}
 header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;}

@@ -1,0 +1,5092 @@
+{
+ "meta": {
+  "id": "value-contract.open-code-review-kg",
+  "contract_version": "1.0.0-round2h",
+  "frozen_at": "2026-10-13",
+  "round": "批 H · ROLLOUT-PLAN 第 2 轮（本站标准档；首个真实站点改动）",
+  "title": "open-code-review-kg 站点值件（形态 2 内联单源 · 18 角色 · 单深色档）",
+  "nature": "站点侧独立机读值件 —— 单一真相源；⛔ 不直接改站点模板文件（写入由 pipeline/write_site_tokens.py 完成）",
+  "authority": "角色口径沿用 fe-starter-kit/tokens/contract.json 与 solutions/_shared/SH0-tokens-draft.json（content-kg 族 dark 档）；取值逐条取自本站实测（见 palettes.provenance）",
+  "adr_ref": "ADR-002（令牌集选型）· ADR-003（统一构建管线）",
+  "decisions": {
+   "note": "★ 本步开工前由用户裁定的八问（⛔ 不得由实施者默认）；本表即裁定留痕，逐条对应 evidence/h/decisions.json 的 stations['open-code-review-kg'].q_rulings。",
+   "Q1_404": {
+    "ruling": "A",
+    "text": "保留结构化 404 页（与本站深色视觉同源）并修掉那一条在产死链（首页「浏览源码」按钮目标）",
+    "effect": "新建仓根 404.html（由 07-checkpoint/gen-index.py 产出，与 index.html 同一份 BASE_CSS 派生令牌）；gen-index.py 的 href=\"open-code-review/\" 改指站内已存在的 assets/index.html",
+    "measurement_discipline": "★ 实测只有 **1 条** 404 链接（同一 URL 被 live 与 render 各登记一次），⛔ 不得写成「2 个坏页」"
+   },
+   "Q2_warn": {
+    "ruling": "A",
+    "text": "站内 --warn 收敛到 #e8933b（只改 04-interactive 1 页）",
+    "effect": "families['04-interactive'].overrides 不再持有 --warn；全站 --warn 取值数 = 1",
+    "byte_identity": "#e8933b 与 SH0-tokens-draft.json 的 content-kg 族 warn **逐字节相同**"
+   },
+   "Q3_form": {
+    "ruling": "A",
+    "text": "分发形态确认形态 2「内联单源」（⛔ 不引入外链 CSS）",
+    "effect": "form=inline-single-source；实测外链 CSS 0 个、仓内 .css 文件 0 个"
+   },
+   "Q4_report_html": {
+    "ruling": "A",
+    "text": "report.html 纳入，让它读同一份派生令牌（消除其 --border:#2a3040 第三值漂移）",
+    "precondition_checked": "★ 实测它由**仓外的一次性生成器**产出（report.html:149 明记「report.html 委派子Agent 生成」），仓内 10 个生成器无一认领 ⇒ 仓内**不可复现**",
+    "effect": "新增页面族 report，其令牌块由派生器写入；**不**为它新建生成器；在 not_covered 里如实声明「仓内无生成器可复现它」"
+   },
+   "Q5_generated_out_of_repo": {
+    "ruling": "A",
+    "text": "生成物（68 个 .html）退出仓库本批只登记、不做",
+    "effect": "属 ADR-003 统一构建管线范围（常设排除项）"
+   },
+   "Q6_no_ci_no_gate": {
+    "ruling": "A",
+    "text": "门控随生成器收尾内联调用 + gate-report.json 入库；⛔ 不新建 CI",
+    "effect": "07-checkpoint/gen-index.py 收尾处依次调用 4 道站点门控并写 gate-report.json（确定性件）；⛔ 不建 .github/workflows"
+   },
+   "Q7_unit_system": {
+    "ruling": "A",
+    "text": "单位体系（rem 与 clamp 双 0）本批不改，如实登记为已确认未修",
+    "effect": "见 transition.not_yet_done 与 gate-manifest.json 的 not_covered"
+   },
+   "Q8_backfill_shared": {
+    "ruling": "A",
+    "text": "C3-N2 的孤儿 .navseq .spacer 与 C3-N7 的 .tblwrap 样板两者都回登共性方案",
+    "effect": "写进本站值件 known_site_defects_registered 与门控的登记面；⛔ 不改 _shared/SH* 本体、⛔ 不删 .navseq .spacer"
+   },
+   "B5_judge4_scope_restated": {
+    "note": "★★ 施工前消解：方案 §7 判据 4「站内同一语义名只有一个值」与 pipeline/README.md:36-37「⛔ 不得写『全站同名令牌唯一值』的判据：那会把合法的页面族覆盖判成 FAIL」冲突。",
+    "restated": "判据 4 = 「**Q2-A 收敛后的状态判**」：`--warn` 全站取值数 = 1，且 `--danger` 命中数 = 0。",
+    "division_of_labor": "它与**族覆盖判据**（逐族登记）分工如下：① 状态判（judge4）判「收敛目标是否达成」——对象是 `--warn` 这一枚已被用户裁定收敛的令牌；② 族覆盖判（gate_tokens.py 的 G2/G4）判「每一处多值是否被某个族的派生解释且逐族登记」——对象是**全部**令牌，它**允许**合法的族差异。⛔ 两者不可互相替代：judge4 单列 `--warn`/`--danger` 两枚，G4 覆盖全集。",
+    "why_not_a_global_judge": "若把 judge4 写成「全站同名令牌唯一值」，则 `12-factor` 的 `--warn` 两值（Qa-A 逐族保留）会被判 FAIL —— 那是**合法**的页面族覆盖。故 judge4 只能限定在本站已被裁定收敛的那两枚令牌上。"
+   },
+   "B6_gate_location": {
+    "note": "★★ 施工前消解：方案 §5.1 把新门控落在 07-checkpoint/，而 pipeline/README.md §四 要求门控**仓内版本化**并以 vendor/pipeline/** 薄副本分发。",
+    "restated": "统一口径 = 门控放**站点仓根**（照 12-factor 的 gate_tokens.py 先例）＋ gate-manifest.json ＋ build/profile.json ＋ vendor/pipeline/**（逐文件 sha256 登记于 vendor/pipeline/VENDOR-MANIFEST.json）。⛔ 不散落在 07-checkpoint/。",
+    "entry": "gate_tokens.py（gate_entry）；清单 gate-manifest.json 登记 5 项（4 道站点门控 + 清单自身双向校验）"
+   },
+   "B7_new_implementations": {
+    "note": "★★ 施工前消解：方案 §7 判据 5（@375 图谱可视宽 ≥300px）与判据 7（68 页逐页 curl 200 + 内联 <style> 块数 = 1）在方案里没有对应命令 ⇒ 本步新增实现。",
+    "judge7": "仓根 check_reachability.py：读仓内 *.html 列表 → 起本地静态服务 → 逐页 GET 断言 200 且内联 <style> 块数 = 1（可在推送后对 Pages 跑）。",
+    "judge5": "仓根 gate_responsive.py：★ 本机**无浏览器**（agent-browser 不在 PATH）⇒ 实现为**静态判据**（读 @media 断点 + #side / #graph 的固定宽度规则，按 SH3 口径算出「未遮挡宽」的静态下界）。⛔ 渲染几何未实测——该事实写进 gate-manifest.json 的 not_enforced_here 与 not_covered。"
+   }
+  }
+ },
+ "scope": {
+  "site": "open-code-review-kg",
+  "site_number": "07",
+  "upstream_repo_head": "7d32f1b50b9ac41eee4c9f60d4ee0ff004100d43",
+  "upstream_repo_head_note": "★ 站点侧副本：本字段写成**改动前**的基线 HEAD（值＝upstream_repo_head_before）。理由＝自指不可能：仓内副本无法包含它自己那次提交的 sha。⛔ 站点侧的 gate_tokens.py 不读本字段。",
+  "upstream_repo_head_before": "7d32f1b50b9ac41eee4c9f60d4ee0ff004100d43",
+  "declared_forms": [
+   "dark"
+  ],
+  "declared_forms_reason": "本站实测为**深色单档**：全站 68 页 `prefers-color-scheme` 命中 0，`data-theme` 命中 0，:root 只有一套深色令牌。⇒ ADR-002 的 D3 双档契约在本站登记为「不适用」而非「未做」。",
+  "declared_forms_evidence": "evidence/h/work/open-code-review-kg 全量实测（68 页 / 1 个 :root/页 / 无主题切换）；批 C 的 evidence/c/measure.json 同口径一致",
+  "family": "content-kg（深色内容站）",
+  "family_note": "★ 本站是 SH1 §4.5.3「页面族覆盖」这一级的**第三个实例**（前两个：12-factor 的 --warn 两值、dsh-manager 的单族）。本站的漂移侧是 `04-interactive` 与 `report.html` 两个族：前者持 `--warn:#e0c35e`（本轮按 Q2-A 收敛）、后者持 `--border:#2a3040`（本轮按 Q4-A 纳入同一份派生令牌）。"
+ },
+ "coverage_levels": {
+  "order": [
+   "family-default",
+   "site-override",
+   "page-family"
+  ],
+  "note": "三级全部用到：① 族默认＝roles→palettes 的基值（18 角色的 content-kg dark 档）；② 站点覆盖＝本值件相对族默认的取值修正（known_value_changes 3 条）；③ 页面族覆盖＝families['report'].overrides（report.html 的 3 枚非角色历史令牌）。"
+ },
+ "usage_tiers": {
+  "body": {
+   "allowed_use": "正文类（p/li/dd/dt/blockquote 内文本）",
+   "min_contrast": {
+    "dark": 4.5
+   },
+   "gate": "hard",
+   "provenance": "fe-starter-kit/tokens/contract.json usage_tiers.body（阈值权威＝0916-前端技术栈基线，非本件自造）"
+  },
+  "non-body": {
+   "allowed_use": "× 仅非正文类（表头/标签/图标/停用态）",
+   "min_contrast": {
+    "dark": 4.5
+   },
+   "gate": "report-only",
+   "provenance": "fe-starter-kit/tokens/contract.json usage_tiers.non-body"
+  },
+  "non-text": {
+   "allowed_use": "非文本元素（边框/分隔线/图形）",
+   "min_contrast": {
+    "dark": 3.0
+   },
+   "gate": "hard",
+   "provenance": "hub scripts/gate_contrast.py 的 3.0 非文本口径（既有真源）＋ 本批 ADR-002 的 D4"
+  },
+  "non-text-decorative": {
+   "allowed_use": "弱分隔：按定义应不可见，只报告不硬判",
+   "min_contrast": {
+    "dark": 3.0
+   },
+   "gate": "report-only",
+   "provenance": "SH5 §4.0 第 1 条（判据对象必须与断言对象一致）"
+  }
+ },
+ "roles": {
+  "text.primary": {
+   "tier": "body",
+   "kind": "text",
+   "purpose": "主文字：标题与正文默认档",
+   "site_source": "--text（本站既有，逐字节沿用 #e6e8ee）",
+   "consumed": true
+  },
+  "text.secondary": {
+   "tier": "body",
+   "kind": "text",
+   "purpose": "次要文字：辅助说明",
+   "site_source": "--dim（本站既有，逐字节沿用 #9aa3b2）",
+   "consumed": true
+  },
+  "text.tertiary": {
+   "tier": "non-body",
+   "kind": "text",
+   "purpose": "三级灰：仅非正文（表头/标签/图标）",
+   "site_source": "★ 新增（本站现无）：取 SH0 content-kg dark 档 #7d8798（对 --bg 5.20 / 对 --panel 4.81）",
+   "consumed": false
+  },
+  "link": {
+   "tier": "body",
+   "kind": "text",
+   "purpose": "链接文字（按页面底色计对比度）",
+   "site_source": "★ 新增角色（本站链接色原与 --accent 同值）：取 SH0 content-kg dark 档 #6ea8ff（对 --bg 7.82 / 对 --panel 7.23）",
+   "consumed": false
+  },
+  "brand.primary": {
+   "tier": "non-text",
+   "kind": "brand",
+   "purpose": "品牌主色（强调/链接底/选中态）",
+   "site_source": "--accent（本站既有，逐字节沿用 #4f8cff）",
+   "consumed": true
+  },
+  "border.line": {
+   "tier": "non-text",
+   "kind": "border",
+   "purpose": "强分隔：表格线/卡片描边/h2 分隔/页脚",
+   "site_source": "★ 原 --border:#2a2f3a（对 --bg 1.41 / 对 --panel 1.30，两条都不达 3:1）⇒ 取 SH0 content-kg dark 档 #6b7280（实测 3.90 / 3.60，两条都过）。门控驱动，非审美选择。",
+   "consumed": true
+  },
+  "border.subtle": {
+   "tier": "non-text-decorative",
+   "kind": "border",
+   "purpose": "弱分隔：容器描边",
+   "site_source": "承接原 --border:#2a2f3a 的弱分隔语义（新名 --border-subtle，值逐字节沿用本站现值）",
+   "consumed": false
+  },
+  "surface.page": {
+   "tier": "non-text",
+   "kind": "surface",
+   "purpose": "页面底色（对比度参考背景）",
+   "site_source": "--bg（本站既有 #0f1117）",
+   "consumed": true
+  },
+  "surface.raised": {
+   "tier": "non-text",
+   "kind": "surface",
+   "purpose": "容器/卡片底色",
+   "site_source": "--panel（本站既有 #161a22）",
+   "consumed": true
+  },
+  "ok": {
+   "tier": "body",
+   "kind": "semantic-text",
+   "purpose": "成功态",
+   "site_source": "★ 本站现值 #2fb98a（对 --bg 7.57 / 对 --panel 6.99，**达标**）且被 `var()` 真实引用 ⇒ 按「达标且被引用则保留现值」规则逐字节沿用；⛔ 不改色。SH0 族值为 #3ddc97（10.68/9.86），属**有意的站点级差异**，已在 binding.aliases 与 known_value_changes 登记为「不改」。",
+   "consumed": true
+  },
+  "warn": {
+   "tier": "body",
+   "kind": "semantic-text",
+   "purpose": "警告态",
+   "site_source": "★ 原站内两值（66 页 #e8933b / 04-interactive 1 页 #e0c35e）⇒ 按 Q2-A 收敛到 #e8933b（= SH0 content-kg dark 档 warn，逐字节相同）。",
+   "consumed": true
+  },
+  "err": {
+   "tier": "body",
+   "kind": "semantic-text",
+   "purpose": "错误态",
+   "site_source": "★ 原 --err:#c0504d 对 --panel 仅 3.73、对 --bg 4.04（**不达 body 4.5**）⇒ 取 SH0 content-kg dark 档 #ff6b6b（实测 6.80 / 6.28，达标）。同时 --danger 退役并入 --err（原仅 04-interactive 1 页持有，值 #e05563）。",
+   "consumed": false
+  },
+  "ext": {
+   "tier": "body",
+   "kind": "semantic-text",
+   "purpose": "外部链态",
+   "site_source": "★ 新增（本站现无）：取 SH0 content-kg dark 档 #c9a227（对 --bg 7.80 / 对 --panel 7.20）",
+   "consumed": false
+  },
+  "upgrade": {
+   "tier": "body",
+   "kind": "semantic-text",
+   "purpose": "升级态",
+   "site_source": "★ 新增（本站现无）：取 SH0 content-kg dark 档 #b48a3c（对 --bg 5.97 / 对 --panel 5.51）",
+   "consumed": false
+  },
+  "disabled": {
+   "tier": "non-body",
+   "kind": "semantic-text",
+   "purpose": "停用态（非活动控件，WCAG 对比度豁免）",
+   "site_source": "★ 新增（本站现无）：取 SH0 content-kg dark 档 #6b7280（对 --bg 3.90 / 对 --panel 3.60）",
+   "consumed": false
+  },
+  "focus.ring": {
+   "tier": "non-text",
+   "kind": "focus",
+   "purpose": "焦点可见环（WCAG 2.4.7 对象）",
+   "site_source": "★ 新增（本站现无）：取 SH0 content-kg dark 档 #4f8cff（对 --bg 5.87 / 对 --panel 5.42）",
+   "consumed": false
+  },
+  "surface.subtle": {
+   "tier": "non-text",
+   "kind": "surface",
+   "purpose": "次级底色：hover/表头/代码块",
+   "site_source": "★ 新增（本站现无）：取 SH0 content-kg dark 档 #1d2330",
+   "consumed": false
+  },
+  "surface.stripe": {
+   "tier": "non-text",
+   "kind": "surface",
+   "purpose": "斑马纹底色",
+   "site_source": "★ 新增（本站现无）：取 SH0 content-kg dark 档 #141821",
+   "consumed": false
+  }
+ },
+ "palettes": {
+  "content-kg-dark": {
+   "family": "内容知识库族 · 深色（11 站共享）",
+   "provenance": "solutions/_shared/SH0-tokens-draft.json 的 palettes['content-kg'].values[*].dark（★ 取值的唯一来源）；本站现值逐条核对见 roles[*].site_source 与 known_value_changes",
+   "values": {
+    "text.primary": {
+     "dark": "#e6e8ee"
+    },
+    "text.secondary": {
+     "dark": "#9aa3b2"
+    },
+    "text.tertiary": {
+     "dark": "#7d8798"
+    },
+    "link": {
+     "dark": "#6ea8ff"
+    },
+    "brand.primary": {
+     "dark": "#4f8cff"
+    },
+    "border.line": {
+     "dark": "#6b7280"
+    },
+    "border.subtle": {
+     "dark": "#2a2f3a"
+    },
+    "surface.page": {
+     "dark": "#0f1117"
+    },
+    "surface.raised": {
+     "dark": "#161a22"
+    },
+    "surface.subtle": {
+     "dark": "#1d2330"
+    },
+    "surface.stripe": {
+     "dark": "#141821"
+    },
+    "ok": {
+     "dark": "#2fb98a"
+    },
+    "warn": {
+     "dark": "#e8933b"
+    },
+    "err": {
+     "dark": "#ff6b6b"
+    },
+    "ext": {
+     "dark": "#c9a227"
+    },
+    "upgrade": {
+     "dark": "#b48a3c"
+    },
+    "disabled": {
+     "dark": "#6b7280"
+    },
+    "focus.ring": {
+     "dark": "#4f8cff"
+    }
+   }
+  }
+ },
+ "binding": {
+  "site_token_names": {
+   "text.primary": "--text",
+   "text.secondary": "--dim",
+   "text.tertiary": "--text-3",
+   "link": "--link",
+   "brand.primary": "--accent",
+   "border.line": "--border",
+   "border.subtle": "--border-subtle",
+   "surface.page": "--bg",
+   "surface.raised": "--panel",
+   "surface.subtle": "--surface-2",
+   "surface.stripe": "--stripe",
+   "ok": "--ok",
+   "warn": "--warn",
+   "err": "--err",
+   "ext": "--ext",
+   "upgrade": "--upgrade",
+   "disabled": "--disabled",
+   "focus.ring": "--focus-ring"
+  },
+  "aliases": {
+   "--danger": {
+    "canonical_role": "err",
+    "note": "04-interactive 族的历史名（值 #e05563）。★ 本批按 Q 裁定「--danger 退役并入 --err」：**不再保留**该名。退役留痕见 known_value_changes['--danger'] 与 dead_tokens 的登记（改动前它已是站点级零引用令牌，故退役为纯删除动作、无引用点风险）。"
+   },
+   "--muted": {
+    "canonical_role": "text.secondary",
+    "note": "report.html 的历史名（值 #9aa3b2 = --dim 同值）。本批按 Q4-A 把 report.html 纳入同一份派生令牌后，该名不再出现在任何 :root 块里 ⇒ 统一为 --dim（值逐字节相同，零观感变化）。"
+   },
+   "--panel2": {
+    "canonical_role": "(无对应角色)",
+    "note": "report.html 的历史名（#1c212c，用作表头底）。SH0 的 content-kg 族**无**同值角色 ⇒ 本批不擅自改名，以 families['report'].overrides 逐字节保留并登记为**页面族非角色令牌**。"
+   },
+   "--code-bg": {
+    "canonical_role": "(无对应角色)",
+    "note": "report.html 的历史名（#0b0d12，用作代码块底）。同 --panel2 的处置：逐字节保留为页面族非角色令牌。"
+   }
+  },
+  "note": "本站角色集是**18 角色子集绑定**（SH0 的 19 角色减去 layout 类角色 `measure`——它是 `ch` 单位的行长令牌，不是本站 `:root` 里的颜色对象，登记为「不适用」而非「未做」）。⛔ 不为凑齐 19 角色而生造本站不用的令牌。",
+  "passthrough_tokens": {},
+  "passthrough_tokens_reason": "本站 :root 块内的非角色令牌只有 report.html 的 `--panel2` / `--code-bg` 两枚，且它们**只属于 report 族** ⇒ 按三级覆盖的第 ③ 级写进 families['report'].overrides（⛔ 不用全局 passthrough，否则会往 66 个页面里塞入两枚无人引用的令牌）。"
+ },
+ "families": {
+  "default": {
+   "targets": [
+    "07-checkpoint/gen_common.py",
+    "02-node-pages/arch-dispatch.html",
+    "03-groups/G-A.html"
+   ],
+   "generator": "07-checkpoint/gen_common.py（BASE_CSS 常量，:162 起，令牌行在 :163）",
+   "overrides": {},
+   "note": "族默认 = 站点生成器的唯一令牌源（本站方案 §4.2 第 1 步「建单源」的落点）。gen-nodes / gen-groups / gen-views / gen-assets 四个生成器引用本常量，故其产物（02-node-pages 51 页 / 03-groups 8 页 / 05-views 5 页 / assets 1 页 = 65 页）自动继承本块。★ profile.targets 只对**每族各列一个代表目标**（P4 要求两处 targets 逐族一致）；全部 65 页的覆盖由 profile.page_families 的 glob 声明并由 gate_tokens.py 的 G3 逐页对账。"
+  },
+  "04-interactive": {
+   "targets": [
+    "07-checkpoint/gen-interactive.py",
+    "04-interactive/index.html"
+   ],
+   "generator": "07-checkpoint/gen-interactive.py（CSS 常量，:112 起，令牌行在 :113）",
+   "overrides": {},
+   "note": "★ 页面族覆盖的成因实例之一。**本族本轮已无 overrides**：Q2-A 把 --warn 收敛到 #e8933b（= 族默认值），--danger 退役并入 --err ⇒ 本族取值与默认族一致。★ 之所以仍单列一族而不并入 default：① 它是**自持令牌块**的生成器（改产物不改源会在下次重生成时被打回）；② 其 `@media (max-width:768px)` 与侧栏规则是本站唯一的交互页版式，须独立判（见 gate_responsive.py）。"
+  },
+  "05-views": {
+   "targets": [
+    "05-views/02-scenarios.html"
+   ],
+   "generator": "07-checkpoint/gen-views.py（引用 gen_common.BASE_CSS）",
+   "overrides": {},
+   "note": "本族取值与默认族一致（产物由 gen-views.py 引用 BASE_CSS 得到）。★ 它与 default 族同值但**分列**：本表是「页面族」的申报面，⛔ 不按目录名启发式归并。"
+  },
+  "assets": {
+   "targets": [
+    "assets/index.html"
+   ],
+   "generator": "07-checkpoint/gen-assets.py（引用 gen_common.BASE_CSS）",
+   "overrides": {},
+   "note": "★ 批 H 施工前勘察（H-O8）发现方案 §5.1 的生成器清单漏了 gen-assets.py，而 README.md:69-78 的配方含它 ⇒ 本表显式建族，使 assets/index.html（9 令牌）进入门控扫描面，⛔ 不再落在 page_families 之外「默认通过」。"
+  },
+  "index": {
+   "targets": [
+    "index.html",
+    "404.html"
+   ],
+   "generator": "07-checkpoint/gen-index.py（从 gen_common.BASE_CSS 取令牌块；同时产出 404.html）",
+   "overrides": {},
+   "note": "根首页 + 新增的结构化 404 页。★ 404.html 由 gen-index.py 的同一函数产出（Q1-A「结构化 404 页」），故与 index.html 同族、同源、同一次重生成可复现；它**不是**手写静态件。"
+  },
+  "report": {
+   "targets": [
+    "report.html"
+   ],
+   "generator": "（无：仓内 10 个生成器无一认领 report.html）",
+   "overrides": {
+    "--muted": "#9aa3b2",
+    "--panel2": "#1c212c",
+    "--code-bg": "#0b0d12"
+   },
+   "note": "★ Q4-A 新增族。report.html 的令牌块由派生器写入（root-block 模式），其 `--border:#2a3040` 的第三值漂移由此消除（统一为 #6b7280）。★ 它的 8 枚历史声明里，`--bg/--panel/--text/--accent` 逐字节等于角色值、`--muted` 逐字节等于 `--dim` 的值（统一为 `--dim`、零观感变化）、`--border` 升级到达标值（3.60/3.90）；余下 3 枚非角色令牌（`--muted`/`--panel2`/`--code-bg`）逐字节保留于本 overrides。⚠ **仓内无生成器可复现它**（report.html:149 明记由仓外一次性生成器委派产出）⇒ 本族的派生产物只能由 pipeline 写手就地写入，⛔ 本批不为它新建生成器。"
+  }
+ },
+ "derivation": {
+  "state": "round2h-single-source",
+  "direction": "单向：本值件 → 各页面族的内联令牌块",
+  "generator_ref": "pipeline/derive_site_tokens.py",
+  "derived_fields": [
+   "palettes.*.values",
+   "roles[*].tier",
+   "families[*].overrides"
+  ],
+  "mirror_fields": [
+   "usage_tiers"
+  ],
+  "rule": "派生只重写各目标的首个 `:root{...}` 块；**其余字节逐字节保留**（由 pipeline/write_site_tokens.py 的非目标段 sha256 判据 B4 证明）。",
+  "write_surface_guard": "root-block 模式：非目标段 sha256 前后必须相等。",
+  "write_mode": "root-block",
+  "single_source": {
+   "state": "已收敛（批 H 第 1 件事）",
+   "declaration_sites_before": [
+    "07-checkpoint/gen_common.py（BASE_CSS 的 :root 行，9 令牌，67 页共用）",
+    "07-checkpoint/gen-interactive.py（自持 CSS 常量，8 令牌，1 页）",
+    "report.html（自持内联 :root，8 令牌，1 页，--border 取 #2a3040）"
+   ],
+   "declaration_sites_after": [
+    "07-checkpoint/gen_common.py（BASE_CSS 的 :root 行 = default / 05-views / assets 三族的**唯一字面落点**）",
+    "07-checkpoint/gen-interactive.py（自持块 = 04-interactive 族，仍自持但已**纳入派生目标**）",
+    "index.html / 404.html（由 gen-index.py 从 gen_common.BASE_CSS 取，本文件不持字面值）",
+    "report.html（= report 族，块由 pipeline 写手就地写入）"
+   ],
+   "gen_index_mechanism": "gen-index.py 的令牌块由 `BASE_CSS.strip().split('\\n',1)[0]` 从 gen_common 单一来源取；★ 之所以不把它当 root-block **源**目标：它的块在 `.format()` 模板内被写成 `{{ … }}`，`:root\\s*\\{[^{}]*\\}` 无法匹配双大括号 ⇒ 改走「从单源取」而非「被写手写」。",
+   "invariant": "BASE_CSS 的首个非空行必须就是 `:root{...}` 块 —— 由站点侧 gate_tokens.py 的 G8 判据看住（未成立即 FAIL）",
+   "residual": "仍有三份字面值落点（default 族 / 04-interactive 族 / report 族），但**全部由派生器从本值件写入**，结构上不可能各自漂移；这是 SH1 §4.5.3 页面族覆盖的合法形态，⛔ 不是未收敛。"
+  }
+ },
+ "dead_tokens": {
+  "metric": "★ 分两级计量（避免把合法的族声明判成死令牌）：**站点级**＝该令牌在**全站任何页**内都无 `var()` 引用；**页级**＝该令牌在某页声明但在**同一页**内无 `var()` 引用（同站他处仍有用）。站点级才是真死。",
+  "measured_at": "2026-10-13",
+  "measurement_tool": "evidence/h/tools/measure_station_baseline.py（★ 复用，⛔ 不造第二套）＋ 施工前逐页实测（68 页 / 每页 1 个 :root）",
+  "measurement_artifacts": [
+   "evidence/h/measure/open-code-review-kg@pre.json（改动前）",
+   "evidence/h/measure/open-code-review-kg@post.json（改动后）"
+  ],
+  "ruling": "Q8-A（回登共性方案）+ 本站的「零引用令牌**逐枚登记保留**、⛔ 不删除」纪律：删除会被 C7/G9 一类「防静默丢令牌」判据打红，且删判据＝放宽判据（ADR-003 回退条款明禁）。★ 本表按**改动后**实测填数（改动前数字并列留档）。",
+  "change_effect_on_counts": "本步把「补齐角色令牌」作为有意产物 ⇒ 全站令牌名从 11 枚升到 22 枚（18 角色 + report 族 3 枚非角色 + 交互页历史名退役）；站点级零引用从 2 枚（--danger / --err）变为 1 枚（--err）——`--danger` 退役后不再声明，故退出本表。",
+  "site_level_zero_ref": [
+   {
+    "token": "--err",
+    "declared_in_pages_before": 66,
+    "declared_in_pages_after": 69,
+    "var_uses_pages_site_wide": 0,
+    "disposition": "登记保留（本轮改值 #c0504d → #ff6b6b）",
+    "reason": "语义角色「错误态」是 ADR-002 角色集的规范成员（本站 18 角色之一）；本站三种页型（节点页/组页/视图页）均无错误态元素，故全站无 var() 引用。⇒ 属「声明了但当前页型用不到」，不是「写错了」；未来加错误态元素即自动可用。★ 改动前它对 --panel 仅 3.73（不达 4.5），本轮按门控驱动改值，**与「是否被引用」无关**——这正是「零引用 ≠ 可放任不达标」的证据。",
+    "gate_handling": "站点侧 gate_tokens.py 的 G8（站点级零引用必须逐枚登记，未登记即 FAIL）"
+   },
+   {
+    "token": "--border-subtle",
+    "declared_in_pages_before": 0,
+    "declared_in_pages_after": 69,
+    "var_uses_pages_site_wide": 0,
+    "disposition": "登记保留（本轮新增，到货即死）",
+    "reason": "★ 本步实测到的**到货即死**令牌：本轮只改**令牌层**（补齐 SH0 content-kg 族角色集），⛔ 不改规则层（现网所有规则仍引用 --border/--dim/--accent 等旧名）⇒ 无人引用它。它承接的语义（弱分隔 / 三级灰 / 独立链接色 / 外部链 / 升级 / 停用 / 焦点环 / 次级底 / 斑马纹）要等后续把规则改指到它才落地。",
+    "gate_handling": "站点侧 gate_tokens.py 的 G8（未登记即 FAIL）"
+   },
+   {
+    "token": "--text-3",
+    "declared_in_pages_before": 0,
+    "declared_in_pages_after": 69,
+    "var_uses_pages_site_wide": 0,
+    "disposition": "登记保留（本轮新增，到货即死）",
+    "reason": "★ 本步实测到的**到货即死**令牌：本轮只改**令牌层**（补齐 SH0 content-kg 族角色集），⛔ 不改规则层（现网所有规则仍引用 --border/--dim/--accent 等旧名）⇒ 无人引用它。它承接的语义（弱分隔 / 三级灰 / 独立链接色 / 外部链 / 升级 / 停用 / 焦点环 / 次级底 / 斑马纹）要等后续把规则改指到它才落地。",
+    "gate_handling": "站点侧 gate_tokens.py 的 G8（未登记即 FAIL）"
+   },
+   {
+    "token": "--link",
+    "declared_in_pages_before": 0,
+    "declared_in_pages_after": 69,
+    "var_uses_pages_site_wide": 0,
+    "disposition": "登记保留（本轮新增，到货即死）",
+    "reason": "★ 本步实测到的**到货即死**令牌：本轮只改**令牌层**（补齐 SH0 content-kg 族角色集），⛔ 不改规则层（现网所有规则仍引用 --border/--dim/--accent 等旧名）⇒ 无人引用它。它承接的语义（弱分隔 / 三级灰 / 独立链接色 / 外部链 / 升级 / 停用 / 焦点环 / 次级底 / 斑马纹）要等后续把规则改指到它才落地。",
+    "gate_handling": "站点侧 gate_tokens.py 的 G8（未登记即 FAIL）"
+   },
+   {
+    "token": "--ext",
+    "declared_in_pages_before": 0,
+    "declared_in_pages_after": 69,
+    "var_uses_pages_site_wide": 0,
+    "disposition": "登记保留（本轮新增，到货即死）",
+    "reason": "★ 本步实测到的**到货即死**令牌：本轮只改**令牌层**（补齐 SH0 content-kg 族角色集），⛔ 不改规则层（现网所有规则仍引用 --border/--dim/--accent 等旧名）⇒ 无人引用它。它承接的语义（弱分隔 / 三级灰 / 独立链接色 / 外部链 / 升级 / 停用 / 焦点环 / 次级底 / 斑马纹）要等后续把规则改指到它才落地。",
+    "gate_handling": "站点侧 gate_tokens.py 的 G8（未登记即 FAIL）"
+   },
+   {
+    "token": "--upgrade",
+    "declared_in_pages_before": 0,
+    "declared_in_pages_after": 69,
+    "var_uses_pages_site_wide": 0,
+    "disposition": "登记保留（本轮新增，到货即死）",
+    "reason": "★ 本步实测到的**到货即死**令牌：本轮只改**令牌层**（补齐 SH0 content-kg 族角色集），⛔ 不改规则层（现网所有规则仍引用 --border/--dim/--accent 等旧名）⇒ 无人引用它。它承接的语义（弱分隔 / 三级灰 / 独立链接色 / 外部链 / 升级 / 停用 / 焦点环 / 次级底 / 斑马纹）要等后续把规则改指到它才落地。",
+    "gate_handling": "站点侧 gate_tokens.py 的 G8（未登记即 FAIL）"
+   },
+   {
+    "token": "--disabled",
+    "declared_in_pages_before": 0,
+    "declared_in_pages_after": 69,
+    "var_uses_pages_site_wide": 0,
+    "disposition": "登记保留（本轮新增，到货即死）",
+    "reason": "★ 本步实测到的**到货即死**令牌：本轮只改**令牌层**（补齐 SH0 content-kg 族角色集），⛔ 不改规则层（现网所有规则仍引用 --border/--dim/--accent 等旧名）⇒ 无人引用它。它承接的语义（弱分隔 / 三级灰 / 独立链接色 / 外部链 / 升级 / 停用 / 焦点环 / 次级底 / 斑马纹）要等后续把规则改指到它才落地。",
+    "gate_handling": "站点侧 gate_tokens.py 的 G8（未登记即 FAIL）"
+   },
+   {
+    "token": "--focus-ring",
+    "declared_in_pages_before": 0,
+    "declared_in_pages_after": 69,
+    "var_uses_pages_site_wide": 0,
+    "disposition": "登记保留（本轮新增，到货即死）",
+    "reason": "★ 本步实测到的**到货即死**令牌：本轮只改**令牌层**（补齐 SH0 content-kg 族角色集），⛔ 不改规则层（现网所有规则仍引用 --border/--dim/--accent 等旧名）⇒ 无人引用它。它承接的语义（弱分隔 / 三级灰 / 独立链接色 / 外部链 / 升级 / 停用 / 焦点环 / 次级底 / 斑马纹）要等后续把规则改指到它才落地。",
+    "gate_handling": "站点侧 gate_tokens.py 的 G8（未登记即 FAIL）"
+   },
+   {
+    "token": "--surface-2",
+    "declared_in_pages_before": 0,
+    "declared_in_pages_after": 69,
+    "var_uses_pages_site_wide": 0,
+    "disposition": "登记保留（本轮新增，到货即死）",
+    "reason": "★ 本步实测到的**到货即死**令牌：本轮只改**令牌层**（补齐 SH0 content-kg 族角色集），⛔ 不改规则层（现网所有规则仍引用 --border/--dim/--accent 等旧名）⇒ 无人引用它。它承接的语义（弱分隔 / 三级灰 / 独立链接色 / 外部链 / 升级 / 停用 / 焦点环 / 次级底 / 斑马纹）要等后续把规则改指到它才落地。",
+    "gate_handling": "站点侧 gate_tokens.py 的 G8（未登记即 FAIL）"
+   },
+   {
+    "token": "--stripe",
+    "declared_in_pages_before": 0,
+    "declared_in_pages_after": 69,
+    "var_uses_pages_site_wide": 0,
+    "disposition": "登记保留（本轮新增，到货即死）",
+    "reason": "★ 本步实测到的**到货即死**令牌：本轮只改**令牌层**（补齐 SH0 content-kg 族角色集），⛔ 不改规则层（现网所有规则仍引用 --border/--dim/--accent 等旧名）⇒ 无人引用它。它承接的语义（弱分隔 / 三级灰 / 独立链接色 / 外部链 / 升级 / 停用 / 焦点环 / 次级底 / 斑马纹）要等后续把规则改指到它才落地。",
+    "gate_handling": "站点侧 gate_tokens.py 的 G8（未登记即 FAIL）"
+   }
+  ],
+  "page_level_unused": {
+   "metric": "★ 口径：`--err` 与 9 枚本轮新增角色令牌在**全站 69 页**都无 var() 引用；`--warn`/`--ok` 只在无对应状态元素的 04-interactive/index.html 未用。逐页登记（登记项必须与盘上事实逐一对应，登记不得过期）。★ 本表由 gate_tokens.py 的 G8 逐项核对：未登记即 FAIL（站点级 hard）、登记过期或幽灵即 FAIL（页级 report）。",
+   "entries_count": 623,
+   "entries": [
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/arch-dispatch.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/arch-dispatch.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/arch-dispatch.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/arch-dispatch.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/arch-dispatch.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/arch-dispatch.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/arch-dispatch.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/arch-dispatch.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/arch-dispatch.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/arch-grounded-tools.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/arch-grounded-tools.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/arch-grounded-tools.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/arch-grounded-tools.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/arch-grounded-tools.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/arch-grounded-tools.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/arch-grounded-tools.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/arch-grounded-tools.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/arch-grounded-tools.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/arch-hybrid.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/arch-hybrid.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/arch-hybrid.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/arch-hybrid.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/arch-hybrid.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/arch-hybrid.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/arch-hybrid.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/arch-hybrid.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/arch-hybrid.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/arch-parallel.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/arch-parallel.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/arch-parallel.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/arch-parallel.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/arch-parallel.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/arch-parallel.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/arch-parallel.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/arch-parallel.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/arch-parallel.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/arch-pipeline.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/arch-pipeline.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/arch-pipeline.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/arch-pipeline.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/arch-pipeline.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/arch-pipeline.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/arch-pipeline.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/arch-pipeline.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/arch-pipeline.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/arch-reflection.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/arch-reflection.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/arch-reflection.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/arch-reflection.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/arch-reflection.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/arch-reflection.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/arch-reflection.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/arch-reflection.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/arch-reflection.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cfg-mcp.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cfg-mcp.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cfg-mcp.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cfg-mcp.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cfg-mcp.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cfg-mcp.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cfg-mcp.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cfg-mcp.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cfg-mcp.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cfg-priority.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cfg-priority.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cfg-priority.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cfg-priority.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cfg-priority.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cfg-priority.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cfg-priority.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cfg-priority.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cfg-priority.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cfg-protocol.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cfg-protocol.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cfg-protocol.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cfg-protocol.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cfg-protocol.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cfg-protocol.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cfg-protocol.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cfg-protocol.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cfg-protocol.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cfg-providers.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cfg-providers.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cfg-providers.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cfg-providers.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cfg-providers.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cfg-providers.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cfg-providers.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cfg-providers.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cfg-providers.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cfg-rules-chain.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cfg-rules-chain.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cfg-rules-chain.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cfg-rules-chain.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cfg-rules-chain.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cfg-rules-chain.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cfg-rules-chain.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cfg-rules-chain.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cfg-rules-chain.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cli-config.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cli-config.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cli-config.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cli-config.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cli-config.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cli-config.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cli-config.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cli-config.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cli-config.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cli-delegate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cli-delegate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cli-delegate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cli-delegate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cli-delegate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cli-delegate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cli-delegate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cli-delegate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cli-delegate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cli-llm.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cli-llm.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cli-llm.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cli-llm.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cli-llm.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cli-llm.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cli-llm.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cli-llm.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cli-llm.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cli-overview.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cli-overview.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cli-overview.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cli-overview.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cli-overview.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cli-overview.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cli-overview.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cli-overview.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cli-overview.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cli-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cli-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cli-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cli-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cli-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cli-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cli-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cli-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cli-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cli-rules.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cli-rules.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cli-rules.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cli-rules.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cli-rules.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cli-rules.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cli-rules.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cli-rules.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cli-rules.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cli-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cli-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cli-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cli-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cli-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cli-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cli-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cli-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cli-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cli-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cli-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cli-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cli-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cli-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cli-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cli-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cli-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cli-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/cli-viewer.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/cli-viewer.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/cli-viewer.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/cli-viewer.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/cli-viewer.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/cli-viewer.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/cli-viewer.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/cli-viewer.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/cli-viewer.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/eng-bundling.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/eng-bundling.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/eng-bundling.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/eng-bundling.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/eng-bundling.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/eng-bundling.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/eng-bundling.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/eng-bundling.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/eng-bundling.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/eng-compression.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/eng-compression.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/eng-compression.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/eng-compression.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/eng-compression.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/eng-compression.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/eng-compression.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/eng-compression.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/eng-compression.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/eng-diff.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/eng-diff.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/eng-diff.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/eng-diff.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/eng-diff.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/eng-diff.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/eng-diff.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/eng-diff.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/eng-diff.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/eng-filter.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/eng-filter.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/eng-filter.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/eng-filter.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/eng-filter.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/eng-filter.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/eng-filter.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/eng-filter.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/eng-filter.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/eng-locator.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/eng-locator.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/eng-locator.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/eng-locator.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/eng-locator.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/eng-locator.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/eng-locator.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/eng-locator.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/eng-locator.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/eng-manifest.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/eng-manifest.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/eng-manifest.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/eng-manifest.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/eng-manifest.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/eng-manifest.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/eng-manifest.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/eng-manifest.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/eng-manifest.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/eng-relocate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/eng-relocate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/eng-relocate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/eng-relocate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/eng-relocate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/eng-relocate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/eng-relocate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/eng-relocate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/eng-relocate.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/eng-resume.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/eng-resume.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/eng-resume.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/eng-resume.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/eng-resume.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/eng-resume.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/eng-resume.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/eng-resume.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/eng-resume.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/eng-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/eng-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/eng-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/eng-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/eng-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/eng-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/eng-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/eng-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/eng-scan.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/eng-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/eng-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/eng-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/eng-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/eng-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/eng-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/eng-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/eng-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/eng-session.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/int-cicd.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/int-cicd.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/int-cicd.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/int-cicd.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/int-cicd.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/int-cicd.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/int-cicd.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/int-cicd.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/int-cicd.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/int-claude.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/int-claude.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/int-claude.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/int-claude.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/int-claude.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/int-claude.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/int-claude.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/int-claude.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/int-claude.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/int-codex.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/int-codex.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/int-codex.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/int-codex.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/int-codex.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/int-codex.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/int-codex.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/int-codex.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/int-codex.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/int-cursor.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/int-cursor.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/int-cursor.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/int-cursor.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/int-cursor.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/int-cursor.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/int-cursor.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/int-cursor.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/int-cursor.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/int-gha.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/int-gha.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/int-gha.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/int-gha.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/int-gha.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/int-gha.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/int-gha.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/int-gha.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/int-gha.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/int-opencode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/int-opencode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/int-opencode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/int-opencode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/int-opencode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/int-opencode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/int-opencode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/int-opencode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/int-opencode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/int-qca.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/int-qca.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/int-qca.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/int-qca.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/int-qca.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/int-qca.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/int-qca.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/int-qca.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/int-qca.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/int-skill.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/int-skill.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/int-skill.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/int-skill.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/int-skill.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/int-skill.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/int-skill.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/int-skill.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/int-skill.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/int-vscode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/int-vscode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/int-vscode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/int-vscode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/int-vscode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/int-vscode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/int-vscode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/int-vscode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/int-vscode.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/q-bench.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/q-bench.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/q-bench.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/q-bench.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/q-bench.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/q-bench.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/q-bench.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/q-bench.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/q-bench.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/q-release.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/q-release.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/q-release.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/q-release.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/q-release.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/q-release.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/q-release.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/q-release.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/q-release.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/q-retry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/q-retry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/q-retry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/q-retry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/q-retry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/q-retry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/q-retry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/q-retry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/q-retry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/q-security.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/q-security.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/q-security.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/q-security.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/q-security.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/q-security.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/q-security.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/q-security.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/q-security.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/q-telemetry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/q-telemetry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/q-telemetry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/q-telemetry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/q-telemetry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/q-telemetry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/q-telemetry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/q-telemetry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/q-telemetry.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/q-token.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/q-token.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/q-token.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/q-token.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/q-token.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/q-token.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/q-token.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/q-token.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/q-token.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/use-ci.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/use-ci.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/use-ci.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/use-ci.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/use-ci.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/use-ci.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/use-ci.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/use-ci.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/use-ci.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/use-configure.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/use-configure.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/use-configure.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/use-configure.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/use-configure.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/use-configure.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/use-configure.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/use-configure.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/use-configure.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/use-extend.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/use-extend.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/use-extend.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/use-extend.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/use-extend.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/use-extend.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/use-extend.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/use-extend.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/use-extend.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/use-no-key.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/use-no-key.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/use-no-key.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/use-no-key.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/use-no-key.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/use-no-key.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/use-no-key.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/use-no-key.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/use-no-key.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/use-pr-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/use-pr-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/use-pr-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/use-pr-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/use-pr-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/use-pr-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/use-pr-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/use-pr-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/use-pr-review.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "02-node-pages/use-scan-codebase.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "02-node-pages/use-scan-codebase.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "02-node-pages/use-scan-codebase.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "02-node-pages/use-scan-codebase.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "02-node-pages/use-scan-codebase.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "02-node-pages/use-scan-codebase.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "02-node-pages/use-scan-codebase.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "02-node-pages/use-scan-codebase.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "02-node-pages/use-scan-codebase.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "03-groups/G-A.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "03-groups/G-A.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "03-groups/G-A.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "03-groups/G-A.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "03-groups/G-A.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "03-groups/G-A.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "03-groups/G-A.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "03-groups/G-A.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "03-groups/G-A.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "03-groups/G-B.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "03-groups/G-B.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "03-groups/G-B.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "03-groups/G-B.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "03-groups/G-B.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "03-groups/G-B.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "03-groups/G-B.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "03-groups/G-B.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "03-groups/G-B.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "03-groups/G-C.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "03-groups/G-C.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "03-groups/G-C.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "03-groups/G-C.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "03-groups/G-C.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "03-groups/G-C.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "03-groups/G-C.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "03-groups/G-C.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "03-groups/G-C.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "03-groups/G-D.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "03-groups/G-D.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "03-groups/G-D.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "03-groups/G-D.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "03-groups/G-D.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "03-groups/G-D.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "03-groups/G-D.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "03-groups/G-D.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "03-groups/G-D.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "03-groups/G-E.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "03-groups/G-E.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "03-groups/G-E.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "03-groups/G-E.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "03-groups/G-E.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "03-groups/G-E.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "03-groups/G-E.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "03-groups/G-E.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "03-groups/G-E.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "03-groups/G-F.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "03-groups/G-F.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "03-groups/G-F.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "03-groups/G-F.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "03-groups/G-F.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "03-groups/G-F.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "03-groups/G-F.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "03-groups/G-F.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "03-groups/G-F.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "03-groups/G-S.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "03-groups/G-S.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "03-groups/G-S.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "03-groups/G-S.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "03-groups/G-S.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "03-groups/G-S.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "03-groups/G-S.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "03-groups/G-S.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "03-groups/G-S.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "03-groups/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "03-groups/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "03-groups/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "03-groups/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "03-groups/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "03-groups/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "03-groups/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "03-groups/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "03-groups/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "04-interactive/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "04-interactive/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "04-interactive/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "04-interactive/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "04-interactive/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "04-interactive/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "04-interactive/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "04-interactive/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "04-interactive/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "05-views/02-scenarios.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "05-views/02-scenarios.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "05-views/02-scenarios.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "05-views/02-scenarios.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "05-views/02-scenarios.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "05-views/02-scenarios.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "05-views/02-scenarios.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "05-views/02-scenarios.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "05-views/02-scenarios.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "05-views/03-learning-path.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "05-views/03-learning-path.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "05-views/03-learning-path.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "05-views/03-learning-path.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "05-views/03-learning-path.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "05-views/03-learning-path.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "05-views/03-learning-path.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "05-views/03-learning-path.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "05-views/03-learning-path.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "05-views/04-architecture.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "05-views/04-architecture.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "05-views/04-architecture.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "05-views/04-architecture.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "05-views/04-architecture.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "05-views/04-architecture.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "05-views/04-architecture.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "05-views/04-architecture.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "05-views/04-architecture.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "05-views/05-principles.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "05-views/05-principles.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "05-views/05-principles.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "05-views/05-principles.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "05-views/05-principles.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "05-views/05-principles.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "05-views/05-principles.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "05-views/05-principles.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "05-views/05-principles.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "05-views/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "05-views/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "05-views/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "05-views/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "05-views/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "05-views/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "05-views/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "05-views/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "05-views/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "assets/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "assets/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "assets/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "assets/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "assets/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "assets/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "assets/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "assets/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "assets/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "404.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "404.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "404.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "404.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "404.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "404.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "404.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "404.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "404.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--border-subtle",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "★ 到货即死：本轮只改令牌层（新增弱分隔档），规则层仍全部引用 --border ⇒ 暂无 var() 引用"
+    },
+    {
+     "token": "--text-3",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：本站原本无法表达三级灰档，本轮补上但尚无规则引用"
+    },
+    {
+     "token": "--link",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--ext",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--upgrade",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--disabled",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--focus-ring",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项：★ 本批⛔ 不改规则层，`:focus-visible` 环仍未接上（属 SH2 后续步）"
+    },
+    {
+     "token": "--surface-2",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--stripe",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（⛔ 不删除）",
+     "reason": "角色覆盖补齐项（C3-N6）：尚无规则引用"
+    },
+    {
+     "token": "--warn",
+     "page": "04-interactive/index.html",
+     "var_uses_in_page": 0,
+     "disposition": "登记保留（按定义不算零引用）",
+     "reason": "交互页无告警态元素；同一令牌在全站 67 页真实使用 ⇒ 族声明（Q2-A 已收敛单值 #e8933b）"
+    },
+    {
+     "token": "--dim",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "var_uses_pages_site_wide": 68,
+     "disposition": "登记保留（按定义不算零引用）★ 批 H 新增条目",
+     "reason": "report.html 由**仓外**一次性生成器产出（仓内无生成器可复现，见 uncovered_pages），它按 Q4-A 读同一份派生令牌 ⇒ 声明了本页未用的角色令牌。同一令牌在全站他页真实使用 ⇒ 族声明，⛔ 不是死码。"
+    },
+    {
+     "token": "--ok",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "var_uses_pages_site_wide": 67,
+     "disposition": "登记保留（按定义不算零引用）★ 批 H 新增条目",
+     "reason": "report.html 由**仓外**一次性生成器产出（仓内无生成器可复现，见 uncovered_pages），它按 Q4-A 读同一份派生令牌 ⇒ 声明了本页未用的角色令牌。同一令牌在全站他页真实使用 ⇒ 族声明，⛔ 不是死码。"
+    },
+    {
+     "token": "--warn",
+     "page": "report.html",
+     "var_uses_in_page": 0,
+     "var_uses_pages_site_wide": 67,
+     "disposition": "登记保留（按定义不算零引用）★ 批 H 新增条目",
+     "reason": "report.html 由**仓外**一次性生成器产出（仓内无生成器可复现，见 uncovered_pages），它按 Q4-A 读同一份派生令牌 ⇒ 声明了本页未用的角色令牌。同一令牌在全站他页真实使用 ⇒ 族声明，⛔ 不是死码。"
+    }
+   ]
+  },
+  "not_measured": [
+   "CSS 规则级的「死选择器」——★ 本步已由仓根 gate_dead_css.py 补测（判据 H1–H3），实测唯一零引用者是 `.navseq .spacer`（按 Q8-A 登记保留，⛔ 不删除）",
+   "运行期由 JS 动态拼出的 var() 引用（本站 JS 不拼 CSS 变量，但未形式化证明）"
+  ],
+  "retired_registrations": [
+   {
+    "token": "--danger",
+    "retired_in": "批 H（Q2-A/§5.1 收名并入 --err）",
+    "note": "改动前为 04-interactive 族的历史名（= --err 的别名），已是站点级零引用 ⇒ 退役是纯删除动作、零引用影响。★ 退役后必须从 site_level_zero_ref 移出，否则 G8 判「登记了但实际有引用（登记过期）」。",
+    "moved_out_of": "site_level_zero_ref"
+   }
+  ]
+ },
+ "known_value_changes": {
+  "--border": {
+   "from": "#2a2f3a",
+   "to": "#6b7280",
+   "reason": "对 --bg 1.41 / 对 --panel 1.30，不达 non-text 的 3:1；取 SH0 content-kg dark 档达标值（实测 3.90 / 3.60）。门控驱动，非审美选择。"
+  },
+  "--err": {
+   "from": "#c0504d",
+   "to": "#ff6b6b",
+   "reason": "对 --panel 仅 3.73、对 --bg 4.04，不达 body 的 4.5；取 SH0 content-kg dark 档 err（实测 6.80 / 6.28）。"
+  },
+  "--danger": {
+   "from": "#e05563",
+   "to": "(退役)",
+   "reason": "04-interactive 族的历史名，与 --err 一职两名。Q 裁定：退役并入 --err（两名并存会把「同一语义两个名」这一缺陷留在值件里）。改动前它已是零引用令牌 ⇒ 纯删除动作。"
+  },
+  "--warn": {
+   "from": "#e0c35e（仅 04-interactive 1 页）",
+   "to": "#e8933b（全站单值）",
+   "reason": "Q2-A：收敛到与 SH0 content-kg dark 档 warn 逐字节相同的值。66 页不动、只改 1 页。"
+  },
+  "--muted": {
+   "from": "#9aa3b2（report.html 历史名）",
+   "to": "(统一为 --dim，同值)",
+   "reason": "Q4-A 把 report.html 纳入同一份派生令牌后，`--muted` 与 `--dim` 是同值两名 ⇒ 收敛为规范名。**值逐字节相同，零观感变化**。"
+  },
+  "--panel2": {
+   "from": "#1c212c",
+   "to": "#1c212c",
+   "reason": "⛔ 不改值。登记原因＝它是 report 族的非角色令牌（SH0 族无同值角色），按三级覆盖的第 ③ 级逐字节保留。"
+  },
+  "--code-bg": {
+   "from": "#0b0d12",
+   "to": "#0b0d12",
+   "reason": "⛔ 不改值。同 --panel2。"
+  },
+  "--ok": {
+   "from": "#2fb98a",
+   "to": "#2fb98a",
+   "reason": "⛔ 不改值。登记原因＝SH0 族值为 #3ddc97，本站现值 #2fb98a **两边都达标**（7.57/6.99）**且被 `var()` 真实引用** ⇒ 按「达标且被引用则保留现值」规则逐字节沿用，避免无合规收益的观感变更。这是一处**有意的站点级差异**。"
+  }
+ },
+ "intended_additions": {
+  "tokens": [
+   "--border-subtle",
+   "--text-3",
+   "--link",
+   "--ext",
+   "--upgrade",
+   "--disabled",
+   "--focus-ring",
+   "--surface-2",
+   "--stripe"
+  ],
+  "note": "补齐 SH0 content-kg 族角色集（C3-N6：18 个族角色里本站原本只有 6 个逐字节命中）。★ 派生会为各族补齐角色令牌（04-interactive 补 --ok/--err/--border-subtle 等）——属令牌集收敛的**有意产物**，不是漂移。"
+ },
+ "bootstrap": {
+  "seeded_by": "批 H · ROLLOUT-PLAN 第 2 轮",
+  "seeded_from": "evidence/h/work/open-code-review-kg（= 线上 HEAD 7d32f1b50b 的本地工作副本）",
+  "seeded_at": "2026-10-13",
+  "purpose": "建立「站点现状 → 值件 → 派生产物」的可复现基线"
+ },
+ "transition": {
+  "state": "site-change-applied",
+  "guard_expiry": "本步未解除任何护栏",
+  "not_yet_done": [
+   "无障碍（:focus-visible 环 / skip link / aria）未接上规则层（本轮只补了 --focus-ring 令牌）——属 SH2 基线的后续步",
+   "响应式：本轮只做**静态判据**（@375 图谱可视宽的静态下界 ≥300px，由侧栏折叠实现）；⛔ 渲染几何未实测（本机无浏览器）",
+   "SEO 元数据（description / og:* / canonical / favicon）未纳入判据本体，只做 report-only 记录（属 SH4 基线）",
+   "px→rem 单位体系迁移未做（Q7-A：本批不改、如实登记为已确认未修）",
+   "生成物（68 个 .html）退出仓库未做（Q5-A：属 ADR-003 范围，本批只登记）",
+   "发布形态收敛到 ADR-003 三 job 未做（常设排除项；本批⛔ 不新建 CI）",
+   "像素层视觉回归未测（本机 agent-browser 不在 PATH）",
+   "★ report.html **仓内不可复现**：其生成器在仓外（一次性委派产出），本批不为它新建生成器 ⇒ 它的令牌块一旦被重生成覆盖就无处复原。已写进 gate-manifest.json 的 not_covered。"
+  ]
+ },
+ "known_site_defects_registered": [
+  {
+   "id": "C3-N1",
+   "defect": "首页「浏览源码」按钮指向仓内不存在的目录 open-code-review/（.gitignore:4 排除、191 blob 0 命中）⇒ 线上 HTTP 404",
+   "handling": "★ 已修（Q1-A）：gen-index.py 的 href 改指站内已存在的 assets/index.html，并在卡片文案里说明源码不在仓内。同时新建结构化 404.html 兜住用户手输错误 URL 的情形。"
+  },
+  {
+   "id": "C3-N2",
+   "defect": "死 CSS 的真身是 `.navseq .spacer`（gen_common.py:203），而审计点名的 5 组多数在用",
+   "handling": "★ 按 Q8-A **登记保留**（⛔ 不删除）：由仓根 gate_dead_css.py 的 H2 判据登记为零引用选择器，并在 gate-manifest.json 声明。理由＝它是「审计点名的死 CSS 多数为误报、真死的是另一个」的实证样本。"
+  },
+  {
+   "id": "C3-N3",
+   "defect": "站内令牌漂移：--warn 一站两值 / --err 与 --danger 两名一职",
+   "handling": "★ 已修（Q2-A + Q 裁定）：--warn 收敛单值 #e8933b；--danger 退役并入 --err。"
+  },
+  {
+   "id": "C3-N4",
+   "defect": "交互页侧栏在 375px 遮挡图谱 58.7%，且断点只改宽度不改存在性",
+   "handling": "★ 已修：gen-interactive.py 的 @media (max-width:768px) 内加 `#side{display:none}` 折叠 + 键盘可达的「图例」开关按钮（⛔ 不照抄裸 display:none——按方案 §6 的风险缓解要求保留可展开性）。判据＝gate_responsive.py 的静态下界 ≥300px（★ 渲染几何未实测）。"
+  },
+  {
+   "id": "C3-N5",
+   "defect": "第 4 套样式实现：report.html 自成一份内联样式、零 @media、不含 BASE_CSS，且 --border 取第三值 #2a3040",
+   "handling": "★ 已修（Q4-A）：纳入页面族 report，令牌块由同一份派生令牌写入，--border 第三值漂移消除。⚠ 其**零 @media** 一项仍未修（本批⛔ 不改规则层）⇒ 如实登记，见 gate-manifest.json 的 not_covered。"
+  },
+  {
+   "id": "C3-N6",
+   "defect": "令牌层角色覆盖不全：18 个族角色里本站原本只有 6 个逐字节命中",
+   "handling": "★ 已修：本值件绑定 18 角色（SH0 的 19 减去 layout 类 measure）。"
+  },
+  {
+   "id": "C3-N7",
+   "defect": "`.tblwrap` 局部滚动兜底是本站的正面样板，审计未记为样板",
+   "handling": "★ 按 Q8-A 回登：写进本件与 gate-manifest.json 的说明面（⛔ 不改 _shared/SH3 本体）。"
+  },
+  {
+   "id": "C3-N8",
+   "defect": "令牌层之外仍有 350 处游离色值（改令牌改不到它们）",
+   "handling": "本批**未修**（属理想档）；如实登记。★ 本批只保证 :root 块内的令牌唯一值，⛔ 不主张规则层色值已收敛。"
+  },
+  {
+   "id": "H-O3",
+   "defect": "既有「门控」是文档不是可执行门控：quality-gate.md 自述「68 HTML 全量 href 检查 0 断链」，却在产的首页死链未被判出",
+   "handling": "★ 本批新增 4 道**可执行**门控（含 --selftest 负例）并写 gate-report.json 入库，使「跑没跑过」有痕迹；quality-gate.md 的「0 断链」结论按 H-O3 判为**不可信**，⛔ 不计入既有门控数。"
+  },
+  {
+   "id": "H-O4",
+   "defect": "第二处仓外依赖：gen-assets-extract.py:8 的 SRC 指向被 .gitignore 排除的目录 ⇒ assets/ 与 assets-manifest.json 的抽取在仓内不可复现",
+   "handling": "如实登记；★ 本批⛔ **不跑** gen-assets-extract.py（它依赖仓外目录），也不为它造替代物。"
+  },
+  {
+   "id": "H-O9",
+   "defect": "仓内 0 个 404.html 且 0 个 .nojekyll",
+   "handling": "404.html 本批**已建**（Q1-A）。`.nojekyll` 仍未建：Q6-A 不起 CI ⇒ 本批无产出点（ADR-003 要求由 build 产出）⇒ 如实登记为已确认未解项。"
+  }
+ ],
+ "not_provided": [
+  "像素层视觉回归（本机 agent-browser 不在 PATH）⇒ 判据 5 只做到静态下界",
+  "多方法用户研究",
+  "report.html 的仓内生成器（其生成器在仓外）",
+  ".nojekyll 的产出点（本批不起 CI）"
+ ]
+}

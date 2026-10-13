@@ -1,12 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""生成根入口：index.html（统计 + 导航 + 快速开始）——OpenCodeReview 图谱版"""
+"""生成根入口：index.html（统计 + 导航 + 快速开始）+ 404.html（结构化 404 页）
+——OpenCodeReview 图谱版
+
+★ 批 H（标准档）两处改动：
+  1. **C3-N1 死链修复（Q1-A）**：原 `href="open-code-review/"` 指向仓内不存在的目录
+     （`.gitignore:4` 排除、191 blob 0 命中）⇒ 线上 HTTP 404。现改指**站内已存在**的
+     `assets/index.html`，并在卡片文案里如实说明「完整源码 clone 不在仓内」。
+  2. **新增 404.html（Q1-A）**：GitHub Pages 约定落点＝仓根 `404.html`。它与 index.html
+     共用同一份 `BASE_CSS`（= 从 gen_common 单一来源取令牌块）⇒ 与本站深色视觉同源，
+     替代 GitHub Pages 的英文白页兜底。
+  3. **门控随生成器收尾内联调用（Q6-A）**：本文件是 7 条生成配方的**最后一条**，
+     故在收尾处依次调用 4 道站点门控并写 `gate-report.json`（确定性件，含 tree_digest）。
+"""
+import json
 import os
+import re
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gen_common import ROOT, TITLE, SUBTITLE, load_all, esc, src_badge, BASE_CSS, SRC_STYLE
 
 OUT = os.path.join(ROOT, 'index.html')
+OUT_404 = os.path.join(ROOT, '404.html')
+
+# ★ 单源不变量：令牌块**只能**来自 gen_common.BASE_CSS（本文件⛔ 不持任何令牌字面值）。
+#   该不变量由站点侧 gate_tokens.py 的 G8 实测（含 subprocess 真导入 + 剥注释的字面值扫描）。
+#   ★ 注意：BASE_CSS 的**首个非空行就是令牌块**，其后紧跟布局规则 ⇒ 直接整段用 `base_css={base_css}`
+#     即可（⛔ 不要把首行单独取出再拼回余下部分：那样会拼出**两个**令牌块，实测踩到过）。
+#   ★ 本文件也⛔ **不**取首行做「只读不写」的变量：那会在源码里留下令牌块的形状字样，
+#     让「本文件不持令牌字面值」这条不变量在**源码文本层**上不可判。
+
 
 
 def main():
@@ -52,8 +75,8 @@ def main():
         '<p><a href="ai-index.json">打开 ai-index.json</a></p></div>'
         '<div class="card"><h3>12 原则对照审查</h3><p>用 12 Factor App/Agent 原则审视 OCR 设计合规度。</p>'
         '<p><a href="05-views/05-principles.html">查看对照审查</a></p></div>'
-        '<div class="card"><h3>源码</h3><p>本项目源码 clone：open-code-review/（alibaba/open-code-review @ 2026-08-23）。</p>'
-        '<p><a href="open-code-review/">浏览源码</a></p></div>'
+        '<div class="card"><h3>源码</h3><p>完整源码 clone（alibaba/open-code-review @ 2026-08-23）<b>不在本仓内</b>（.gitignore 已排除）；仓内提供的是 42 个精选实践资产与源码节选。</p>'
+        '<p><a href="assets/index.html">浏览实践资产</a></p></div>'
         % (len(dag['groups'])))
 
     html = """<!DOCTYPE html>
@@ -94,13 +117,168 @@ def main():
 <footer>{title} · 由 07-checkpoint/gen-index.py 生成 · 数据源 01-dag-data/opencodereview-dag.json + node-content.json</footer>
 </body>
 </html>""".format(
-        title=esc(TITLE), subtitle=esc(SUBTITLE), base_css=BASE_CSS,
+        title=esc(TITLE), subtitle=esc(SUBTITLE),
+        base_css=BASE_CSS,
         stats=stats, src_desc=''.join('<span class="chip">%s</span>' % esc(x) for x in src_desc),
         quick=quick, cards=cards)
     with open(OUT, 'w', encoding='utf-8') as f:
         f.write(html)
     print('index.html:', len(html), 'bytes')
 
+    write_404(dag, content)
+
+
+# ---------------------------------------------------------------- 结构化 404 页（Q1-A）
+# ★ 相对前缀：404.html 落在仓根 ⇒ 前缀为空串。站点若将来把它移到子目录，改这一处即可。
+GATE_404_PREFIX = ''
+
+
+def write_404(dag, content):
+    """产出仓根 404.html —— GitHub Pages 的约定落点。
+
+    ★ 为什么必须自建：GitHub Pages 的默认 404 是**英文白页**，与本站深色视觉完全不同源
+      （solutions/07 §8 Q1-A 的三个前提之一）。本页与 index.html 共用同一份 BASE_CSS，
+      故「深色同源」是可机检的（gate_tokens.py 的 G3 逐页对账）。
+    ★ 本页由生成器产出（⛔ 不是手写静态件）⇒ 它在 build/profile.json 的 page_families 与
+      targets 里都有登记，重生成可复现。
+    """
+    total_nodes = len(dag['nodes'])
+    total_groups = len(dag['groups'])
+    total_edges = len(dag['edges'])
+    html = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 · 页面不存在 · {title}</title>
+<style>
+{base_css}
+.nf{{max-width:640px;margin:8vh auto 0;background:var(--panel);border:1px solid var(--border);
+     border-left:4px solid var(--warn);border-radius:10px;padding:26px 30px;}}
+.nf .code{{font-size:52px;font-weight:700;color:var(--warn);line-height:1;letter-spacing:2px;}}
+.nf h1{{font-size:20px;color:var(--text);margin:10px 0 6px;}}
+.nf p{{font-size:14px;color:var(--dim);margin:8px 0;}}
+.nf ul{{padding-left:20px;margin:10px 0;}}
+.nf li{{font-size:14px;margin:5px 0;}}
+.nf .back{{display:inline-block;margin-top:14px;background:var(--accent);color:#fff;
+          border-radius:8px;padding:9px 20px;font-size:14px;text-decoration:none;}}
+</style>
+</head>
+<body>
+<header>
+  <h1>{title}</h1>
+  <p class="sub">{subtitle}</p>
+</header>
+<main>
+  <div class="nf">
+    <div class="code">404</div>
+    <h1>找不到这个页面</h1>
+    <p>你访问的地址在本站不存在。可能是链接过期、手输有误，或该内容从未发布过。</p>
+    <p>本站是 <b>{total_nodes} 个知识点 / {total_groups} 个分组 / {total_edges} 条关系边</b>的静态知识图谱，可从这些入口重新进入：</p>
+    <ul>
+      <li><a href="{prefix}index.html">根入口</a>：核心统计与全部导航</li>
+      <li><a href="{prefix}05-views/02-scenarios.html">使用场景索引</a>：按任务查命令与参数</li>
+      <li><a href="{prefix}04-interactive/index.html">交互 DAG 总览</a>：组级视图 + 点击下钻</li>
+      <li><a href="{prefix}03-groups/index.html">分组目录</a>：{total_groups} 个分组</li>
+      <li><a href="{prefix}assets/index.html">实践资产总览</a>：42 个精选实践资产</li>
+    </ul>
+    <p><a class="back" href="{prefix}index.html">← 返回首页</a></p>
+  </div>
+</main>
+<footer>{title} · 由 07-checkpoint/gen-index.py 生成（404 兜底页）</footer>
+</body>
+</html>""".format(
+        title=esc(TITLE), subtitle=esc(SUBTITLE),
+        base_css=BASE_CSS,
+        total_nodes=total_nodes, total_groups=total_groups, total_edges=total_edges,
+        prefix=GATE_404_PREFIX)
+    with open(OUT_404, 'w', encoding='utf-8') as f:
+        f.write(html)
+    print('404.html:', len(html), 'bytes')
+
+
+# ---------------------------------------------------------------- 门控收尾内联调用（Q6-A）
+GATES = ["gate_tokens.py", "gate_dead_css.py", "gate_a11y.py", "gate_seo_meta.py",
+         "gate_responsive.py"]
+
+
+def run_gates():
+    """在生成器收尾处依次调用 5 道站点门控，并写 gate-report.json。
+
+    ★ 依据 SH5 §4.2「执行时机三档」的 legacy 站档：**在生成脚本收尾处内联调用**
+      + `gate-report.json` 随产物入库，使「跑没跑过」有痕迹。⛔ 不新建 CI（常设排除项）。
+    ★ 任一硬阻断级 FAIL ⇒ 本函数返回非 0 ⇒ 进程以非 0 退出 ⇒ 生成流程被阻断
+      （⛔ 不做「先生成再报警」的假绿）。
+    """
+    if not os.path.isfile(os.path.join(ROOT, "gate_tokens.py")):
+        print('GATE-ERROR: 仓根未找到 gate_tokens.py（门控未接入）⇒ 拒绝静默跳过')
+        return 1
+    sys.path.insert(0, ROOT)
+    rc = 0
+    for name in GATES:
+        mod_name = name[:-3]
+        try:
+            mod = __import__(mod_name)
+        except Exception as exc:  # noqa: BLE001
+            print('GATE-ERROR: 无法导入 %s：%s' % (name, exc))
+            rc = 1
+            continue
+        print('\n----- %s -----' % name)
+        try:
+            rc |= int(mod.main(["--site-root", ROOT, "--manifest", "gate-manifest.json"]) or 0)
+        except SystemExit as exc:  # 门控用 sys.exit 返回码
+            rc |= int(exc.code or 0)
+    return rc
+
+
+def write_gate_report():
+    """写 gate-report.json（**确定性件**：⛔ 无墙钟时间戳、⛔ 无作者机绝对路径）。
+
+    ★ tree_digest ＝ 仓内文件（路径 + 内容的 sha256）的聚合摘要，**排除报告自身**
+      ⇒ 重跑生成器两次得到的报告逐字节相同（幂等可断言）。
+    """
+    import hashlib
+    skip_dirs = {'.git', '__pycache__', 'vendor', 'node_modules', '07-checkpoint'}
+    entries = []
+    for dp, dn, fn in os.walk(ROOT):
+        dn[:] = sorted(d for d in dn if d not in skip_dirs)
+        for f in sorted(fn):
+            rel = os.path.relpath(os.path.join(dp, f), ROOT).replace(os.sep, '/')
+            if rel == 'gate-report.json':
+                continue
+            with open(os.path.join(dp, f), 'rb') as fh:
+                entries.append('%s  %s' % (rel, hashlib.sha256(fh.read()).hexdigest()))
+    tree_digest = hashlib.sha256('\n'.join(entries).encode('utf-8')).hexdigest()
+    doc = {
+        "site": "open-code-review-kg",
+        "generated_by": "07-checkpoint/gen-index.py（Q6-A：门控随生成器收尾内联调用）",
+        "deterministic": True,
+        "determinism_note": "★ 本件不含墙钟时间戳、不含作者机绝对路径；tree_digest 由「仓内文件路径+内容的 sha256」聚合而成并**排除本件自身** ⇒ 同输入两次生成逐字节相同。",
+        "mode": "enforce",
+        "gates": [
+            {"id": "tokens", "script": "gate_tokens.py", "judges": "G1–G11",
+             "classes": ["blind", "hard", "hard/report"], "selftest": True},
+            {"id": "dead-css", "script": "gate_dead_css.py", "judges": "H1–H3",
+             "classes": ["blind", "report"], "selftest": True},
+            {"id": "a11y", "script": "gate_a11y.py", "judges": "A1–A5",
+             "classes": ["blind", "report"], "selftest": True},
+            {"id": "seo-meta", "script": "gate_seo_meta.py", "judges": "S1–S5",
+             "classes": ["blind", "report"], "selftest": True},
+            {"id": "responsive", "script": "gate_responsive.py", "judges": "R1–R4",
+             "classes": ["blind", "report"], "selftest": True}
+        ],
+        "tree_digest": tree_digest,
+        "tree_digest_scope": "仓内文件（路径 + 内容的 sha256），排除 gate-report.json 自身、.git/、__pycache__/、vendor/、node_modules/、07-checkpoint/",
+        "tree_file_count": len(entries)
+    }
+    out = os.path.join(ROOT, 'gate-report.json')
+    with open(out, 'w', encoding='utf-8') as fh:
+        json.dump(doc, fh, ensure_ascii=False, indent=2, sort_keys=True)
+        fh.write('\n')
+    print('gate-report.json written: tree_digest=%s files=%d' % (tree_digest[:16], len(entries)))
+    return 0
+
 
 if __name__ == '__main__':
     main()
+    sys.exit(run_gates() | write_gate_report())
