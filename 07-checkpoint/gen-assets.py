@@ -10,7 +10,7 @@ import os
 import re
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gen_common import ROOT, TITLE, SUBTITLE, load_all, esc, src_badge, BASE_CSS, SRC_STYLE
+from gen_common import ROOT, TITLE, SUBTITLE, load_all, esc, src_badge, BASE_CSS, SRC_STYLE, inject_shell
 
 ASSET_MANIFEST = os.path.join(ROOT, 'assets-manifest.json')
 ASSET_TYPE_LABEL = {
@@ -175,7 +175,7 @@ def main():
     # assets/index.html
     os.makedirs(os.path.join(ROOT, 'assets'), exist_ok=True)
     with open(os.path.join(ROOT, 'assets', 'index.html'), 'w', encoding='utf-8') as f:
-        f.write(assets_html(dag, manifest, c_by_id))
+        f.write(inject_shell(assets_html(dag, manifest, c_by_id), 'assets/index.html'))
     print('assets/index.html written')
 
     # ai-index.json（根目录）

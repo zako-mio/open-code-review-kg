@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Cursor 插件 · Open Code Review 项目解析知识图谱 ｜ .cursor-plugin/plugin.json + 可移植 skill，复制到 ~/.cursor/plugins/local/ 手动安装。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cursor 插件 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="Cursor 插件 · Open Code Review 项目解析知识图谱 ｜ .cursor-plugin/plugin.json + 可移植 skill，复制到 ~/.cursor/plugins/local/ 手动安装。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/int-cursor.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/int-cursor.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>Cursor 插件 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-E.html">集成生态</a> / <span>Cursor 插件</span></div>
-  <h1>Cursor 插件</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>Cursor 插件</h1>
   <div class="badges"><span class="badge src" style="color:#ff8a97;background:#3a1520;border-color:#e05563">集成生态</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-E · 集成生态</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-E"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-E.html"><span class="dir">返回组</span><span class="v">集成生态</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">.cursor-plugin/plugin.json + 可移植 skill，复制到 ~/.cursor/plugins/local/ 手动安装</div><div class="bullet">Alibaba Open Code Review 为 Cursor（AI 编辑器）提供的集成插件，清单文件 .cursor-plugin/plugin.json，其 skills 字段指向 ../skills/ 目录，即复用仓库通用 skills 目录中的同一份 Skill 定义</div><div class="bullet">安装方式为手动复制：将 plugins/open-code-review/ 整个目录复制到 ~/.cursor/plugins/local/open-code-review/ 路径下，即可被 Cursor 识别为本地插件</div><div class="bullet">其核心是可移植 skill 机制：同一份 skill 定义可被 Cursor、通用 Agent 等不同宿主共享，实现「一份技能、多处复用」</div><div class="bullet">插件本质是把通用 open-code-review Skill（含 --audience agent --background 等工作流）挂载进 Cursor 的插件体系，使 Cursor 用户获得与 CLI 一致的审查能力</div><div class="bullet">作为多生态集成的一环，Cursor 路径代表了面向编辑器的轻量集成方式：无插件市场依赖、纯本地文件复制</div></div>
 

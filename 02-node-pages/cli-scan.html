@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="ocr scan · Open Code Review 项目解析知识图谱 ｜ 全文件扫描：无需 git 历史，--path 指定目录，--batch by-language/by-directory，PLAN/DEDUP/SUMMARY 三阶段。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ocr scan · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="ocr scan · Open Code Review 项目解析知识图谱 ｜ 全文件扫描：无需 git 历史，--path 指定目录，--batch by-language/by-directory，PLAN/DEDUP/SUMMARY 三阶段。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/cli-scan.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/cli-scan.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>ocr scan · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-C.html">命令行工具</a> / <span>ocr scan</span></div>
-  <h1>ocr scan</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>ocr scan</h1>
   <div class="badges"><span class="badge src" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">命令行</span><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-C · 命令行工具</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-C"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-C.html"><span class="dir">返回组</span><span class="v">命令行工具</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">全文件扫描：无需 git 历史，--path 指定目录，--batch by-language/by-directory，PLAN/DEDUP/SUMMARY 三阶段</div><div class="bullet">ocr scan 是全文件扫描模式，不依赖 git 历史与 diff，直接对磁盘上的源码文件逐个审查，覆盖 review 模式无法触及的历史遗留问题</div><div class="bullet">裸运行 ocr scan 扫描整个仓库；--path &lt;path&gt; 可指定目录或文件缩小范围（如 ocr scan --path internal/agent）</div><div class="bullet">分批策略由 --batch 控制：none（不分批）、by-language（按语言分批）、by-directory（按目录分批），默认按语言/目录自动分批以控制单轮上下文与成本</div><div class="bullet">执行分三阶段：PLAN（制定扫描计划）、DEDUP（跨文件去重，避免重复问题重复报告）、PROJECT_SUMMARY（项目级汇总）</div><div class="bullet">支持 --no-plan / --no-dedup / --no-summary 分别跳过对应阶段，便于针对性调试或控制耗时</div><div class="bullet">支持 --resume 断点续审，配合 session 机制在中断后恢复</div></div>
 

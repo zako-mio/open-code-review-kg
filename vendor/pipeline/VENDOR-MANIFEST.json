@@ -14,7 +14,7 @@
   "vendor/pipeline/workflow-3job.template.yml": "c7d6bd6d69a066d07e6ef6e0db917995cf805db541348cc8f4062b451603fb1f",
   "vendor/pipeline/values/open-code-review-kg.json": "370ff94e8029c62d702bb96e2ef123372949aee4b7aebf7637e57768c069ae34",
   "vendor/pipeline/profiles/open-code-review-kg.json": "15ee383454dc8540f0053891b3beee39de1ff6856ba65a97d4071f013b065976",
-  "build/profile.json": "15ee383454dc8540f0053891b3beee39de1ff6856ba65a97d4071f013b065976",
+  "build/profile.json": "ee87fdb48ef032ac0b36b5cb7e96b92d5be4e6452274312e21bb0fb682ca9baf",
   "vendor/tools/contrast.py": "1b9291c935b0db1d8901f1cafcc1c29681b86061f4164496401af0b45b9e01c7"
  },
  "notes": [

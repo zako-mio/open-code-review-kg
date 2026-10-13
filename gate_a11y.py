@@ -1,25 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""gate_a11y.py — open-code-review-kg 的**站点侧无障碍门控**（批 H · 标准档新增）。
+"""gate_a11y.py — 站点**无障碍门控**（批 J 统一件 · **硬档**）。
 
-★ 执行强度：**report-only**。`site-profile.schema.json` 的 `hard_blocking` 枚举只有四项
-  （token-consistency / contrast / empty-set-guard / artifact-existence），无障碍不在其中
-  ⇒ 按 Q 裁定只能进 `report_only`（擅自扩枚举＝改 schema，须走独立决策）。
-★ 判据定义来源：`solutions/_shared/SH2-a11y-baseline.md` §4.2（本件只实现，⛔ 不新造阈值）。
+判据定义源（⛔ 不另造判据）：`solutions/_shared/SH2-a11y-baseline.md` §4.2；
+实现形状沿用批 H 的 `12-factor-methodology-kg/gate_a11y.py`（A1–A7），批 J 做**三处判据硬化**
+（全部带负向夹具，见 `--selftest`）：
 
-判据（5 条）：
-  A1 [blind]  空集守卫：扫描面 0 页 / 未声明 main_landmark_exceptions ⇒ FAIL（⛔ 不返回「0 命中」）
-  A2 [report] `<main>` 地标：每页须有恰 1 个 `<main`；无 main 的页必须逐页登记在
-              `gate-manifest.json` 的 `main_landmark_exceptions`（登记面即出口，⛔ 非白名单）
-  A3 [report] 登记不得过期／不得幽灵：登记的页必须真的无 main 且在扫描面内
-  A4 [report] skip link：每页须有 `<a ... href="#id">` 形式的跳转链接，且 `#id` 在**同页**内存在
-  A5 [report] 焦点可见与动效熔断：样式表须有 `:focus-visible` 与 `prefers-reduced-motion`
-              （判**样式表来源**＝生成器源码；⛔ 不判「某页是否用到该规则」——那是 CSS 覆盖面，
-              不是无障碍可达性的判据对象，混在一起会造假 FAIL）
+  ★ 硬化 1 **形态感知**（批 I 的 I6 教训）：`:focus-visible` 的引用面 = 页面内联 `<style>`
+    **∪ 页内 `<link rel="stylesheet">` 指向的本地 CSS**。批 H 的 A4/A7 只扫内联 `<style>`
+    ⇒ 对**外链站**（control-theory / algorithm-kg 的外链族）会**形态错位**：判据对象 ≠ 断言对象。
+  ★ 硬化 2 **去注释后再判**（SH5 §4.2 第 2 条）：`/* … :focus-visible … */` 与
+    `<!-- <a href="#main"> -->` 都是假阳 ⇒ HTML 注释与 CSS 注释一律先剥离。
+  ★ 硬化 3 **skip link 的目标必须真的存在**（「巧合余部解析」）：`href="#main-nav"` 命中前缀
+    口径却**不是** skip link ⇒ A3 改为「href 前缀匹配 **且** 该 `#id` 在同页存在」。
 
-退出码：0 全过（report 类 FAIL 不阻断）/ 1 blind 类 FAIL / 2 输入错误 / 3 护栏拒读
+执行强度：**hard**（批 J 转硬档）。★ 空集守卫（A1/A7）不随任何模式放宽。
+
+判据（7 条）：
+  A1 [blind] 空集守卫：产物页数 > 0，且至少一页有 `<main>`、至少一页有图件文本等价载体
+  A2 [hard]  每页有且仅有 1 个 `<main>`（`main_landmark_exempt` 逐页登记，★ 批 J 目标＝该表为空）
+  A3 [hard]  每页有 skip link（`href="#main|#content|#skip"` **且目标 id 在同页存在**）
+  A4 [hard]  每页的 CSS 语料（内联 ∪ 本地外链，剥注释）声明 `:focus-visible`
+  A5 [hard]  图件文本等价（`<img>` 必有 `alt`；`<svg>` 必有 `role="img"` ＋ `aria-label`/`<title>`）
+  A6 [hard]  豁免登记不得过期（声明项必须存在且**真的**违反）
+  A7 [blind] 解析口径自检：每页的 CSS 语料**可解析**（有内联 `<style>` 或有可解析的本地外链 CSS），
+             且全站 CSS 源集合非空（防「正则哑火 ⇒ 判据恒真」）
+
+用法：
+    python3 gate_a11y.py --site-root . --profile build/profile.json [--json]
+    python3 gate_a11y.py --selftest
+退出码：0 全过 / 1 有阻断级 FAIL / 2 输入错误 / 3 护栏拒读
 """
 import argparse
+import fnmatch
 import glob
 import json
 import os
@@ -29,234 +42,423 @@ import tempfile
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-if HERE not in sys.path:
-    sys.path.insert(0, HERE)
-import gate_common as GC  # noqa: E402  ★ 共用薄工具（含 css_text：从生成器源码切 CSS 文本区）
-GateError = GC.GateError
-load_json = GC.load_json
+BLIND, HARD, REPORT = "blind", "hard", "report"
+MODE = "hard"
 
-MAIN_RE = re.compile(r"<main\b", re.I)
-# ★ skip link 的判据对象必须与断言对象一致（SH5 §4.0 第 1 条）：
-#   站内大量 `<a href="#use-ci">场景：…</a>` 一类**页内目录锚**不是 skip link —— 若只判
-#   「有没有 `<a href="#id">`」，会把它们误判为已具备 skip link（实测踩到：本判据在
-#   05-views/02-scenarios.html 与 03-learning-path.html 上产生**假绿**）。
-#   ⇒ 判据收紧为：① 锚文本含「跳到 / 跳至 / skip」；② 该锚出现在 `<body>` 之后的前 1500 字符内
-#      （skip link 的定义位置就是「内容之前」）；③ `#id` 在同页内存在。
-SKIP_RE = re.compile(r"""<a\b[^>]*href\s*=\s*["']#([A-Za-z0-9_:.-]+)["'][^>]*>(.*?)</a>""",
-                     re.I | re.S)
-SKIP_TEXT_RE = re.compile(r"跳到|跳至|skip", re.I)
-BODY_RE = re.compile(r"<body\b[^>]*>", re.I)
-SKIP_WINDOW = 1500
-ID_RE = re.compile(r"""\bid\s*=\s*["']([A-Za-z0-9_:.-]+)["']""", re.I)
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+CSS_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+STYLE_BLOCK = re.compile(r"<style[^>]*>(.*?)</style>", re.I | re.S)
+LINK_CSS = re.compile(r'<link[^>]*rel\s*=\s*"stylesheet"[^>]*>', re.I)
+HREF_ATTR = re.compile(r'href\s*=\s*"([^"]*)"', re.I)
+ANCHOR_FULL = re.compile(r"<a\b([^>]*)>(.*?)</a>", re.I | re.S)
+SKIP_HREF = re.compile(r'href\s*=\s*"#(?:main|content|skip)', re.I)
+SKIP_SIGNAL = re.compile(r"跳到|跳至|跳转|skip", re.I)
+ID_ATTR = re.compile(r'\bid\s*=\s*"([^"]+)"', re.I)
+MAIN = re.compile(r"<main\b", re.I)
+IMG = re.compile(r"<img\b[^>]*>", re.I)
+# ★★ 批 J 判据实现更正（★ 判据对象 == 断言对象；⛔ 未放宽判据）：
+#    批 H 的写法是 `<svg\b[^>]*>(.*?)</svg>`，`findall` 只捕获**开标签之后的内容**，
+#    却拿 `ROLE_IMG` / `ARIA_LABEL` 去搜**捕获组**——于是「写在开标签上的 `role="img"` /
+#    `aria-label="…"`」被判定为**不存在**（写的正是合法且标准的位置）。
+#    ⇒ 改为整段捕获（开标签 ＋ 内容），`role`/`aria-label` 在整段里找、`<title>` 在内容里找。
+#    ★ 这不是放宽：无标签的 `<svg>` 照旧 FAIL（见 --selftest 的 A5 负例）。
+SVG = re.compile(r"(<svg\b[^>]*>)(.*?)(</svg\s*>)", re.I | re.S)
+ALT = re.compile(r"\balt\s*=", re.I)
+ROLE_IMG = re.compile(r'role\s*=\s*"img"', re.I)
+ARIA_LABEL = re.compile(r'aria-label\s*=\s*"[^"]+"', re.I)
+URL_SCHEME = re.compile(r"^(?:[a-z][a-z0-9+.-]*:|//|data:|#)", re.I)
 
-BLIND, REPORT = "blind", "report"
 
-
-class GateError(Exception):
+class GuardError(Exception):
     """护栏拒读（exit 3）。"""
 
 
 def load_json(path, label):
     if not os.path.isfile(path):
-        raise GateError("%s 不存在：%s" % (label, path))
+        raise GuardError("%s 不存在：%s" % (label, path))
     try:
         with open(path, encoding="utf-8") as fh:
             return json.load(fh)
     except Exception as exc:  # noqa: BLE001
-        raise GateError("%s 非法 JSON：%s" % (label, exc))
+        raise GuardError("%s 非法 JSON：%s" % (label, exc))
 
 
-def collect(site_root, profile, contract):
-    pages = GC.read_pages(site_root, profile)
-    css_sources = GC.css_sources(site_root, contract)
-    return pages, css_sources
+def scan_base(site_root, profile):
+    """★ 硬化 1b：扫描面 = 发布根（`profile.publish_dir`），与 seo 门控同口径。"""
+    pd = (profile.get("publish_dir") or ".").strip()
+    if pd in ("", "."):
+        return site_root
+    return os.path.normpath(os.path.join(site_root, pd))
+
+
+def product_pages(base, profile):
+    cfg = profile.get("a11y") or {}
+    skip = set(cfg.get("not_products") or [])
+    out = []
+    for p in sorted(glob.glob(os.path.join(base, "**", "*.html"), recursive=True)):
+        rel = os.path.relpath(p, base).replace(os.sep, "/")
+        if "/vendor/" in "/" + rel or rel in skip:
+            continue
+        out.append(rel)
+    return out
+
+
+def local_css_texts(site_root, rel, plain):
+    """页内 `<link rel="stylesheet">` 指向的**本地** CSS 文本（形态感知的核心）。"""
+    texts, missing, n_ext = [], [], 0
+    base = os.path.dirname(os.path.join(site_root, rel))
+    for tag in LINK_CSS.findall(plain):
+        m = HREF_ATTR.search(tag)
+        if not m:
+            continue
+        href = m.group(1).strip()
+        if not href or URL_SCHEME.match(href):
+            if href:
+                n_ext += 1
+            continue
+        href = href.split("?")[0].split("#")[0]
+        target = os.path.normpath(os.path.join(base, href.lstrip("/")))
+        if os.path.isfile(target):
+            texts.append(open(target, encoding="utf-8", errors="replace").read())
+        else:
+            missing.append(href)
+    return texts, missing, n_ext
+
+
+def scan(site_root, rels):
+    d = {}
+    for rel in rels:
+        raw = open(os.path.join(site_root, rel), encoding="utf-8", errors="replace").read()
+        plain = HTML_COMMENT.sub("", raw)
+        styles = STYLE_BLOCK.findall(plain)
+        linked, missing, n_ext = local_css_texts(site_root, rel, plain)
+        corpus = CSS_COMMENT.sub("", "\n".join(styles) + "\n" + "\n".join(linked))
+        ids = set(ID_ATTR.findall(plain))
+        skip = False
+        skip_target = None
+        # ★ 硬化 3：skip link = href 前缀命中 #main/#content/#skip **且** 目标 #id 在同页存在
+        #           **且** 锚文本/类名给出 skip 信号（防 `<nav id="main-nav">` 一类「巧合余部」）
+        for attrs, text in ANCHOR_FULL.findall(plain):
+            if not SKIP_HREF.search(attrs):
+                continue
+            t = re.search(r'href\s*=\s*"#([^"]+)"', attrs, re.I)
+            if not t:
+                continue
+            name = t.group(1)
+            signal = bool(SKIP_SIGNAL.search(text)) or "skip" in attrs.lower()
+            if name in ids and signal:
+                skip = True
+                skip_target = name
+                break
+            if skip_target is None:
+                skip_target = name
+        svgs = SVG.findall(plain)
+        d[rel] = {
+            "raw": plain, "css": corpus,
+            "main": len(MAIN.findall(plain)),
+            "skip": skip, "skip_target": skip_target,
+            "focus": ":focus-visible" in corpus,
+            "styles": len(styles), "linked": len(linked), "linked_missing": missing,
+            "external_css_refs": n_ext, "css_sources": len(styles) + len(linked),
+            "imgs": IMG.findall(plain),
+            "svg_no_label": [t for (t, inner, _) in svgs
+                             if not (ROLE_IMG.search(t) and (ARIA_LABEL.search(t) or "<title" in inner.lower()))],
+            "svg": len(svgs),
+        }
+    return d
+
+
+def exempt_pages(v):
+    out = set()
+    for e in v or []:
+        if isinstance(e, str):
+            out.add(e)
+        elif isinstance(e, dict) and e.get("page"):
+            out.add(e["page"])
+    return out
 
 
 def judge(ctx):
     R = []
-    pages, css_sources = ctx["pages"], ctx["css"]
-    manifest = ctx["manifest"]
+    site_root, profile = ctx["site_root"], ctx["profile"]
+    cfg = profile.get("a11y") or {}
+    ex_main = exempt_pages(cfg.get("main_landmark_exempt"))
+    ex_skip = exempt_pages(cfg.get("skiplink_exempt"))
+    base = scan_base(site_root, profile)
+    rels = product_pages(base, profile)
+    P = scan(base, rels)
 
     def add(cid, name, ok, detail, klass):
         R.append((cid, name, bool(ok), detail, klass))
 
-    # ---- A1 空集守卫
-    reasons = []
-    if not pages:
-        reasons.append("扫描面 0 页（page_families glob 未命中任何文件）")
-    if not css_sources:
-        reasons.append("样式表来源 0 个文件（无法判 A5）")
-    if "main_landmark_exceptions" not in manifest:
-        reasons.append("清单未声明 main_landmark_exceptions（⛔ 不静默跳过）")
-    add("A1", "空集守卫（扫描面/样式表来源/登记面均非空）", not reasons,
-        "；".join(reasons) if reasons else
-        "页 %d 个 · 样式表来源 %d 个文件" % (len(pages), len(css_sources)), BLIND)
+    n_main = sum(1 for v in P.values() if v["main"])
+    n_carrier = sum(1 for v in P.values()
+                    if any(ALT.search(i) for i in v["imgs"]) or v["svg"] or ROLE_IMG.search(v["raw"]))
 
-    no_main = sorted(rel for rel, t in pages.items() if not MAIN_RE.search(t))
-    ex = manifest.get("main_landmark_exceptions") or []
-    ex_pages = {e.get("page") for e in ex if isinstance(e, dict)}
+    why = []
+    if not rels:
+        why.append("产物 HTML 扫描面 0 个文件")
+    if rels and n_main == 0:
+        why.append("没有任何一页含 <main>（判据无从谈起）")
+    if rels and n_carrier == 0:
+        why.append("没有任何一页含图件文本等价载体（img/svg/role=img 全 0）")
+    add("A1", "空集守卫（页数 > 0 且 <main> 与图件载体均非空）", not why,
+        "；".join(why) if why else
+        "产物 %d 页 · 含 <main> %d 页 · 含图件文本等价载体 %d 页" % (len(rels), n_main, n_carrier), BLIND)
 
-    # ---- A2 `<main>` 地标
-    unreg = [r for r in no_main if r not in ex_pages]
-    add("A2", "`<main>` 地标（无 main 的页必须逐页登记）", not unreg,
-        "无 main 且未登记的页 %d 个：%s" % (len(unreg), unreg[:6]) if unreg else
-        "有 main 的页 %d / 无 main 的页 %d（全部已登记：%s）"
-        % (len(pages) - len(no_main), len(no_main), sorted(ex_pages) or "无"), REPORT)
+    # ★ 硬化 1+2：A7 改为「CSS 语料可解析」——外链站不再因「无内联 <style>」被误判
+    blind = sorted(r for r, v in P.items() if v["css_sources"] == 0)
+    total_src = sum(v["css_sources"] for v in P.values())
+    why7 = []
+    if blind:
+        why7.append("CSS 语料不可解析的页：%s" % blind[:8])
+    if rels and total_src == 0:
+        why7.append("全站 CSS 源集合为空（内联 <style> 与本地外链 CSS 均 0）")
+    add("A7", "解析口径自检（每页 CSS 语料可解析；全站 CSS 源集合非空）", not why7,
+        "；".join(why7) if why7 else
+        "%d 页全部可解析（内联 %d 源 / 本地外链 %d 源）"
+        % (len(rels), sum(1 for v in P.values() if v["styles"]),
+           sum(1 for v in P.values() if v["linked"])), BLIND)
 
-    # ---- A3 登记不得过期／不得幽灵
-    bad3 = []
-    for p in sorted(ex_pages):
-        if p not in pages:
-            bad3.append("幽灵登记（扫描面里没有这一页）：%s" % p)
-        elif p not in no_main:
-            bad3.append("登记过期（该页其实有 <main>）：%s" % p)
-    add("A3", "登记不得过期／不得幽灵", not bad3,
-        "；".join(bad3[:4]) if bad3 else "登记 %d 项全部为真「无 main」且在扫描面内" % len(ex_pages), REPORT)
+    bad = sorted(r for r, v in P.items() if v["main"] != 1 and r not in ex_main)
+    add("A2", "每页有且仅有 1 个 <main>（豁免项逐页登记）", not bad,
+        "违反的页：%s" % bad[:8] if bad else
+        "%d 页全部合格（豁免登记 %d 项：%s）" % (len(rels), len(ex_main), sorted(ex_main) or "无"), HARD)
 
-    # ---- A4 skip link
-    bad4 = []
-    for rel, t in sorted(pages.items()):
-        ids = set(ID_RE.findall(t))
-        bm = BODY_RE.search(t)
-        head = t[bm.end():bm.end() + SKIP_WINDOW] if bm else t[:SKIP_WINDOW]
-        ok_skip = False
-        for m in SKIP_RE.finditer(head):
-            if m.group(1) in ids and SKIP_TEXT_RE.search(m.group(2) or ""):
-                ok_skip = True
-                break
-        if not ok_skip:
-            bad4.append(rel)
-    add("A4", "skip link（锚文本含「跳到/skip」＋ 位于 <body> 后 %d 字符内 ＋ #id 在同页存在）"
-        % SKIP_WINDOW, not bad4,
-        "缺 skip link 的页 %d 个：%s" % (len(bad4), bad4[:6]) if bad4 else
-        "全部 %d 页都有合格的 skip link" % len(pages), REPORT)
+    bad3 = sorted(r for r, v in P.items() if not v["skip"] and r not in ex_skip)
+    add("A3", "每页有 skip link（href 前缀命中 #main/#content/#skip ＋ 目标 #id 存在 ＋ 锚文本/类名含 skip 信号）", not bad3,
+        "缺/失效 skip link 的页：%d 页（例：%s）" % (len(bad3), bad3[:3]) if bad3 else
+        "%d 页全部有 skip link（豁免登记 %d 项）" % (len(rels), len(ex_skip)), HARD)
 
-    # ---- A5 焦点可见与动效熔断（判**样式表文本区**，⛔ 不判整份生成器源码——那会把 JS 里的字样当样式）
-    all_css = "\n".join(GC.css_text(t) for t in css_sources.values())
-    bad5 = []
-    if ":focus-visible" not in all_css and ":focus" not in all_css:
-        bad5.append("样式表里没有 :focus-visible / :focus 规则（键盘焦点不可见）")
-    if "prefers-reduced-motion" not in all_css:
-        bad5.append("样式表里没有 prefers-reduced-motion 熔断")
-    add("A5", "焦点可见与动效熔断（判样式表来源）", not bad5,
-        "；".join(bad5) if bad5 else "样式表含 :focus-visible 与 prefers-reduced-motion", REPORT)
+    bad4 = sorted(r for r, v in P.items() if not v["focus"])
+    add("A4", "每页 CSS 语料声明 :focus-visible（键盘焦点可见；形态感知）", not bad4,
+        "缺 :focus-visible 的页：%d 页（例：%s）" % (len(bad4), bad4[:3]) if bad4 else
+        "%d 页全部声明 :focus-visible" % len(rels), HARD)
 
+    bad5, ci, cs = [], 0, 0
+    for rel, v in P.items():
+        for i in v["imgs"]:
+            ci += 1
+            if not ALT.search(i):
+                bad5.append("%s 的 <img> 缺 alt：%s" % (rel, i[:60]))
+        for s in v["svg_no_label"]:
+            cs += 1
+            bad5.append("%s 的 <svg> 缺 role=\"img\" 或 aria-label/<title>" % rel)
+    add("A5", "图件文本等价（img 必有 alt；svg 必有 role=img ＋ 文本）", not bad5,
+        "；".join(bad5[:4]) if bad5 else
+        "核对 <img> %d 个 / 无标签 <svg> %d 个，全部合格" % (ci, cs), HARD)
+
+    stale = []
+    for r in sorted(ex_main):
+        if r not in P:
+            stale.append("main_landmark_exempt 声明的页不存在：%s" % r)
+        elif P[r]["main"] == 1:
+            stale.append("main_landmark_exempt 登记过期（该页其实合格）：%s" % r)
+    for r in sorted(ex_skip):
+        if r not in P:
+            stale.append("skiplink_exempt 声明的页不存在：%s" % r)
+        elif P[r]["skip"]:
+            stale.append("skiplink_exempt 登记过期（该页其实有 skip link）：%s" % r)
+    add("A6", "豁免登记不得过期（声明项须存在且真的违反）", not stale,
+        "；".join(stale[:4]) if stale else
+        "豁免登记 %d 项全部成立" % (len(ex_main) + len(ex_skip)), HARD)
     return R
 
 
-def run(site_root, profile_path, manifest_path):
-    profile = load_json(profile_path, "profile")
-    manifest = load_json(manifest_path, "门控清单")
-    contract = load_json(os.path.join(HERE, "vendor/pipeline/values/open-code-review-kg.json"), "值件")
-    pages, css = collect(site_root, profile, contract)
-    return judge({"pages": pages, "css": css, "manifest": manifest})
-
-
-def main(argv=None):
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--site-root", default=".")
-    ap.add_argument("--profile", default=None)
-    ap.add_argument("--manifest", default="gate-manifest.json")
-    ap.add_argument("--json", action="store_true")
-    ap.add_argument("--selftest", action="store_true")
-    a = ap.parse_args(argv)
-    if a.selftest:
-        return selftest()
-    site_root = os.path.abspath(a.site_root)
-    profile_path = a.profile or os.path.join(site_root, "build/profile.json")
-    manifest_path = a.manifest if os.path.isabs(a.manifest or "") else os.path.join(site_root, a.manifest)
-    try:
-        R = run(site_root, profile_path, manifest_path)
-    except GateError as exc:
-        print("GUARD-REJECT: %s" % exc)
-        return 3
-    for cid, name, ok, detail, klass in R:
-        print("[%s] %s %s（%s）— %s" % ("PASS" if ok else "FAIL", cid, name, klass, detail))
-    blind = [r for r in R if r[4] == BLIND and not r[2]]
-    print("\n=== 无障碍门控：%d 项判据，%d FAIL（blind %d）==="
-          % (len(R), sum(1 for r in R if not r[2]), len(blind)))
-    return 1 if blind else 0
+def summarize(R):
+    return {"judges": len(R), "fail_total": sum(1 for r in R if not r[2]),
+            "blind_fail": sum(1 for r in R if r[4] == BLIND and not r[2]),
+            "hard_fail": sum(1 for r in R if r[4] == HARD and not r[2])}
 
 
 # --------------------------------------------------------------------------- selftest
-GOOD_PAGE = ('<!DOCTYPE html><html lang="zh-CN"><head><title>t</title></head><body>'
-             '<a class="skip" href="#main">跳到主要内容</a>'
-             '<main id="main">hi</main></body></html>\n')
-GOOD_CSS = "BASE_CSS = '''\n:focus-visible{outline:2px solid #4f8cff;}\n" \
-           "@media (prefers-reduced-motion:reduce){*{animation:none}}\n'''\n"
-FIX_PROFILE = {"page_families": [{"glob": "pages/*.html", "family": "default"}]}
-FIX_CONTRACT = {"families": {"default": {"targets": ["gen.py"], "overrides": {}}}}
+FIX_CSS = (":root{--text:#e6e8ee;}\n"
+           "a:focus-visible{outline:2px solid #4f8cff;}\n")
 
 
-def _tree(tmp, page=GOOD_PAGE, css=GOOD_CSS, manifest=None):
-    os.makedirs(os.path.join(tmp, "pages"), exist_ok=True)
-    open(os.path.join(tmp, "pages/p.html"), "w", encoding="utf-8").write(page)
-    open(os.path.join(tmp, "gen.py"), "w", encoding="utf-8").write(css)
-    open(os.path.join(tmp, "profile.json"), "w", encoding="utf-8").write(json.dumps(FIX_PROFILE))
-    open(os.path.join(tmp, "manifest.json"), "w", encoding="utf-8").write(
-        json.dumps(manifest if manifest is not None else {"main_landmark_exceptions": []}))
-    return tmp
+def _page(main='<main id="main"><a href="#main" class="skip">跳到主内容</a>'
+               '<img src="x.png" alt="示意图"></main>',
+          css=FIX_CSS, extra=""):
+    return ('<!DOCTYPE html><html lang="zh-CN"><head><style>\n' + css + '</style></head>'
+            '<body>' + main + extra + '</body></html>\n')
 
 
-def _judge(tmp):
-    profile = load_json(os.path.join(tmp, "profile.json"), "p")
-    manifest = load_json(os.path.join(tmp, "manifest.json"), "m")
-    pages, css = collect(tmp, profile, FIX_CONTRACT)
-    return judge({"pages": pages, "css": css, "manifest": manifest})
+FIX_PROFILE = {
+    "site": "t", "form": "inline-single-source", "publish_dir": ".", "value_file": "v.json",
+    "targets": [{"path": "a.html", "mode": "root-block", "family": "default"}],
+    "gates": {"manifest": "m.json", "hard_blocking": ["token-consistency"], "commands": ["x"]},
+    "a11y": {"not_products": ["hand.html"], "main_landmark_exempt": [], "skiplink_exempt": []},
+}
+
+
+def _fixture(tmp):
+    with open(os.path.join(tmp, "a.html"), "w", encoding="utf-8") as fh:
+        fh.write(_page())
+    with open(os.path.join(tmp, "b.html"), "w", encoding="utf-8") as fh:
+        fh.write(_page())
+    # ★ 外链 CSS 形态页：自身无 :focus-visible，规则在本地外链 CSS 里
+    with open(os.path.join(tmp, "ext.css"), "w", encoding="utf-8") as fh:
+        fh.write(":root{--x:#fff}\na:focus-visible{outline:1px solid #000}\n")
+    with open(os.path.join(tmp, "c.html"), "w", encoding="utf-8") as fh:
+        fh.write('<!DOCTYPE html><html lang="zh-CN"><head><link rel="stylesheet" href="ext.css">'
+                 '</head><body><main id="main"><a href="#main">跳到主内容</a></main></body></html>\n')
+    with open(os.path.join(tmp, "hand.html"), "w", encoding="utf-8") as fh:
+        fh.write("<!DOCTYPE html><html><body>手写页</body></html>\n")
+    p = os.path.join(tmp, "profile.json")
+    with open(p, "w", encoding="utf-8") as fh:
+        json.dump(FIX_PROFILE, fh, ensure_ascii=False)
+    return p
+
+
+def _run_fixture(mutate=None):
+    tmp = tempfile.mkdtemp(prefix="a11y-")
+    prof = _fixture(tmp)
+    if mutate:
+        mutate(tmp, prof)
+    return judge({"site_root": tmp, "profile": json.load(open(prof, encoding="utf-8"))})
 
 
 def selftest():
-    import shutil
     cases = []
 
-    def case(name, cid, build, expect_fail=True, expect_pass=False):
-        tmp = tempfile.mkdtemp(prefix="a11y-")
+    def case(name, cid, mutate, expect_pass=False):
         try:
-            build(tmp)
-            R = _judge(tmp)
-            got = {r[0]: r[2] for r in R}
-            ok = all(r[2] for r in R) if expect_pass else ((got.get(cid) is False) if expect_fail else bool(got.get(cid)))
-            note = ""
+            R = _run_fixture(mutate)
         except Exception as exc:  # noqa: BLE001
-            ok, note = False, "异常：%s" % exc
-        cases.append((name, ok, note))
-        shutil.rmtree(tmp, ignore_errors=True)
+            cases.append((name, False, "异常：%s" % exc))
+            return
+        got = {r[0]: r[2] for r in R}
+        ok = all(r[2] for r in R) if expect_pass else (got.get(cid) is False)
+        det = {r[0]: r[3] for r in R}.get(cid, "")
+        cases.append((name, ok, "" if ok else "cid=%s → %s" % (cid, det[:160])))
 
-    case("正向夹具应 0 FAIL", None, lambda t: _tree(t), expect_pass=True)
-    case("A1 负例：扫描面 0 页", "A1",
-         lambda t: (_tree(t), open(os.path.join(t, "profile.json"), "w").write(
-             json.dumps({"page_families": [{"glob": "nope/*.html", "family": "default"}]}))))
-    case("A1 负例：清单未声明 main_landmark_exceptions", "A1",
-         lambda t: _tree(t, manifest={}))
-    case("A2 负例：某页无 <main> 且未登记", "A2",
-         lambda t: _tree(t, page=GOOD_PAGE.replace("<main id=\"main\">hi</main>", "<div>hi</div>")))
-    case("A2 正向：无 main 但已登记 ⇒ 0 FAIL", None,
-         lambda t: _tree(t, page=GOOD_PAGE.replace('<main id="main">hi</main>', '<div id="main">hi</div>'),
-                         manifest={"main_landmark_exceptions": [{"page": "pages/p.html", "reason": "夹具"}]}),
-         expect_pass=True)
-    case("A3 负例：登记过期（该页其实有 main）", "A3",
-         lambda t: _tree(t, manifest={"main_landmark_exceptions": [{"page": "pages/p.html", "reason": "夹具"}]}))
-    case("A3 负例：幽灵登记", "A3",
-         lambda t: _tree(t, manifest={"main_landmark_exceptions": [{"page": "ghost.html", "reason": "夹具"}]}))
-    case("A4 负例：缺 skip link", "A4",
-         lambda t: _tree(t, page=GOOD_PAGE.replace('<a class="skip" href="#main">跳到主要内容</a>', "")))
-    case("★ 假阳样本：skip link 指向**不存在**的 id 不得算通过", "A4",
-         lambda t: _tree(t, page=GOOD_PAGE.replace('href="#main"', 'href="#nope"')))
-    case("★ 假阳样本：页内目录锚（href=\"#id\" 但锚文本不是「跳到/skip」）不得算 skip link", "A4",
-         lambda t: _tree(t, page=GOOD_PAGE.replace(
-             '<a class="skip" href="#main">跳到主要内容</a>',
-             '<a href="#main">场景：接入 CI 流水线</a>')))
-    case("A5 负例：样式表无 :focus-visible", "A5",
-         lambda t: _tree(t, css="BASE_CSS = '''\nbody{color:#000}\n@media (prefers-reduced-motion:reduce){*{animation:none}}\n'''\n"))
-    case("A5 负例：样式表无 prefers-reduced-motion", "A5",
-         lambda t: _tree(t, css="BASE_CSS = '''\n:focus-visible{outline:2px solid #4f8cff;}\n'''\n"))
+    case("正向夹具应 0 FAIL", None, None, expect_pass=True)
+    case("★硬化1：外链 CSS 页（c.html）的 :focus-visible 判为**存在**", "A4",
+         lambda t, p: None, expect_pass=True)
+    case("★硬化1：A7 不因「无内联 <style>」误判（c.html 是外链页）", "A7",
+         lambda t, p: None, expect_pass=True)
+
+    def edit(name, fn):
+        def _m(tmp, prof):
+            fp = os.path.join(tmp, name)
+            src = open(fp, encoding="utf-8").read()   # ★ 先读后写
+            out = fn(src)
+            assert out and out != src, "夹具自检：%s 未命中" % name
+            with open(fp, "w", encoding="utf-8") as fh:
+                fh.write(out)
+        return _m
+
+    def setp(fn):
+        def _m(tmp, prof):
+            p = json.load(open(prof, encoding="utf-8"))
+            fn(p)
+            json.dump(p, open(prof, "w", encoding="utf-8"), ensure_ascii=False)
+        return _m
+
+    def no_main(tmp, prof):
+        for n in ("a.html", "b.html"):
+            with open(os.path.join(tmp, n), "w", encoding="utf-8") as fh:
+                fh.write(_page().replace("<main id=\"main\">", "<div>").replace("</main>", "</div>"))
+        # ★ c.html 是外链页，也要一并去掉 <main>，否则「无 main」的负例不成立
+        fp = os.path.join(tmp, "c.html")
+        src = open(fp, encoding="utf-8").read()
+        out = src.replace("<main id=\"main\">", "<div>").replace("</main>", "</div>")
+        assert out != src, "夹具自检：c.html 未命中"
+        with open(fp, "w", encoding="utf-8") as fh:
+            fh.write(out)
+
+    case("A1 负例：扫描面 0 个文件", "A1",
+         setp(lambda p: p["a11y"].__setitem__("not_products",
+                                              ["a.html", "b.html", "c.html", "hand.html"])))
+    case("A1 负例：没有任何一页含 <main>", "A1", no_main)
+    case("A2 负例：某页出现两个 <main>（地标重复）", "A2",
+         edit("b.html", lambda s: s.replace("</body>", "<main>dup</main></body>")))
+    case("A3 负例：某页缺 skip link", "A3",
+         edit("b.html", lambda s: s.replace('<a href="#main" class="skip">跳到主内容</a>', "")))
+    case("★硬化3 负例：href=\"#main-nav\" 命中前缀但目标不存在 ⇒ A3 FAIL", "A3",
+         edit("a.html", lambda s: s.replace('<a href="#main" class="skip">跳到主内容</a>',
+                                            '<a href="#main-nav" class="skip">跳到主内容</a>')))
+    case("★硬化3 负例：目标 #id 存在但无 skip 信号（如 <nav id=\"main-nav\"> 的导航链）", "A3",
+         edit("a.html", lambda s: s.replace('<a href="#main" class="skip">跳到主内容</a>',
+                                            '<a href="#main-nav">导航</a>')
+                .replace("<main id=\"main\">", "<nav id=\"main-nav\">x</nav><main id=\"main\">")))
+    case("★硬化2 负例：注释里的 skip link 不算数", "A3",
+         edit("b.html", lambda s: s.replace('<a href="#main" class="skip">跳到主内容</a>',
+                                            '<!-- <a href="#main">旧</a> -->')))
+    case("A4 负例：某页 CSS 语料缺 :focus-visible", "A4",
+         edit("b.html", lambda s: s.replace("a:focus-visible{outline:2px solid #4f8cff;}\n", "")))
+    case("★硬化2 负例：CSS 注释里的 :focus-visible 不算数", "A4",
+         edit("b.html", lambda s: s.replace("a:focus-visible{outline:2px solid #4f8cff;}\n",
+                                            "/* a:focus-visible{} */\n")))
+    case("A5 负例：<img> 缺 alt", "A5",
+         edit("a.html", lambda s: s.replace(' alt="示意图"', "")))
+    case("A5 负例：<svg> 缺 role=img/aria-label", "A5",
+         edit("a.html", lambda s: s.replace("</main>",
+                                            '<svg viewBox="0 0 10 10"><path d="M0 0"/></svg></main>')))
+    # ★★ 判据实现更正的**回归夹具**：标签写在**开标签**上是合法的，必须判为 PASS
+    case("★A5 更正：aria-label 写在 <svg> **开标签**上 ⇒ 必须 PASS（批 H 的实现在此处假 FAIL）",
+         "A5", edit("b.html", lambda s: s.replace(
+             "</main>", '<svg role="img" aria-label="示意图" viewBox="0 0 10 10">'
+                        '<path d="M0 0"/></svg></main>')), expect_pass=True)
+    case("★A5 更正：<title> 写在 <svg> **内容**里 ⇒ 必须 PASS", "A5",
+         edit("b.html", lambda s: s.replace(
+             "</main>", '<svg role="img" viewBox="0 0 10 10"><title>示意图</title>'
+                        '<path d="M0 0"/></svg></main>')), expect_pass=True)
+    case("★A5 更正反向：有 role=img 但**无**任何标签 ⇒ 照旧 FAIL", "A5",
+         edit("b.html", lambda s: s.replace(
+             "</main>", '<svg role="img" viewBox="0 0 10 10"><path d="M0 0"/></svg></main>')))
+    case("A6 负例：豁免登记过期（该页其实合格）", "A6",
+         setp(lambda p: p["a11y"]["main_landmark_exempt"].append("a.html")))
+    case("A6 负例：豁免声明的页不存在", "A6",
+         setp(lambda p: p["a11y"]["skiplink_exempt"].append("ghost.html")))
+    case("A7 负例：某页 CSS 源全无（内联与外链都无）", "A7",
+         edit("b.html", lambda s: re.sub(r"<style>.*?</style>", "", s, flags=re.S)))
+    case("A7 负例：本地外链 CSS 文件不存在", "A7",
+         edit("c.html", lambda s: s.replace('href="ext.css"', 'href="ghost.css"')))
+    case("★硬化1b 负例：publish_dir 指向子目录 ⇒ 扫描面随之（0 页 ⇒ A1 FAIL）", "A1",
+         setp(lambda p: p.__setitem__("publish_dir", "docs")))
 
     ok = all(v for _, v, _ in cases)
     for name, res, note in cases:
         print("  [%s] %s%s" % ("PASS" if res else "FAIL", name, ("  ← " + note) if note else ""))
     print("\n=== gate_a11y.py 自检：%d 项，%d FAIL ===" % (len(cases), sum(1 for _, v, _ in cases if not v)))
     return 0 if ok else 1
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--site-root", default=".")
+    ap.add_argument("--profile", default=None)
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--selftest", action="store_true")
+    a = ap.parse_args()
+    if a.selftest:
+        return selftest()
+    site_root = os.path.abspath(a.site_root)
+    pp = a.profile or "build/profile.json"
+    if not os.path.isabs(pp):
+        pp = os.path.join(site_root, pp)
+    try:
+        profile = load_json(pp, "profile")
+        R = judge({"site_root": site_root, "profile": profile})
+    except GuardError as exc:
+        print("GUARD-REJECT: %s" % exc)
+        return 3
+    for cid, name, ok, detail, klass in R:
+        print("[%s] %s %s %s — %s" % ("PASS" if ok else "FAIL", cid, name, klass, detail))
+    c = summarize(R)
+    print("\n=== 无障碍门控（mode=%s）：%d 项判据，%d FAIL（blind %d / hard %d）==="
+          % (MODE, c["judges"], c["fail_total"], c["blind_fail"], c["hard_fail"]))
+    if a.json:
+        print(json.dumps([{"id": i, "name": n, "ok": o, "class": k, "detail": d}
+                          for i, n, o, d, k in R], ensure_ascii=False, indent=1))
+    if c["blind_fail"]:
+        print("阻断：空集守卫 FAIL（门控致盲，任何模式都不宽恕）")
+        return 1
+    if c["hard_fail"]:
+        print("阻断：hard 类 FAIL（mode=%s）" % MODE)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

@@ -11,7 +11,8 @@ import json
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gen_common import (ROOT, TITLE, SUBTITLE, load_all, esc, build_indexes,
+from gen_common import (
+    inject_shell,ROOT, TITLE, SUBTITLE, load_all, esc, build_indexes,
                         src_badge, stage_badge, group_badge, type_badge,
                         edge_chip, BASE_CSS, EDGE_STYLE)
 
@@ -251,8 +252,10 @@ def main():
         gid = node['group']
         group = group_by_id[gid]
         cnt = c_by_id[node['id']]
-        html = node_html(node['id'], node, cnt, group, edges, by_id,
-                         evidence_map=evidence_map, asset_map=asset_map)
+        html = inject_shell(
+            node_html(node['id'], node, cnt, group, edges, by_id,
+                      evidence_map=evidence_map, asset_map=asset_map),
+            '02-node-pages/%s.html' % node['id'])
         path = os.path.join(OUT_DIR, node['id'] + '.html')
         with open(path, 'w', encoding='utf-8') as f:
             f.write(html)

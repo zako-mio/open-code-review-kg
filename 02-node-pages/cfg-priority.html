@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="配置优先级 · Open Code Review 项目解析知识图谱 ｜ 5 级解析：显式 --provider/--model &gt; config.json &gt; OCR_LLM_* 环境变量 &gt; ANTHROPIC_* 环境变量 &gt; shell RC。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="配置优先级 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="配置优先级 · Open Code Review 项目解析知识图谱 ｜ 5 级解析：显式 --provider/--model &gt; config.json &gt; OCR_LLM_* 环境变量 &gt; ANTHROPIC_* 环境变量 &gt; shell RC。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/cfg-priority.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/cfg-priority.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>配置优先级 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-D.html">配置与模型</a> / <span>配置优先级</span></div>
-  <h1>配置优先级</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>配置优先级</h1>
   <div class="badges"><span class="badge src" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">配置模型</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-D · 配置与模型</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-D"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-D.html"><span class="dir">返回组</span><span class="v">配置与模型</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">5 级解析：显式 --provider/--model &gt; config.json &gt; OCR_LLM_* 环境变量 &gt; ANTHROPIC_* 环境变量 &gt; shell RC</div><div class="bullet">5 级优先级链，实现于 internal/llm/resolver.go 的 ResolveEndpointWithOptions</div><div class="bullet">① 最高：命令行显式 --provider/--model 参数</div><div class="bullet">② OCR 配置文件：config.json 的 providers/custom_providers 段</div><div class="bullet">③ OCR 环境变量：OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL/OCR_LLM_AUTH_HEADER/OCR_LLM_EXTRA_HEADERS/OCR_LLM_PROTOCOL/OCR_LLM_USE_ANTHROPIC/OCR_LLM_TIMEOUT</div><div class="bullet">④ Claude Code 环境：ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/ANTHROPIC_MODEL</div><div class="bullet">⑤ 最低：shell RC（.zshrc/.bashrc 中 export 的 ANTHROPIC_* 系列）</div><div class="bullet">高优先级覆盖低优先级：命令行 &gt; config.json &gt; OCR_* env &gt; ANTHROPIC_* env &gt; shell RC</div></div>
 

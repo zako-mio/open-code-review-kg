@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="GitHub Actions 集成 · Open Code Review 项目解析知识图谱 ｜ composite action（action.yml）：24 入参/6 出参，fork-safe PR 解析，评论发布脚本（sticky/增量 IoU 去重/路由）。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="GitHub Actions 集成 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="GitHub Actions 集成 · Open Code Review 项目解析知识图谱 ｜ composite action（action.yml）：24 入参/6 出参，fork-safe PR 解析，评论发布脚本（sticky/增量 IoU 去重/路由）。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/int-gha.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/int-gha.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>GitHub Actions 集成 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-E.html">集成生态</a> / <span>GitHub Actions 集成</span></div>
-  <h1>GitHub Actions 集成</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>GitHub Actions 集成</h1>
   <div class="badges"><span class="badge src" style="color:#ff8a97;background:#3a1520;border-color:#e05563">集成生态</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-E · 集成生态</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-E"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-E.html"><span class="dir">返回组</span><span class="v">集成生态</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">composite action（action.yml）：24 入参/6 出参，fork-safe PR 解析，评论发布脚本（sticky/增量 IoU 去重/路由）</div><div class="bullet">composite action（action.yml）封装完整审查流程，workflow 中一行引用即可接入</div><div class="bullet">必填入参：llm_url、llm_auth_token、llm_model、llm_use_anthropic</div><div class="bullet">可选入参：language（默认 English）、ocr_version（默认 latest）、review_concurrency、background、rule、upload_artifacts、sticky_summary、incremental（默认 false）、incremental_overlap_threshold（默认 0.6 IoU）、review_comment_batch_size（默认 50）、route_severity_below、route_categories、base_ref、head_sha</div><div class="bullet">输出：comments_total、comments_inline、comments_skipped、comments_routed、comments_failed、summary_comment_url</div><div class="bullet">流程：fork-safe PR 解析（checkout base + fetch pull/N/head）→ merge-base → ocr review --from MERGE_BASE --to HEAD_SHA --audience agent --format json → post-review-comments.js 发评论</div><div class="bullet">post-review-comments.js 实现：sticky 摘要、增量 IoU 去重、50 条批量、severity+category 路由，fail-open 设计不丢 finding；upload_artifacts/sticky_summary/incremental 必须用字面字符串 &#x27;true&#x27;/&#x27;false&#x27;</div></div>
 

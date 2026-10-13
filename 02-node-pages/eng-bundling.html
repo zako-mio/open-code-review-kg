@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="文件分束 · Open Code Review 项目解析知识图谱 ｜ 将关联文件归并为审查单元（en/zh properties 捆审）；scan 按 by-language/by-directory 分桶，delegate 按规则文本聚簇。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="文件分束 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="文件分束 · Open Code Review 项目解析知识图谱 ｜ 将关联文件归并为审查单元（en/zh properties 捆审）；scan 按 by-language/by-directory 分桶，delegate 按规则文本聚簇。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/eng-bundling.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/eng-bundling.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>文件分束 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-B.html">审查引擎</a> / <span>文件分束</span></div>
-  <h1>文件分束</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>文件分束</h1>
   <div class="badges"><span class="badge src" style="color:#7fe0d8;background:#12302c;border-color:#5ad0d0">审查引擎</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-B · 审查引擎</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-B"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-B.html"><span class="dir">返回组</span><span class="v">审查引擎</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">将关联文件归并为审查单元（en/zh properties 捆审）；scan 按 by-language/by-directory 分桶，delegate 按规则文本聚簇</div><div class="bullet">文件分束是 open-code-review 将一次评审拆解为多个可并行子任务的核心调度机制，决定 diff/文件集合如何被组织成独立任务单元</div><div class="bullet">review 模式（基于 diff 审查）默认采用『每文件一个子任务』策略，即每个改动文件独立成为一个审查任务单元</div><div class="bullet">分束决策发生在 scan 阶段：通过 BatchStrategy 策略枚举，将文件按规则分桶（bucket），再切块生成子任务</div><div class="bullet">支持三种分桶策略：none（不分桶，整体作为单一任务）、by-language（按小写扩展名分桶，如 .go/.py/.ts）、by-directory（按首层目录分桶）</div><div class="bullet">分桶后按 key 排序保证确定性输出，同一输入集合任何时候产生相同任务序列，为指纹复用与断点续审奠定基础</div><div class="bullet">按 BatchSize 对桶内文件切块形成最终批次；delegate 模式则改用 (source|pattern|text) 三元组聚簇规则组织任务</div></div>
 

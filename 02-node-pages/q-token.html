@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Token 计费与成本控制 · Open Code Review 项目解析知识图谱 ｜ tiktoken-go 计费（o200k/cl100k_base），预算前瞻截断、80% token 大文件丢弃、prompt-cache 亲和键命中前缀缓存。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Token 计费与成本控制 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="Token 计费与成本控制 · Open Code Review 项目解析知识图谱 ｜ tiktoken-go 计费（o200k/cl100k_base），预算前瞻截断、80% token 大文件丢弃、prompt-cache 亲和键命中前缀缓存。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/q-token.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/q-token.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>Token 计费与成本控制 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-F.html">工程保障</a> / <span>Token 计费与成本控制</span></div>
-  <h1>Token 计费与成本控制</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>Token 计费与成本控制</h1>
   <div class="badges"><span class="badge src" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">工程保障</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">工程保障</span><span class="badge grp">G-F · 工程保障</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-F"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-F.html"><span class="dir">返回组</span><span class="v">工程保障</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">tiktoken-go 计费（o200k/cl100k_base），预算前瞻截断、80% token 大文件丢弃、prompt-cache 亲和键命中前缀缓存</div><div class="bullet">基于 tiktoken-go 精确计费：o1/o3/o4 系列用 o200k_base，其余模型用 cl100k_base，分词口径与 OpenAI 一致</div><div class="bullet">estimate.go 提供 token 预估与预算前瞻：审查前估算输入 token 量，预判是否超出模型上下文与成本预算</div><div class="bullet">filterLargeDiffs 自动丢弃超过 MaxTokens 80% 的超大文件 diff，防止单文件撑爆上下文</div><div class="bullet">三区压缩策略：对超大输入分区压缩，显著降低送入模型的 token 总量</div><div class="bullet">prompt-cache affinity key 设计：按（会话+任务+文件）组合生成缓存键，命中 provider 前缀缓存后 input 成本节省约 98%</div><div class="bullet">端到端对比通用 Agent，同样审查任务 token 消耗节省 5-15 倍</div></div>
 

@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="使用场景索引 · Open Code Review 项目解析知识图谱。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="使用场景索引 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="使用场景索引 · Open Code Review 项目解析知识图谱。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/05-views/02-scenarios.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/05-views/02-scenarios.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>使用场景索引 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,10 +113,16 @@ td.scen{white-space:nowrap;}
 td.scen a{color:#ff8a97;font-weight:600;}
 td.cmd{font-family:Consolas,monospace;font-size:12px;color:#9cc2ff;}
 
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
-<header><h1>使用场景索引 · 工具库索引</h1><p>阿里开源 AI 代码审查工具 — 架构理解 × 工具索引</p></header><main><div class="back"><a href="index.html">&larr; 返回视图入口</a></div>
+<a class="skip-link" href="#main">跳到主要内容</a>
+<header><h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>使用场景索引 · 工具库索引</h1><p>阿里开源 AI 代码审查工具 — 架构理解 × 工具索引</p></header><main id="main"><div class="back"><a href="index.html">&larr; 返回视图入口</a></div>
 <h2>场景速查总表</h2><div class="tblwrap"><table><thead><tr><th>场景</th><th>核心命令</th></tr></thead><tbody><tr><td class="scen"><a href="#use-ci">场景：接入 CI 流水线</a></td><td class="cmd">—</td></tr><tr><td class="scen"><a href="#use-configure">场景：配置模型与规则</a></td><td class="cmd">配置模型：ocr config provider 选择内置 provider（如 DashScope/DeepSeek）或按自定义端点配置 → 随后 ocr config model 指定模型并自动测连通</td></tr><tr><td class="scen"><a href="#use-extend">场景：扩展审查能力</a></td><td class="cmd">—</td></tr><tr><td class="scen"><a href="#use-no-key">场景：免 Key 委托审查</a></td><td class="cmd">查看可审查清单：运行 ocr delegate preview --format json，确认当前仓库哪些文件可进入委托范围</td></tr><tr><td class="scen"><a href="#use-pr-review">场景：审查 PR/分支变更</a></td><td class="cmd">本地审查工作区改动：在仓库目录运行 ocr review，工具自动收集当前改动并产出评论</td></tr><tr><td class="scen"><a href="#use-scan-codebase">场景：审计陌生代码库</a></td><td class="cmd">整库扫描：在仓库根目录运行 ocr scan，等待扫描完成并查看逐文件评论</td></tr></tbody></table></div><h2>场景详解</h2>
 <div class="scen-card" id="use-ci">
   <div class="scen-head">

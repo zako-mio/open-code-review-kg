@@ -13,7 +13,8 @@ import os
 import shutil
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gen_common import (ROOT, TITLE, SUBTITLE, load_all, esc, topo_sort,
+from gen_common import (
+    inject_shell,ROOT, TITLE, SUBTITLE, load_all, esc, topo_sort,
                         EDGE_STYLE, SRC_STYLE)
 
 INTER_DIR = os.path.join(ROOT, '04-interactive')
@@ -519,6 +520,7 @@ def main():
     <button id="bridgebtn" class="btn">桥接高亮</button>
   </div>
 </header>
+<main id="main">
 <div id="empty"></div>
 <div id="graph"></div>
 <div id="crumb"></div>
@@ -530,6 +532,7 @@ def main():
 </div>
 <div id="zoominfo">模式 <b id="zmode">组级</b> · 节点 <b id="zcount">0</b></div>
 
+</main>
 <script src="vendor/cytoscape.min.js"></script>
 <script src="vendor/cytoscape-dagre.min.js"></script>
 <script>
@@ -538,6 +541,10 @@ def main():
 </body>
 </html>
 """.format(css=CSS, js=js)
+    html = inject_shell(
+        html, '04-interactive/index.html',
+        desc='Open Code Review 知识图谱的交互式 DAG 总览：cytoscape 渲染 7 个分组与 51 个知识'
+             '节点，支持点击下钻组内依赖图与关系边高亮。')
     with open(os.path.join(INTER_DIR, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html)
     print('interactive written, DATA nodes=%d edges=%d groups=%d'

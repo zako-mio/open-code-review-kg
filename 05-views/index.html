@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="视图入口 · Open Code Review 项目解析知识图谱。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="视图入口 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="视图入口 · Open Code Review 项目解析知识图谱。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/05-views/">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/05-views/">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>视图入口 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -95,10 +104,16 @@ footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);colo
 .card .go:hover{border-color:var(--accent);}
 .steps li{margin:6px 0;font-size:14px;color:#cfd6e4;}
 
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
-<header><h1>视图入口</h1><p>阿里开源 AI 代码审查工具 — 架构理解 × 工具索引</p></header><main><div class="back"><a href="index.html">&larr; 返回视图入口</a></div>
+<a class="skip-link" href="#main">跳到主要内容</a>
+<header><h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>视图入口</h1><p>阿里开源 AI 代码审查工具 — 架构理解 × 工具索引</p></header><main id="main"><div class="back"><a href="index.html">&larr; 返回视图入口</a></div>
 <h2>核心统计</h2><div><div class="stat"><b>51</b><span>节点</span></div><div class="stat"><b>7</b><span>分组</span></div><div class="stat"><b>68</b><span>关系边</span></div><div class="stat"><b>3</b><span>学习阶段</span></div><div class="stat"><b>6</b><span>使用场景</span></div></div><h2>视图入口</h2><div class="cards"><div class="card"><h3>使用场景索引</h3><p>按任务找工具：审 PR / 扫代码库 / 免 Key 委托 / CI 接入 / 配置规则 / 扩展能力，含命令速查。</p><a class="go" href="02-scenarios.html">打开场景索引</a></div><div class="card"><h3>学习路径</h3><p>基础 → 进阶 → 高级三档推进 + 全图谱拓扑序，从安装到精通。</p><a class="go" href="03-learning-path.html">查看学习路径</a></div><div class="card"><h3>分层架构视图</h3><p>核心架构 → 审查引擎 → 命令行 → 配置模型 → 集成生态 → 工程保障，按层浏览。</p><a class="go" href="04-architecture.html">按层浏览</a></div><div class="card"><h3>交互 DAG 总览</h3><p>组级视图 + 点击下钻 + 关系边高亮，cytoscape 渲染。</p><a class="go" href="../04-interactive/index.html">打开交互总览</a></div><div class="card"><h3>12 原则对照审查</h3><p>用 12 Factor App/Agent 原则审视 OCR 设计：24 条原则 × 对应机制 × 审查结论。</p><a class="go" href="05-principles.html">查看对照审查</a></div></div><h2>快速开始</h2><ul class="steps"><li><b>想直接用</b>：打开使用场景索引，按你的任务找命令。</li><li><b>想系统学</b>：走学习路径或分层架构视图，从核心架构读起。</li><li><b>想理解全貌</b>：打开交互 DAG 总览，看 7 组 51 节点的依赖拓扑。</li><li><b>想方法论定位</b>：打开 12 原则对照审查，看 OCR 在 12 Factor App/Agent 坐标系中的合规度。</li></ul>
 </body>
 </html>

@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="审查流水线 · Open Code Review 项目解析知识图谱 ｜ 从 CLI 入口到评论输出的 8 步确定性+Agent 混合时序：diff→过滤→分派→并行子 Agent→反思→输出。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="审查流水线 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="审查流水线 · Open Code Review 项目解析知识图谱 ｜ 从 CLI 入口到评论输出的 8 步确定性+Agent 混合时序：diff→过滤→分派→并行子 Agent→反思→输出。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/arch-pipeline.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/arch-pipeline.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>审查流水线 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-A.html">核心架构</a> / <span>审查流水线</span></div>
-  <h1>审查流水线</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>审查流水线</h1>
   <div class="badges"><span class="badge src" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">核心架构</span><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-A · 核心架构</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-A"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-A.html"><span class="dir">返回组</span><span class="v">核心架构</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">从 CLI 入口到评论输出的 8 步确定性+Agent 混合时序：diff→过滤→分派→并行子 Agent→反思→输出</div><div class="bullet">整个审查过程被组织为 8 步时序流水线，从 CLI 入口到结果输出一气呵成，每步职责单一、可独立测试</div><div class="bullet">第 1 步 CLI 入口：初始化 rules resolver（规则解析器）、LLM client 与工具注册表，搭建执行环境</div><div class="bullet">第 2 步 diff 获取：按 workspace/range/commit 三种模式从 git 获取 diff，为后续过滤与审查提供原材料</div><div class="bullet">第 3 步文件过滤：对 diff 中的文件执行 whyExcluded 过滤链，标记排除原因，确定真正进入审查的文件集合</div><div class="bullet">第 4 步分派：以信号量（semaphore）限流，默认最多 8 个并发 goroutine 并行分派文件子任务</div><div class="bullet">第 5 步每文件子任务：Plan（单轮 LLM 生成计划）→ MainTask（ReAct 循环执行工具调用）→ code_comment 异步定位评论 → REVIEW_FILTER 反思过滤，构成文件级审查主循环</div><div class="bullet">第 6 步 WaitBackground：等待所有异步后台任务（如 code_comment 定位）完成</div><div class="bullet">第 7 步 finalizeManifest：收尾汇总 manifest，合并各文件结果与元数据</div><div class="bullet">第 8 步 emitRunResult：按 text/json/sarif 三种格式输出最终审查结果</div></div>
 

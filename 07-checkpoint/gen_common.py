@@ -243,3 +243,132 @@ footer{margin-top:44px;padding:16px 24px;border-top:1px solid var(--border);colo
   th,td{border-color:#999;color:#000;}
 }
 """
+
+
+# ============================================================================
+# ★ 批 J：页面骨架与元数据（a11y / SEO 实缺修实）—— 唯一注入口
+# ============================================================================
+import re as _re
+
+REPO = "open-code-review-kg"
+BASE_URL = "https://zako-mio.github.io/open-code-review-kg/"
+OG_IMAGE = BASE_URL + "og.png"
+FAVICON_HREF = "/open-code-review-kg/favicon.svg"
+SITE_DESC = "AI 代码评审 · 架构 / 工具 / 实践：Open Code Review 知识图谱（节点 / 分组 / 视图 / 交互 DAG）。"
+
+# ★ 页面骨架规则：拼进**既有**那一个内联 <style> 块的尾部。
+#   ⛔ 不新增第二个 <style> 块 —— 站点侧 gate_tokens.py 的 G11 硬判「每页恰 1 个内联 <style>
+#   与恰 1 个 :root 块」，新增块会被判 red（批 J 实测：12-factor 走的是「另开 style 块」，
+#   那站 gate_tokens 是 report 模式所以不显形；本站是 enforce，必须走拼接）。
+#   ★ 只用 var(--accent,…)：`--accent` 不在值件的页级未用登记表内 ⇒ G8 不会因新增引用而「登记过期」。
+#   ★ ⛔ 刻意**不**加 `@media print{.skip-link{display:none}}`：那会让 report-only 的
+#     `gate_responsive.py` R2（「每页 ≥1 个 @media」）由 FAIL 转 PASS，而 report.html 的
+#     **响应式断点缺口其实一点没修**（print 查询不是响应式断点）⇒ 属「意外转绿」，
+#     与本批「⛔ 不以任何方式换绿灯」的口径相反。R2 的既有 FAIL 如实留着。
+J_SHELL_CSS = (
+    "\n:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}\n"
+    ".skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;"
+    "padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}\n"
+    ".skip-link:focus{left:0}\n"
+    "svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;"
+    "color:var(--accent,#4f8cff)}\n")
+
+# ★ 品牌图件（与 favicon.svg / og.png 同族的节点图记号）：
+#   `role="img"` ＋ `aria-label` 满足 A5 的文本等价；它同时是 A1 空集守卫所要求的
+#   「至少一页含图件文本等价载体」的载体（本站改动前全站 <img>/<svg> 计数 = 0）。
+#   ★ 用 currentColor 描边 ⇒ 深色族与 report 的手写浅色族都能正确显色。
+BRAND_SVG = (
+    '<svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64">'
+    '<g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round">'
+    '<line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/>'
+    '<line x1="46" y1="32" x2="22" y2="48"/></g>'
+    '<circle cx="18" cy="18" r="7" fill="currentColor"/>'
+    '<circle cx="46" cy="32" r="5" fill="currentColor"/>'
+    '<circle cx="22" cy="48" r="5" fill="currentColor"/></svg>')
+
+_META_ANCHOR = _re.compile(r'(<meta\s+name="viewport"[^>]*>)', _re.I)
+_BODY_ANCHOR = _re.compile(r'(<body[^>]*>)', _re.I)
+_MAIN_ANCHOR = _re.compile(r'<main(?![^>]*\bid\s*=)([^>]*)>', _re.I)
+_H1_OPEN = _re.compile(r'(<h1\b[^>]*>)', _re.I)
+_STYLE_END = _re.compile(r'</style>', _re.I)
+_CHROME = _re.compile(
+    r'<header\b[^>]*>.*?</header>|<footer\b[^>]*>.*?</footer>|<nav\b[^>]*>.*?</nav>|'
+    r'<div[^>]*class="[^"]*(?:crumb|navseq|treenav|badges|srcrow)[^"]*"[^>]*>.*?</div>',
+    _re.I | _re.S)
+_LEAD = _re.compile(r'<div[^>]*class="[^"]*brieflead[^"]*"[^>]*>(.*?)</div>', _re.I | _re.S)
+_PARA = _re.compile(r'<p\b[^>]*>(.*?)</p>', _re.I | _re.S)
+_ENT = (("&nbsp;", " "), ("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"), ("&quot;", '"'),
+        ("&larr;", "\u2190"), ("&rarr;", "\u2192"), ("&#8594;", "\u2192"), ("&#10003;", "\u2713"))
+
+
+def page_url(rel):
+    """页内相对路径 → 该页**自身**的规范 URL（与 gate_seo_meta.page_url 逐字同口径）。"""
+    if rel == "index.html":
+        return BASE_URL
+    if rel.endswith("/index.html"):
+        return BASE_URL + rel[: -len("index.html")]
+    return BASE_URL + rel
+
+
+def _plain(frag):
+    t = _re.sub(r"<[^>]+>", " ", frag)
+    for a, b in _ENT:
+        t = t.replace(a, b)
+    return _re.sub(r"\s+", " ", t).strip()
+
+
+def page_title(html):
+    m = _re.search(r"<title[^>]*>(.*?)</title>", html, _re.S | _re.I)
+    return _plain(m.group(1)) if m else TITLE
+
+
+def make_desc(html, explicit=None):
+    """逐页描述：显式给定优先；否则取「正文里的首段实质文本」（先剥 chrome）。
+
+    ★ 剥 chrome 是为了不让导航/面包屑的文本混进 description（批 J 的 12-factor 版没剥，
+    产出的描述里带了「全局 交互总览 返回组 …」一串导航词）。
+    """
+    tt = page_title(html)
+    if explicit:
+        return explicit
+    m = _re.search(r"<main[^>]*>(.*?)</main>", html, _re.S | _re.I)
+    body = _CHROME.sub(" ", m.group(1)) if m else ""
+    lead = _LEAD.search(body) or _PARA.search(body)
+    text = _plain(lead.group(1) if lead else body)
+    d = ("%s ｜ %s" % (tt, text)).strip(" ｜")
+    d = d[:150].rstrip("，。、；：:;,. ")
+    if len(d) < 24:
+        d = "%s ｜ %s" % (tt, SITE_DESC)
+    return d + "。"
+
+
+def inject_shell(html, rel, desc=None):
+    """★ 四处插入：head 元数据 / body 后 skip link / 首个 <main> 补 id / <h1> 内品牌图件；
+    并把 `J_SHELL_CSS` 拼进既有内联 <style> 块尾部。
+
+    ⛔ 不改任何既有模板变量与结构；★ 幂等（已注入则原样返回）。
+    """
+    if ('name="description"' in html and 'class="skip-link"' in html
+            and 'class="brand"' in html and 'id="main"' in html):
+        return html
+    d = make_desc(html, desc)
+    tt = page_title(html)
+    u = page_url(rel)
+    meta = (
+        '<meta name="description" content="%s">\n'
+        '<meta property="og:type" content="website">\n'
+        '<meta property="og:title" content="%s">\n'
+        '<meta property="og:description" content="%s">\n'
+        '<meta property="og:url" content="%s">\n'
+        '<meta property="og:image" content="%s">\n'
+        '<link rel="canonical" href="%s">\n'
+        '<link rel="icon" type="image/svg+xml" href="%s">\n'
+        % (esc(d), esc(tt), esc(d), u, OG_IMAGE, u, FAVICON_HREF))
+    out = _META_ANCHOR.sub(lambda m: m.group(1) + "\n" + meta, html, count=1)
+    out = _BODY_ANCHOR.sub(
+        lambda m: m.group(1) + '\n<a class="skip-link" href="#main">跳到主要内容</a>',
+        out, count=1)
+    out = _MAIN_ANCHOR.sub(lambda m: '<main id="main"%s>' % m.group(1), out, count=1)
+    out = _H1_OPEN.sub(lambda m: m.group(1) + BRAND_SVG, out, count=1)
+    out = _STYLE_END.sub(lambda m: J_SHELL_CSS + m.group(0), out, count=1)
+    return out

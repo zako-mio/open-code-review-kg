@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="ocr 命令总览与安装 · Open Code Review 项目解析知识图谱 ｜ 安装方式（npm/脚本/二进制/源码）、cobra 命令树、全局参数与 version/completion 子命令。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ocr 命令总览与安装 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="ocr 命令总览与安装 · Open Code Review 项目解析知识图谱 ｜ 安装方式（npm/脚本/二进制/源码）、cobra 命令树、全局参数与 version/completion 子命令。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/cli-overview.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/cli-overview.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>ocr 命令总览与安装 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-C.html">命令行工具</a> / <span>ocr 命令总览与安装</span></div>
-  <h1>ocr 命令总览与安装</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>ocr 命令总览与安装</h1>
   <div class="badges"><span class="badge src" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">命令行</span><span class="badge st" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">基础</span><span class="badge tp" style="color:#e8c66a;background:#3a2f12;border-color:#e0c35e">工具</span><span class="badge grp">G-C · 命令行工具</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-C"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-C.html"><span class="dir">返回组</span><span class="v">命令行工具</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">安装方式（npm/脚本/二进制/源码）、cobra 命令树、全局参数与 version/completion 子命令</div><div class="bullet">ocr 是阿里巴巴开源的 AI 代码审查 CLI 工具（项目 alibaba/open-code-review），以 Go 编写，命令名为 ocr，面向开发者提供本地化、可自定义的代码审查能力</div><div class="bullet">基于 cobra 构建的命令树，顶层子命令包括 review（核心审查）、scan（全文件扫描）、delegate（委托模式）、config（配置管理）、session（会话管理）、llm（LLM 工具）、rules（规则调试）、viewer（WebUI 查看器）、completion（shell 补全）、version（版本信息）</div><div class="bullet">官方推荐安装方式为 npm 全局安装：npm install -g @alibaba-group/open-code-review，该方式对 Node 环境用户最便捷</div><div class="bullet">硬性前置条件为 Git 版本不低于 2.41，工具底层大量依赖 git diff、git 搜索与仓库操作能力，版本不足将直接导致功能不可用</div><div class="bullet">提供多条安装路径以适应不同环境：install.sh / install.ps1 脚本安装、GitHub Release 预编译二进制、源码构建（Makefile）</div><div class="bullet">根命令支持 -V / --version 查看版本号，--help 查看完整命令树与参数说明，是熟悉工具的第一步</div></div>
 

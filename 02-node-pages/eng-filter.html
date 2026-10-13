@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="文件选择与过滤 · Open Code Review 项目解析知识图谱 ｜ whyExcluded 过滤链：binary→用户 exclude→include 覆盖→扩展名白名单→默认路径黑名单。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="文件选择与过滤 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="文件选择与过滤 · Open Code Review 项目解析知识图谱 ｜ whyExcluded 过滤链：binary→用户 exclude→include 覆盖→扩展名白名单→默认路径黑名单。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/eng-filter.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/eng-filter.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>文件选择与过滤 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-B.html">审查引擎</a> / <span>文件选择与过滤</span></div>
-  <h1>文件选择与过滤</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>文件选择与过滤</h1>
   <div class="badges"><span class="badge src" style="color:#7fe0d8;background:#12302c;border-color:#5ad0d0">审查引擎</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-B · 审查引擎</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-B"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-B.html"><span class="dir">返回组</span><span class="v">审查引擎</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">whyExcluded 过滤链：binary→用户 exclude→include 覆盖→扩展名白名单→默认路径黑名单</div><div class="bullet">文件过滤由 whyExcluded 过滤链完成，按固定顺序执行：binary（二进制）→ 用户 exclude（显式排除）→ 用户 include（显式包含覆盖）→ 扩展名白名单（unsupported_ext）→ 默认路径黑名单（default_path）</div><div class="bullet">每条被排除的文件都带 ExcludeReason 记录原因：user_exclude/unsupported_ext/default_path/deleted/binary 五类</div><div class="bullet">大小上限 2MiB：超过该体积的文件不进审查流程，防止超大文件撑爆上下文</div><div class="bullet">8000 字节二进制嗅探：读取文件前 8000 字节判断是否为二进制，规避误判与二进制内容注入上下文</div><div class="bullet">过滤链完全确定性：同一输入必然产生同一过滤结果，可单测、可审计</div><div class="bullet">过滤与分派衔接：通过过滤的文件进入分派队列（信号量并发），被过滤文件可经 injectDiffMap 供 file_read_diff 按需读取</div></div>
 

@@ -10,6 +10,7 @@
       ],
       "id": "tokens",
       "judges": "G1–G11",
+      "mode": "enforce",
       "script": "gate_tokens.py",
       "selftest": true
     },
@@ -20,44 +21,50 @@
       ],
       "id": "dead-css",
       "judges": "H1–H3",
+      "mode": "report_only",
       "script": "gate_dead_css.py",
       "selftest": true
     },
     {
       "classes": [
         "blind",
-        "report"
+        "hard"
       ],
       "id": "a11y",
-      "judges": "A1–A5",
+      "judges": "A1–A7",
+      "mode": "hard",
       "script": "gate_a11y.py",
       "selftest": true
     },
     {
       "classes": [
         "blind",
+        "hard",
         "report"
       ],
       "id": "seo-meta",
-      "judges": "S1–S5",
+      "judges": "S1–S11",
+      "mode": "hard",
       "script": "gate_seo_meta.py",
       "selftest": true
     },
     {
       "classes": [
         "blind",
+        "hard",
         "report"
       ],
       "id": "responsive",
-      "judges": "R1–R4",
+      "judges": "R1–R7",
+      "mode": "report_only",
       "script": "gate_responsive.py",
       "selftest": true
     }
   ],
-  "generated_by": "07-checkpoint/gen-index.py（Q6-A：门控随生成器收尾内联调用）",
+  "generated_by": "07-checkpoint/gen-index.py（Q6-A：门控随生成器收尾内联调用；★ 批 J 更正为批 J 判据数并新增 write_sitemap_robots）",
   "mode": "enforce",
   "site": "open-code-review-kg",
-  "tree_digest": "817ab56b4cb5babcf8c6525461f3219b2f7514eda717c583a16a4db07148f20a",
+  "tree_digest": "26b775a33479638bd6668a2d02c25d194f1a5d9b08b0c6831d99f8bc9f50be39",
   "tree_digest_scope": "仓内文件（路径 + 内容的 sha256），排除 gate-report.json 自身、.git/、__pycache__/、vendor/、node_modules/、07-checkpoint/",
-  "tree_file_count": 189
+  "tree_file_count": 193
 }

@@ -16,9 +16,10 @@
 import json
 import os
 import re
+import subprocess
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gen_common import ROOT, TITLE, SUBTITLE, load_all, esc, src_badge, BASE_CSS, SRC_STYLE
+from gen_common import ROOT, TITLE, SUBTITLE, load_all, esc, src_badge, BASE_CSS, SRC_STYLE, inject_shell
 
 OUT = os.path.join(ROOT, 'index.html')
 OUT_404 = os.path.join(ROOT, '404.html')
@@ -121,6 +122,10 @@ def main():
         base_css=BASE_CSS,
         stats=stats, src_desc=''.join('<span class="chip">%s</span>' % esc(x) for x in src_desc),
         quick=quick, cards=cards)
+    html = inject_shell(
+        html, 'index.html',
+        desc='Open Code Review（阿里开源 AI 代码审查 CLI）知识图谱总入口：51 个知识节点 / 7 个'
+             '分组 / 5 类视图，按任务索引命令与工具，并附 42 个实践资产与 AI 可调用索引。')
     with open(OUT, 'w', encoding='utf-8') as f:
         f.write(html)
     print('index.html:', len(html), 'bytes')
@@ -192,14 +197,47 @@ def write_404(dag, content):
         base_css=BASE_CSS,
         total_nodes=total_nodes, total_groups=total_groups, total_edges=total_edges,
         prefix=GATE_404_PREFIX)
+    html = inject_shell(
+        html, '404.html',
+        desc='404 · 页面不存在：Open Code Review 项目解析知识图谱的结构化兜底页，提供根入口、'
+             '场景索引、交互 DAG、分组目录与实践资产五条重新进入路径。')
     with open(OUT_404, 'w', encoding='utf-8') as f:
         f.write(html)
     print('404.html:', len(html), 'bytes')
 
 
 # ---------------------------------------------------------------- 门控收尾内联调用（Q6-A）
-GATES = ["gate_tokens.py", "gate_dead_css.py", "gate_a11y.py", "gate_seo_meta.py",
-         "gate_responsive.py"]
+# ★ 批 J 更正：逐门控给**它自己认的**参数（原写法把 `--manifest` 统一传给 5 道门控，
+#   而统一硬化版 `gate_a11y.py` / `gate_seo_meta.py` 的 argparse 只认 `--site-root/--profile`
+#   ⇒ 未识别参数触发 exit 2 ⇒ `rc |= 2` ⇒ 生成流程被自己的门控阻断（假红）。
+#   ★ 另：a11y / seo 两道门控的 `main()` **不接受 argv 形参**（内部直接 `ap.parse_args()`），
+#   故一律走 subprocess 逐脚本调用 —— 与 CI / profile.gates.commands 的命令行逐字一致。
+GATES = [
+    ("gate_tokens.py", ["--site-root", ".", "--manifest", "gate-manifest.json"]),
+    ("gate_dead_css.py", ["--site-root", ".", "--profile", "build/profile.json"]),
+    ("gate_a11y.py", ["--site-root", ".", "--profile", "build/profile.json"]),
+    ("gate_seo_meta.py", ["--site-root", ".", "--profile", "build/profile.json"]),
+    ("gate_responsive.py", ["--site-root", ".", "--profile", "build/profile.json"]),
+]
+
+
+def write_sitemap_robots():
+    """★ 批 J：站点级元信息产物（`sitemap.xml` ＋ `robots.txt`），写在**发布根**。
+
+    ★ 复用仓内版本化的 `07-checkpoint/gen_sitemap_robots.py`（批 J 统一件，⛔ 不另写一份）：
+      它与 `gate_seo_meta.py` 用**同一套** URL 归一化（`X/index.html` → `X/`），⛔ 不写 `<lastmod>`
+      （墙钟时间戳会破坏 J6 幂等），且带空集守卫（0 页 ⇒ 拒写 ⇒ 非 0 退出 ⇒ fail-closed）。
+    """
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import gen_sitemap_robots as _GSR
+    import gen_common as _G
+    res = _GSR.run(ROOT, _G.REPO)
+    if res is None:
+        print('SITEMAP-ERROR: 发布根下 0 个产物页 ⇒ 拒写（防空集假绿）')
+        return 1
+    print('sitemap.xml %s（%d 页）· robots.txt %s（base=%s）'
+          % (res['sitemap.xml'], res['pages'], res['robots.txt'], res['base_url']))
+    return 0
 
 
 def run_gates():
@@ -213,21 +251,20 @@ def run_gates():
     if not os.path.isfile(os.path.join(ROOT, "gate_tokens.py")):
         print('GATE-ERROR: 仓根未找到 gate_tokens.py（门控未接入）⇒ 拒绝静默跳过')
         return 1
-    sys.path.insert(0, ROOT)
     rc = 0
-    for name in GATES:
-        mod_name = name[:-3]
-        try:
-            mod = __import__(mod_name)
-        except Exception as exc:  # noqa: BLE001
-            print('GATE-ERROR: 无法导入 %s：%s' % (name, exc))
-            rc = 1
+    for name, args in GATES:
+        script = os.path.join(ROOT, name)
+        if not os.path.isfile(script):
+            print('GATE-ERROR: 门控脚本缺失：%s ⇒ 拒绝静默跳过' % name)
+            rc |= 1
             continue
         print('\n----- %s -----' % name)
-        try:
-            rc |= int(mod.main(["--site-root", ROOT, "--manifest", "gate-manifest.json"]) or 0)
-        except SystemExit as exc:  # 门控用 sys.exit 返回码
-            rc |= int(exc.code or 0)
+        r = subprocess.run([sys.executable, script] + args, cwd=ROOT,
+                           capture_output=True, text=True)
+        sys.stdout.write(r.stdout or '')
+        if (r.stderr or '').strip():
+            sys.stderr.write(r.stderr)
+        rc |= int(r.returncode)
     return rc
 
 
@@ -251,21 +288,21 @@ def write_gate_report():
     tree_digest = hashlib.sha256('\n'.join(entries).encode('utf-8')).hexdigest()
     doc = {
         "site": "open-code-review-kg",
-        "generated_by": "07-checkpoint/gen-index.py（Q6-A：门控随生成器收尾内联调用）",
+        "generated_by": "07-checkpoint/gen-index.py（Q6-A：门控随生成器收尾内联调用；★ 批 J 更正为批 J 判据数并新增 write_sitemap_robots）",
         "deterministic": True,
         "determinism_note": "★ 本件不含墙钟时间戳、不含作者机绝对路径；tree_digest 由「仓内文件路径+内容的 sha256」聚合而成并**排除本件自身** ⇒ 同输入两次生成逐字节相同。",
         "mode": "enforce",
         "gates": [
             {"id": "tokens", "script": "gate_tokens.py", "judges": "G1–G11",
-             "classes": ["blind", "hard", "hard/report"], "selftest": True},
+             "classes": ["blind", "hard", "hard/report"], "selftest": True, "mode": "enforce"},
             {"id": "dead-css", "script": "gate_dead_css.py", "judges": "H1–H3",
-             "classes": ["blind", "report"], "selftest": True},
-            {"id": "a11y", "script": "gate_a11y.py", "judges": "A1–A5",
-             "classes": ["blind", "report"], "selftest": True},
-            {"id": "seo-meta", "script": "gate_seo_meta.py", "judges": "S1–S5",
-             "classes": ["blind", "report"], "selftest": True},
-            {"id": "responsive", "script": "gate_responsive.py", "judges": "R1–R4",
-             "classes": ["blind", "report"], "selftest": True}
+             "classes": ["blind", "report"], "selftest": True, "mode": "report_only"},
+            {"id": "a11y", "script": "gate_a11y.py", "judges": "A1–A7",
+             "classes": ["blind", "hard"], "selftest": True, "mode": "hard"},
+            {"id": "seo-meta", "script": "gate_seo_meta.py", "judges": "S1–S11",
+             "classes": ["blind", "hard", "report"], "selftest": True, "mode": "hard"},
+            {"id": "responsive", "script": "gate_responsive.py", "judges": "R1–R7",
+             "classes": ["blind", "hard", "report"], "selftest": True, "mode": "report_only"}
         ],
         "tree_digest": tree_digest,
         "tree_digest_scope": "仓内文件（路径 + 内容的 sha256），排除 gate-report.json 自身、.git/、__pycache__/、vendor/、node_modules/、07-checkpoint/",
@@ -281,4 +318,6 @@ def write_gate_report():
 
 if __name__ == '__main__':
     main()
-    sys.exit(run_gates() | write_gate_report())
+    # ★ 顺序是硬约束：先落 sitemap/robots（gate_seo_meta 的 S8 要判它存在），
+    #   再跑门控（fail-closed：任一非 0 ⇒ 进程非 0 ⇒ 生成流程被阻断），最后写确定性报告。
+    sys.exit(write_sitemap_robots() | run_gates() | write_gate_report())

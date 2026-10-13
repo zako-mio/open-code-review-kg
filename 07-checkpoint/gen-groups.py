@@ -8,7 +8,8 @@ index.html：组总索引，来源组/主题组/横切组不同配色区分。
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gen_common import (ROOT, TITLE, SUBTITLE, load_all, esc, build_indexes,
+from gen_common import (
+    inject_shell,ROOT, TITLE, SUBTITLE, load_all, esc, build_indexes,
                         topo_sort, stage_badge, kind_badge, BASE_CSS,
                         KIND_STYLE, STAGE_STYLE, EDGE_STYLE, KIND_ORDER)
 
@@ -261,10 +262,11 @@ def main():
     os.makedirs(GROUPS_DIR, exist_ok=True)
     dag, content, by_id, c_by_id, group_by_id = build_indexes_helper()
     for group in dag['groups']:
-        html = group_html(group['id'], group, dag, by_id, c_by_id, group_by_id)
+        html = inject_shell(group_html(group['id'], group, dag, by_id, c_by_id, group_by_id),
+                            '03-groups/%s.html' % group['id'])
         with open(os.path.join(GROUPS_DIR, group['id'] + '.html'), 'w', encoding='utf-8') as f:
             f.write(html)
-    idx = index_html(dag, group_by_id, by_id)
+    idx = inject_shell(index_html(dag, group_by_id, by_id), '03-groups/index.html')
     with open(os.path.join(GROUPS_DIR, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(idx)
     print('group pages written:', len(dag['groups']))

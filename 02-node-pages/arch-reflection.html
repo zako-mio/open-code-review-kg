@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="独立反思 · Open Code Review 项目解析知识图谱 ｜ 证伪优先的评论过滤器：只看到 diff 与评论，用 Ground A/B 双地面验证消除幻觉评论。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="独立反思 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="独立反思 · Open Code Review 项目解析知识图谱 ｜ 证伪优先的评论过滤器：只看到 diff 与评论，用 Ground A/B 双地面验证消除幻觉评论。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/arch-reflection.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/arch-reflection.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>独立反思 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-A.html">核心架构</a> / <span>独立反思</span></div>
-  <h1>独立反思</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>独立反思</h1>
   <div class="badges"><span class="badge src" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">核心架构</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-A · 核心架构</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-A"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-A.html"><span class="dir">返回组</span><span class="v">核心架构</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">证伪优先的评论过滤器：只看到 diff 与评论，用 Ground A/B 双地面验证消除幻觉评论</div><div class="bullet">REVIEW_FILTER_TASK 是独立于审查主循环的反思组件：主审查产出评论后，由该组件对每条评论做有效性把关，而非模型自审</div><div class="bullet">反思遵循证伪优先原则：先尝试推翻评论，推翻不了才批准，与『先找证据支持』的默认倾向相反</div><div class="bullet">两条硬性证伪地面：Ground A——评论目标不在 diff 中（模型评论了未改动的代码）；Ground B——diff 某行字面直接反驳（diff 内容本身推翻了评论说法）</div><div class="bullet">五步过滤法：第一步保护主题否决（内存安全、并发、链接一致性、行为兼容性、未用参数等主题即使无硬证据也不轻易否决）→ 低价值否决（无实际价值的评论被滤除）→ Ground A/B 检查 → 批准</div><div class="bullet">反思组件存在非对称信息边界：它只能看到 diff 与评论 JSON，看不到完整文件上下文，设计上以『保守否决 + 保护主题放行』应对信息不对称</div><div class="bullet">schema 字段顺序承重设计：analysis 字段在前、comment_ids 在后，序列化顺序本身参与协议设计，保证反思输入输出解析的稳定性</div></div>
 

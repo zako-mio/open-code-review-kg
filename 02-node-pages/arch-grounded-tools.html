@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="受限工具集审查 · Open Code Review 项目解析知识图谱 ｜ 6 个审查专用工具（file_read/file_find/code_search/file_read_diff/code_comment/task_done）经 ReAct 循环驱动文件级子 Agent。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="受限工具集审查 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="受限工具集审查 · Open Code Review 项目解析知识图谱 ｜ 6 个审查专用工具（file_read/file_find/code_search/file_read_diff/code_comment/task_done）经 ReAct 循环驱动文件级子 Agent。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/arch-grounded-tools.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/arch-grounded-tools.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>受限工具集审查 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-A.html">核心架构</a> / <span>受限工具集审查</span></div>
-  <h1>受限工具集审查</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>受限工具集审查</h1>
   <div class="badges"><span class="badge src" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">核心架构</span><span class="badge st" style="color:#e0a75e;background:#332412;border-color:#e8933b">进阶</span><span class="badge tp" style="color:#9cc2ff;background:#16273f;border-color:#4f8cff">方法机制</span><span class="badge grp">G-A · 核心架构</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-A"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-A.html"><span class="dir">返回组</span><span class="v">核心架构</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">6 个审查专用工具（file_read/file_find/code_search/file_read_diff/code_comment/task_done）经 ReAct 循环驱动文件级子 Agent</div><div class="bullet">审查 Agent 只被授予 6 个受限工具：file_read（读文件）、file_find（找文件）、code_search（代码搜索）、file_read_diff（读被过滤文件的 diff）、code_comment（发表评论）、task_done（结束任务）</div><div class="bullet">工具集经 ReAct 循环调用：模型在思考（Reason）与行动（Act）间交替，每个行动对应一次工具调用，形成受限但有表达力的审查交互循环</div><div class="bullet">工具清单是从线上工具调用轨迹分析中取舍沉淀而来：统计真实审查中哪些工具被高频使用、哪些带来收益、哪些导致失败，据此收敛出最小够用集</div><div class="bullet">设计目标之一是防 token 雪球：工具越少、每次调用返回越可控，上下文不会因无界探索而指数膨胀</div><div class="bullet">code_comment 强制注入 path 参数：模型必须给出评论目标文件的真实路径，防止幻觉路径（模型编造不存在的文件路径）</div></div>
 

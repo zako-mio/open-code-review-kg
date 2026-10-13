@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="OpenTelemetry 遥测 · Open Code Review 项目解析知识图谱 ｜ console/OTLP 双导出（grpc/http），审查事件与指标埋点，OCR_ENABLE_TELEMETRY 环境变量开启。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="OpenTelemetry 遥测 · Open Code Review 项目解析知识图谱">
+<meta property="og:description" content="OpenTelemetry 遥测 · Open Code Review 项目解析知识图谱 ｜ console/OTLP 双导出（grpc/http），审查事件与指标埋点，OCR_ENABLE_TELEMETRY 环境变量开启。">
+<meta property="og:url" content="https://zako-mio.github.io/open-code-review-kg/02-node-pages/q-telemetry.html">
+<meta property="og:image" content="https://zako-mio.github.io/open-code-review-kg/og.png">
+<link rel="canonical" href="https://zako-mio.github.io/open-code-review-kg/02-node-pages/q-telemetry.html">
+<link rel="icon" type="image/svg+xml" href="/open-code-review-kg/favicon.svg">
+
 <title>OpenTelemetry 遥测 · Open Code Review 项目解析知识图谱</title>
 <style>
 
@@ -104,15 +113,21 @@ td.diffsrc{color:#cfe8dd;background:#0d1a14;}
 .assname a{font-family:Consolas,monospace;font-size:12.5px;font-weight:600;color:#9cc2ff;word-break:break-all;}
 .assdesc{font-size:12px;color:#b6c0d0;margin:4px 0;}
 .assmeta{font-size:10.5px;color:var(--dim);}
+
+:focus-visible{outline:0.125rem solid var(--accent,#4f8cff);outline-offset:0.125rem}
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--accent,#4f8cff);color:#fff;padding:0.5rem 1rem;z-index:1000;border-radius:0 0 0.375rem 0}
+.skip-link:focus{left:0}
+svg.brand{width:1.375rem;height:1.375rem;vertical-align:-0.1875rem;margin-right:0.5rem;color:var(--accent,#4f8cff)}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">跳到主要内容</a>
 <header>
   <div class="crumb"><a href="../index.html">Open Code Review 项目解析知识图谱</a> / <a href="../03-groups/index.html">分组目录</a> / <a href="../03-groups/G-F.html">工程保障</a> / <span>OpenTelemetry 遥测</span></div>
-  <h1>OpenTelemetry 遥测</h1>
+  <h1><svg class="brand" role="img" aria-label="Open Code Review 知识图谱标志" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="18" y1="18" x2="46" y2="32"/><line x1="18" y1="18" x2="22" y2="48"/><line x1="46" y1="32" x2="22" y2="48"/></g><circle cx="18" cy="18" r="7" fill="currentColor"/><circle cx="46" cy="32" r="5" fill="currentColor"/><circle cx="22" cy="48" r="5" fill="currentColor"/></svg>OpenTelemetry 遥测</h1>
   <div class="badges"><span class="badge src" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">工程保障</span><span class="badge st" style="color:#c9a8ef;background:#2b2040;border-color:#b48ae0">高级</span><span class="badge tp" style="color:#2fb98a;background:#122b22;border-color:#2fb98a">工程保障</span><span class="badge grp">G-F · 工程保障</span></div>
 </header>
-<main>
+<main id="main">
 <div class="navseq"><a class="nav-index" href="../04-interactive/index.html#G-F"><span class="dir">全局</span><span class="v">交互总览</span></a><a class="nav-index" href="../03-groups/G-F.html"><span class="dir">返回组</span><span class="v">工程保障</span></a><a class="nav-index" href="../04-interactive/index.html"><span class="dir">交互图</span><span class="v">打开总览</span></a></div>
 <div class="section"><h2>What · 是什么</h2><div class="brieflead">console/OTLP 双导出（grpc/http），审查事件与指标埋点，OCR_ENABLE_TELEMETRY 环境变量开启</div><div class="bullet">OCR 内置 OpenTelemetry 双管道（trace + metric），所有审查事件与指标均通过统一遥测框架埋点</div><div class="bullet">支持两种导出方式：console 输出（本地调试直观可见）与 OTLP 导出（gRPC / HTTP-protobuf / HTTP-JSON 三种 wire protocol）</div><div class="bullet">配置优先级为 defaults &lt; config.json 的 telemetry 段 &lt; 环境变量，环境变量拥有最终覆盖权</div><div class="bullet">核心环境变量：OCR_ENABLE_TELEMETRY=1 开启遥测、OTEL_SERVICE_NAME 服务名、OTEL_EXPORTER_OTLP_ENDPOINT OTLP 端点、OTEL_EXPORTER_OTLP_PROTOCOL 协议选择、OCR_CONTENT_LOGGING=1 输出审查内容日志</div><div class="bullet">埋点覆盖完整审查生命周期：任务开始/结束、每次模型调用、检索/过滤/压缩各阶段、token 消耗与重试事件</div><div class="bullet">metric 侧聚焦成本与性能：token 计数、耗时、重试次数等可观测指标，便于与成本分析（token 计费）联动</div></div>
 
